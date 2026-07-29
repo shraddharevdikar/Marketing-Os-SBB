@@ -1,5 +1,5 @@
 {
-  "name": "Sovereign Business Brain - MarketingOS",
+  "name": "Sovereign Business Brain",
   "description": "An interactive marketing intelligence dashboard and AI-powered strategy optimizer with dynamic channel management, real-time ROI calculators, and a custom marketing strategist agent.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

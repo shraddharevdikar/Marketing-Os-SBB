@@ -104,27 +104,60 @@ const initialAudits = [
   }
 ];
 
+const VALID_TABS = [
+  "user-management",
+  "marketplace",
+  "seo",
+  "campaign-commander",
+  "ads-tracker",
+  "campaign-generator",
+  "marketing-strategist",
+  "discovery",
+  "dashboard",
+  "analytics",
+  "execution",
+  "social",
+  "crm",
+  "advisor",
+  "research",
+  "troubleshoot"
+] as const;
+
+type ActiveTabType = typeof VALID_TABS[number];
+
+const getTabFromUrl = (): ActiveTabType => {
+  const pathname = window.location.pathname.replace(/^\/+/, "").split("/")[0];
+  if (VALID_TABS.includes(pathname as ActiveTabType)) {
+    return pathname as ActiveTabType;
+  }
+  const hash = window.location.hash.replace(/^#\/?/, "");
+  if (VALID_TABS.includes(hash as ActiveTabType)) {
+    return hash as ActiveTabType;
+  }
+  const searchParam = new URLSearchParams(window.location.search).get("page");
+  if (searchParam && VALID_TABS.includes(searchParam as ActiveTabType)) {
+    return searchParam as ActiveTabType;
+  }
+  return "campaign-commander";
+};
+
 export default function App() {
   const [currentRole, setCurrentRole] = useState("CEO");
   const [userName, setUserName] = useState("John CEO Smith");
-  const [activeTab, setActiveTab] = useState<
-    | "marketplace"
-    | "seo"
-    | "campaign-commander"
-    | "analytics"
-    | "execution"
-    | "marketing-strategist"
-    | "discovery"
-    | "dashboard"
-    | "social"
-    | "crm"
-    | "advisor"
-    | "research"
-    | "troubleshoot"
-    | "ads-tracker"
-    | "campaign-generator"
-    | "user-management"
-  >("campaign-commander");
+  const [activeTab, setActiveTabState] = useState<ActiveTabType>(getTabFromUrl);
+
+  const setActiveTab = (tab: ActiveTabType) => {
+    setActiveTabState(tab);
+    const targetPath = `/${tab}`;
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ tab }, "", targetPath);
+    }
+    const pageTitle = tab
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+    document.title = `Sovereign Business Brain - ${pageTitle}`;
+  };
 
   const [discoverySubTab, setDiscoverySubTab] = useState<"memory" | "discovery">("memory");
 
@@ -179,6 +212,29 @@ export default function App() {
   });
 
   useEffect(() => {
+    const handlePopState = () => {
+      const urlTab = getTabFromUrl();
+      setActiveTabState(urlTab);
+      const pageTitle = urlTab
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+      document.title = `Sovereign Business Brain - ${pageTitle}`;
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    // Sync initial route path
+    const initial = getTabFromUrl();
+    if (window.location.pathname === "/" || window.location.pathname === "") {
+      window.history.replaceState({ tab: initial }, "", `/${initial}`);
+    }
+    const pageTitle = initial
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+    document.title = `Sovereign Business Brain - ${pageTitle}`;
+
     fetch("/api/health")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error ${res.status}`);
@@ -194,6 +250,10 @@ export default function App() {
       .catch((err) => {
         console.warn("Core server health check notice:", err);
       });
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, []);
 
   const saveCampaigns = (updated: any[]) => {

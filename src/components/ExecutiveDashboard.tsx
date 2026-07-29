@@ -447,7 +447,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <div className="mt-3.5 space-y-2">
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-mono font-black text-slate-900">
-                ${currentMetrics.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                ${(Number(currentMetrics?.revenue) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </span>
               <span className="text-xs font-sans text-slate-500 font-bold uppercase">CAD</span>
             </div>
@@ -706,7 +706,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               <div className="flex justify-between text-xs font-sans text-slate-600">
                 <span className="font-semibold">Paid Channel Ad-spend</span>
                 <span className="font-mono text-slate-900 font-bold">
-                  ${currentMetrics.paidSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })} CAD
+                  ${(Number(currentMetrics?.paidSpend) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })} CAD
                 </span>
               </div>
               <div className="flex justify-between text-[10px] font-mono text-slate-400">

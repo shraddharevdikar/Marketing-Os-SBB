@@ -582,7 +582,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
                   <div className="flex justify-between items-start gap-2 border-b border-slate-200 pb-1.5">
                     <div>
                       <h5 className="text-xs font-bold text-slate-800 font-sans">{c.title}</h5>
-                      <span className="text-[9px] font-mono text-slate-400 block font-bold mt-0.5">Channel: {c.agent} • Spend: ${c.spend.toLocaleString()} CAD</span>
+                      <span className="text-[9px] font-mono text-slate-400 block font-bold mt-0.5">Channel: {c.agent} • Spend: ${(Number(c.spend) || 0).toLocaleString()} CAD</span>
                     </div>
                     <button
                       type="button"
