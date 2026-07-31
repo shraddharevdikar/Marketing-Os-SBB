@@ -801,13 +801,35 @@ app.post("/api/presales/simulate-call", async (req, res) => {
 // Route 13: AI Campaign Generator
 app.post("/api/gemini/generate-campaign", async (req, res) => {
   try {
-    const { productName, targetAudience, objective, tone, keyPoints, budget, platform, companyProfile } = req.body;
+    const { 
+      productName, 
+      targetAudience, 
+      objective, 
+      tone, 
+      keyPoints, 
+      budget, 
+      platform, 
+      companyProfile,
+      contentSource,
+      sourceDetails
+    } = req.body;
     const client = getAiClient();
-    const companyName = companyProfile?.companyName || "Sovereign Business";
+    const companyName = companyProfile?.companyName || "Sovereign Business Brain";
+    const selectedSource = contentSource || "Corporate Memory & Brand Vault";
 
     const fallbackCampaign = {
       title: `${productName || "Growth Suite"} - ${objective || "Conversions"} Blitz`,
-      overview: `Cross-channel AI generated campaign designed for ${targetAudience || "B2B Decision Makers"} to drive high-intent leads and maximum ROAS.`,
+      overview: `Cross-channel AI generated campaign designed for ${targetAudience || "B2B Decision Makers"} to drive high-intent leads and maximum ROAS. Content knowledge extracted from ${selectedSource}${sourceDetails ? ` (${sourceDetails})` : ""}.`,
+      contentSourceUsed: {
+        sourceName: selectedSource,
+        sourceDetails: sourceDetails || "Corporate Knowledge Vault & PIPEDA/CASL Compliance Rules",
+        extractedElements: [
+          "Core Product USPs & Value Propositions",
+          "Brand Voice & High-Conversion Tone Parameters",
+          "Audience ICP Demographics & Intent Signals",
+          "Compliance & Double-Opt-In Requirements"
+        ]
+      },
       googleAds: {
         headlines: [
           `Scale ${productName || "Growth"} Fast`,
@@ -815,20 +837,25 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
           `Get 3x ROAS with ${companyName}`
         ],
         descriptions: [
-          `Automate customer acquisition with real-time lead attribution & AI workflow execution.`,
+          `Automate customer acquisition with real-time lead attribution & AI workflow execution. Sourced from ${selectedSource}.`,
           `Book a live demo today and see how ${companyName} slashes CAC by 35%.`
         ]
       },
       metaAds: {
-        headline: `Transform Your B2B Growth Strategy with ${companyName}`,
-        primaryText: `Stop burning budget on unverified leads. ${companyName}'s ${productName || "Marketing OS"} combines AI pre-sales qualification, real-time UTM tracking, and double-opt-in CASL compliance into one powerful dashboard.\n\n👉 Click below to claim your personalized growth audit.`,
+        headline: `Transform Your Growth Strategy with ${companyName}`,
+        primaryText: `Stop burning budget on unverified leads. ${companyName}'s ${productName || "Marketing OS"} combines AI pre-sales qualification, real-time UTM tracking, and double-opt-in CASL compliance into one powerful dashboard.\n\n👉 Sourced via ${selectedSource}: Click below to claim your personalized growth audit.`,
         hook: `Are your ads driving clicks but no qualified demos?`,
         callToAction: "Learn More"
       },
       linkedInAds: {
-        headline: `Enterprise Growth OS for High-Growth Canadian & US Companies`,
-        bodyText: `Decision makers at top enterprises use ${companyName} to streamline campaign approvals, monitor multi-touch ROAS, and automate lead scoring. Elevate your marketing ROI today.`,
+        headline: `Enterprise Growth OS for Industry Leaders`,
+        bodyText: `Decision makers at top enterprises use ${companyName} to streamline campaign approvals, monitor multi-touch ROAS, and automate lead scoring. Elevate your marketing ROI today with content engineered from ${selectedSource}.`,
         callToAction: "Request Demo"
+      },
+      tikTokAds: {
+        headline: `Level Up Your Marketing Pipeline`,
+        scriptHook: `Stop throwing ad dollars into a black hole! Here's how ${companyName} gets 3.8x ROAS with automated lead scoring.`,
+        callToAction: "Watch Demo"
       },
       creativePrompts: [
         `Modern sleek dark UI dashboard with glowing emerald analytics graphs, professional 3D isometric workspace style.`,
@@ -859,23 +886,36 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
     try {
       const prompt = `
         You are an elite growth marketer and AI ad campaign strategist.
-        Generate a complete multi-platform campaign package for:
-        Product/Service Name: ${productName}
-        Target Audience: ${targetAudience}
-        Campaign Objective: ${objective}
-        Brand Tone: ${tone}
-        Key Selling Points: ${keyPoints}
-        Monthly Budget: $${budget}
-        Focus Platform: ${platform || "Cross-Platform"}
-        Company Context: ${JSON.stringify(companyProfile)}
+        Generate a complete multi-platform campaign package.
+        
+        CRITICAL KNOWLEDGE SOURCE CONTEXT:
+        The content and messaging MUST be extracted and synthesized directly from the following Knowledge Source:
+        - Source Name: ${selectedSource}
+        - Source Specific Details / URL / Asset: ${sourceDetails || "Corporate Knowledge Base & Company Profile"}
+        
+        Campaign Inputs:
+        - Product/Service Name: ${productName}
+        - Target Audience: ${targetAudience}
+        - Campaign Objective: ${objective}
+        - Brand Tone: ${tone}
+        - Key Selling Points: ${keyPoints}
+        - Monthly Budget: $${budget}
+        - Focus Platform: ${platform || "Cross-Platform"}
+        - Company Context: ${JSON.stringify(companyProfile)}
 
         Return strict JSON only (no markdown wrapping) matching this schema:
         {
           "title": string,
           "overview": string,
+          "contentSourceUsed": {
+            "sourceName": string,
+            "sourceDetails": string,
+            "extractedElements": string[]
+          },
           "googleAds": { "headlines": string[], "descriptions": string[] },
           "metaAds": { "headline": string, "primaryText": string, "hook": string, "callToAction": string },
           "linkedInAds": { "headline": string, "bodyText": string, "callToAction": string },
+          "tikTokAds": { "headline": string, "scriptHook": string, "callToAction": string },
           "creativePrompts": string[],
           "audienceTargeting": { "demographics": string, "interests": string[], "jobTitles": string[] },
           "budgetAllocation": [ { "platform": string, "percentage": number, "recommendedMonthlyAmount": number } ],
@@ -891,6 +931,13 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
 
       const parsed = JSON.parse(response.text || "{}");
       if (parsed.title && parsed.googleAds && parsed.metaAds) {
+        if (!parsed.contentSourceUsed) {
+          parsed.contentSourceUsed = {
+            sourceName: selectedSource,
+            sourceDetails: sourceDetails || "Extracted from knowledge base",
+            extractedElements: ["Brand Positioning", "Target Audience Demographics", "Core Product Features"]
+          };
+        }
         return res.json(parsed);
       }
     } catch (aiErr) {
