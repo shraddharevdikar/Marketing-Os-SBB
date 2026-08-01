@@ -683,7 +683,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   </p>
 
                   <div className="flex flex-wrap gap-1">
-                    {agent.capabilities.map((cap, idx) => (
+                    {(agent.capabilities || []).map((cap, idx) => (
                       <span key={idx} className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
                         {cap}
                       </span>

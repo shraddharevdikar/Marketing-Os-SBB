@@ -215,7 +215,7 @@ export const DiagnosticTriage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {questions.map((q, idx) => (
+                  {(questions || []).map((q, idx) => (
                     <div key={idx} className="space-y-1">
                       <label className="text-[11px] sm:text-xs font-semibold text-slate-700 font-sans block leading-normal">
                         {q}

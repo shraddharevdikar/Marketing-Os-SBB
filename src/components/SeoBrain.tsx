@@ -268,7 +268,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {report.keywordStrategy.map((kw, i) => (
+                  {(report.keywordStrategy || []).map((kw, i) => (
                     <tr key={i} className="hover:bg-slate-50/50 transition-all font-medium">
                       <td className="p-3 font-semibold text-slate-800">{kw.keyword}</td>
                       <td className="p-3 font-mono">{kw.monthlySearchVolumeCanada?.toLocaleString() || "1,200"}</td>

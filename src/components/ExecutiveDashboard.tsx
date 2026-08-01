@@ -939,7 +939,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               Active Growth Opportunities
             </span>
             <div className="space-y-4.5 max-h-[280px] overflow-y-auto pr-1">
-              {currentMetrics.growthOpportunities.map((op, i) => (
+              {(currentMetrics.growthOpportunities || []).map((op, i) => (
                 <div key={i} className="border-l-2 border-emerald-500 pl-3 space-y-1.5 py-0.5">
                   <div className="flex items-center justify-between text-[9px] font-mono font-bold uppercase">
                     <span className="text-emerald-600">{op.channel}</span>

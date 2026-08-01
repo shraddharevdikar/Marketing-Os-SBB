@@ -56,6 +56,26 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const companyName = (companyProfile as any)?.companyName || "John & Jan Real Estate";
   const [activeSubTab, setActiveSubTab] = useState<TabType>("composer");
 
+  // Toast Notification State
+  const [toastNotification, setToastNotification] = useState<{
+    message: string;
+    actionLabel?: string;
+    onAction?: () => void;
+    type?: "success" | "info";
+  } | null>(null);
+
+  const triggerToast = (
+    message: string, 
+    actionLabel?: string, 
+    onAction?: () => void,
+    type: "success" | "info" = "success"
+  ) => {
+    setToastNotification({ message, actionLabel, onAction, type });
+    setTimeout(() => {
+      setToastNotification(null);
+    }, 6000);
+  };
+
   // State: AI Content Composer
   const [composerPlatform, setComposerPlatform] = useState("Instagram Reels");
   const [tone, setTone] = useState("Luxury Real Estate");
@@ -165,7 +185,9 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       time: "12 mins ago",
       sentiment: "High Intent Lead",
       unread: true,
-      caslAlert: false
+      caslAlert: false,
+      routedToHubspot: false,
+      hubspotDealId: undefined
     },
     {
       id: "MSG-02",
@@ -175,7 +197,9 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       time: "45 mins ago",
       sentiment: "Inquiry",
       unread: true,
-      caslAlert: false
+      caslAlert: false,
+      routedToHubspot: false,
+      hubspotDealId: undefined
     },
     {
       id: "MSG-03",
@@ -185,12 +209,82 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       time: "2 hours ago",
       sentiment: "CASL Audit Alert",
       unread: false,
-      caslAlert: true
+      caslAlert: true,
+      routedToHubspot: false,
+      hubspotDealId: undefined
     }
   ]);
 
   const [selectedMsg, setSelectedMsg] = useState<any>(inboxMessages[0]);
   const [replyText, setReplyText] = useState("");
+
+  // HubSpot Lead Modal State
+  const [showHubspotModal, setShowHubspotModal] = useState(false);
+  const [hubspotForm, setHubspotForm] = useState({
+    contactName: "",
+    email: "",
+    company: "",
+    sourceChannel: "",
+    dealValue: "3,800,000",
+    leadScore: "94/100 (Hot Prospect)",
+    lifecycleStage: "Opportunity / High Intent",
+    notes: "",
+    caslConsent: true
+  });
+  const [isSyncingHubspot, setIsSyncingHubspot] = useState(false);
+
+  const handleOpenHubspotModal = (msg: any) => {
+    if (!msg) return;
+    const cleanName = msg.user.split("(")[0].trim();
+    const handleEmail = cleanName.toLowerCase().replace(/[^a-z0-9]/g, "") + "@sovereign-lead.com";
+    setHubspotForm({
+      contactName: msg.user,
+      email: handleEmail,
+      company: companyName,
+      sourceChannel: msg.platform,
+      dealValue: "3,800,000",
+      leadScore: msg.sentiment === "High Intent Lead" ? "94/100 (Hot Prospect)" : "82/100 (Qualified)",
+      lifecycleStage: "Opportunity / High Intent",
+      notes: msg.message,
+      caslConsent: true
+    });
+    setShowHubspotModal(true);
+  };
+
+  const handleConfirmSyncHubspot = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMsg) return;
+    setIsSyncingHubspot(true);
+
+    setTimeout(() => {
+      const dealId = `HS-${Math.floor(1000 + Math.random() * 9000)}`;
+      setInboxMessages((prev) =>
+        prev.map((m) =>
+          m.id === selectedMsg.id
+            ? { ...m, routedToHubspot: true, hubspotDealId: dealId }
+            : m
+        )
+      );
+      setSelectedMsg((prev: any) =>
+        prev ? { ...prev, routedToHubspot: true, hubspotDealId: dealId } : null
+      );
+      setIsSyncingHubspot(false);
+      setShowHubspotModal(false);
+
+      if (onLogAction) {
+        onLogAction(
+          "Routed Lead to HubSpot CRM",
+          `Created Contact & Deal ${dealId} for ${selectedMsg.user} in HubSpot Portal HS-PORTAL-7731.`
+        );
+      }
+
+      triggerToast(
+        `✓ Lead ${selectedMsg.user} routed to HubSpot CRM (Deal #${dealId})!`,
+        "View Reports",
+        () => setActiveSubTab("reports")
+      );
+    }, 750);
+  };
 
   // Handlers
   const handleGenerateAICopy = async () => {
@@ -232,16 +326,44 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       id: `SCH-${Date.now().toString().slice(-3)}`,
       title: postCopy.slice(0, 35) + "...",
       platform: composerPlatform,
-      date: "2026-07-26",
+      date: new Date().toISOString().split("T")[0],
       time: "10:30 AM EST",
       status: "Scheduled",
       hashtags
     };
-    setScheduledPosts([newEntry, ...scheduledPosts]);
+    setScheduledPosts((prev) => [newEntry, ...prev]);
     if (onLogAction) {
       onLogAction("Scheduled Social Campaign", `Scheduled ${composerPlatform} post for ${companyName}.`);
     }
-    alert(`Successfully scheduled post for ${composerPlatform}! Viewable under Editorial Planner tab.`);
+    triggerToast(
+      `Successfully scheduled dispatch for ${composerPlatform}!`,
+      "View in Editorial Planner",
+      () => setActiveSubTab("planner")
+    );
+  };
+
+  const handleSubmitToVault = () => {
+    const vaultEntry = {
+      id: `VLT-${Date.now().toString().slice(-3)}`,
+      title: postCopy.slice(0, 30) + "...",
+      platform: composerPlatform,
+      stage: 2,
+      stageLabel: "Stage 2: Peer Review Pending",
+      complianceScore: "100%",
+      caslVerified: true,
+      hash: `0x${Math.random().toString(16).substring(2, 10)}`,
+      createdDate: new Date().toISOString().split("T")[0],
+      securityLevel: "Executive Clearance"
+    };
+    setVaultItems((prev) => [vaultEntry, ...prev]);
+    if (onLogAction) {
+      onLogAction("Submitted to Vault", `Submitted asset ${vaultEntry.id} to Sovereign Vault for Peer Review.`);
+    }
+    triggerToast(
+      `Submitted campaign asset (${vaultEntry.id}) to Sovereign Vault for Peer Review!`,
+      "View in Sovereign Vault",
+      () => setActiveSubTab("vault")
+    );
   };
 
   const handleSendReply = () => {
@@ -255,7 +377,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       onLogAction("Replied to Social Message", `Sent response to ${selectedMsg.user} via ${selectedMsg.platform}.`);
     }
     setReplyText("");
-    alert(`Reply sent to ${selectedMsg.user} via ${selectedMsg.platform}!`);
+    triggerToast(`Reply sent to ${selectedMsg.user} via ${selectedMsg.platform}!`);
   };
 
   const handleCreateScheduledPost = (e: React.FormEvent) => {
@@ -549,7 +671,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                     <td className="py-3.5 px-4 font-mono text-[11px] text-slate-500">{item.hash}</td>
                     <td className="py-3.5 px-4 text-right space-x-2">
                       <button
-                        onClick={() => alert(`Viewing vaulted cryptographic record for ${item.id}`)}
+                        onClick={() => triggerToast(`Viewing vaulted cryptographic record for ${item.id}`, "Switch to Vault", () => setActiveSubTab("vault"))}
                         className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
                       >
                         Inspect Asset
@@ -664,7 +786,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 </div>
 
                 <div className="space-y-3 text-xs">
-                  {autopilotLogs.map((log) => (
+                  {(autopilotLogs || []).map((log) => (
                     <div key={log.id} className="p-3 bg-slate-900/90 rounded-lg border border-slate-800 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-indigo-300">{log.action}</span>
@@ -769,7 +891,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2">Visual Asset Template</label>
               <div className="grid grid-cols-3 gap-2">
-                {sampleImages.map((img, idx) => (
+                {(sampleImages || []).map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -786,6 +908,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
             <div className="pt-2 flex gap-3">
               <button
+                type="button"
                 onClick={handleSchedulePost}
                 className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2"
               >
@@ -794,22 +917,8 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
               </button>
 
               <button
-                onClick={() => {
-                  const vaultEntry = {
-                    id: `VLT-${Date.now().toString().slice(-3)}`,
-                    title: postCopy.slice(0, 30) + "...",
-                    platform: composerPlatform,
-                    stage: 2,
-                    stageLabel: "Stage 2: Peer Review Pending",
-                    complianceScore: "100%",
-                    caslVerified: true,
-                    hash: `0x${Math.random().toString(16).substring(2, 10)}`,
-                    createdDate: "2026-07-24",
-                    securityLevel: "Executive Clearance"
-                  };
-                  setVaultItems([vaultEntry, ...vaultItems]);
-                  alert("Submitted campaign asset to Sovereign Vault for Peer Review (Stage 2)!");
-                }}
+                type="button"
+                onClick={handleSubmitToVault}
                 className="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Vault className="w-4 h-4 text-emerald-600" />
@@ -906,7 +1015,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
             {/* Calendar Scheduled Posts Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {scheduledPosts.map((post) => (
+              {(scheduledPosts || []).map((post) => (
                 <div key={post.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 hover:border-sky-300 transition-colors">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded border border-sky-200">
@@ -927,7 +1036,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       {post.status}
                     </span>
                     <button
-                      onClick={() => alert(`Rescheduled ${post.id}`)}
+                      onClick={() => triggerToast(`Rescheduled ${post.id} to next optimal engagement window.`)}
                       className="text-slate-600 hover:text-slate-900 font-bold cursor-pointer"
                     >
                       Reschedule
@@ -1014,7 +1123,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             </div>
 
             <div className="space-y-2">
-              {inboxMessages.map((msg) => (
+              {(inboxMessages || []).map((msg) => (
                 <button
                   key={msg.id}
                   onClick={() => setSelectedMsg(msg)}
@@ -1102,11 +1211,20 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
                 <div className="flex items-center justify-between pt-2">
                   <button
-                    onClick={() => alert(`Lead routed to HubSpot CRM for ${selectedMsg.user}!`)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                    type="button"
+                    onClick={() => handleOpenHubspotModal(selectedMsg)}
+                    className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border ${
+                      selectedMsg?.routedToHubspot
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200"
+                    }`}
                   >
-                    <Users className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Route Lead to HubSpot CRM</span>
+                    <Users className={`w-3.5 h-3.5 ${selectedMsg?.routedToHubspot ? "text-emerald-600" : "text-indigo-600"}`} />
+                    <span>
+                      {selectedMsg?.routedToHubspot
+                        ? `✓ Synced to HubSpot (${selectedMsg.hubspotDealId})`
+                        : "Route Lead to HubSpot CRM"}
+                    </span>
                   </button>
 
                   <button
@@ -1169,7 +1287,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">HubSpot Cross-Platform ROI & Lead Funnel</h3>
               <button
-                onClick={() => alert("Downloading Sovereign Social Performance PDF Report...")}
+                onClick={() => triggerToast("Downloading Sovereign Social Performance PDF Report...")}
                 className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -1243,6 +1361,182 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* HubSpot Lead Routing Modal */}
+      {showHubspotModal && selectedMsg && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-2xl border border-slate-200 w-full max-w-lg p-6 space-y-5 shadow-2xl relative my-8 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl border border-orange-200">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Route Lead to HubSpot CRM</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">Portal ID: HS-PORTAL-7731 (Sovereign Inbound)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHubspotModal(false)}
+                className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmSyncHubspot} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Name</label>
+                  <input
+                    type="text"
+                    value={hubspotForm.contactName}
+                    onChange={(e) => setHubspotForm({ ...hubspotForm, contactName: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Email</label>
+                  <input
+                    type="email"
+                    value={hubspotForm.email}
+                    onChange={(e) => setHubspotForm({ ...hubspotForm, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Lead Source Channel</label>
+                  <input
+                    type="text"
+                    value={hubspotForm.sourceChannel}
+                    readOnly
+                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Est. CAD Deal Value ($)</label>
+                  <input
+                    type="text"
+                    value={hubspotForm.dealValue}
+                    onChange={(e) => setHubspotForm({ ...hubspotForm, dealValue: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Lifecycle Stage</label>
+                  <select
+                    value={hubspotForm.lifecycleStage}
+                    onChange={(e) => setHubspotForm({ ...hubspotForm, lifecycleStage: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    <option>Opportunity / High Intent</option>
+                    <option>MQL - Marketing Qualified</option>
+                    <option>SQL - Sales Qualified</option>
+                    <option>Evangelist / VIP</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">AI Lead Score</label>
+                  <input
+                    type="text"
+                    value={hubspotForm.leadScore}
+                    readOnly
+                    className="w-full px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Inbound Message & Notes</label>
+                <textarea
+                  rows={3}
+                  value={hubspotForm.notes}
+                  onChange={(e) => setHubspotForm({ ...hubspotForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 font-sans"
+                />
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between font-mono text-[11px] text-slate-600">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  CASL Double Opt-In Verification Linked
+                </span>
+                <span className="text-emerald-700 font-bold">Verified</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHubspotModal(false)}
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSyncingHubspot}
+                  className="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold shadow-md cursor-pointer flex items-center gap-2"
+                >
+                  {isSyncingHubspot ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Syncing to HubSpot...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-4 h-4" />
+                      <span>Confirm & Route to HubSpot</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Banner */}
+      {toastNotification && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-indigo-500/80 text-white p-4 rounded-xl shadow-2xl flex items-center justify-between gap-4 max-w-md animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="text-xs">
+              <p className="font-bold text-white">{toastNotification.message}</p>
+              {toastNotification.actionLabel && toastNotification.onAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toastNotification.onAction?.();
+                    setToastNotification(null);
+                  }}
+                  className="mt-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 underline cursor-pointer flex items-center gap-1"
+                >
+                  <span>{toastNotification.actionLabel}</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="text-slate-400 hover:text-white text-xs p-1 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

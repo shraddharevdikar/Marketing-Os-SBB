@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Bot, Globe, ShieldAlert, Sparkles, Sliders, LayoutDashboard, BarChart3, 
   Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle, ShieldCheck, Globe2,
-  Megaphone, Target
+  Megaphone, Target, LogOut, UserCheck, Lock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -25,6 +25,7 @@ import { DiagnosticTriage } from "./components/DiagnosticTriage";
 import { AdsTracker } from "./components/AdsTracker";
 import { AiCampaignGenerator } from "./components/AiCampaignGenerator";
 import { UserManagementPortal } from "./components/UserManagementPortal";
+import { LoginScreen, UserSession } from "./components/LoginScreen";
 
 const initialCampaigns = [
   {
@@ -142,9 +143,25 @@ const getTabFromUrl = (): ActiveTabType => {
 };
 
 export default function App() {
-  const [currentRole, setCurrentRole] = useState("CEO");
-  const [userName, setUserName] = useState("John CEO Smith");
+  const [userSession, setUserSession] = useState<UserSession | null>(() => {
+    try {
+      const saved = localStorage.getItem("sbb_auth_session");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [currentRole, setCurrentRole] = useState(() => userSession?.role || "CEO");
+  const [userName, setUserName] = useState(() => userSession?.name || "John CEO Smith");
   const [activeTab, setActiveTabState] = useState<ActiveTabType>(getTabFromUrl);
+
+  useEffect(() => {
+    if (userSession) {
+      setUserName(userSession.name);
+      setCurrentRole(userSession.role);
+    }
+  }, [userSession]);
 
   const setActiveTab = (tab: ActiveTabType) => {
     setActiveTabState(tab);
@@ -358,9 +375,33 @@ export default function App() {
 
   const t = (enText: string, frText: string) => config.language === "EN" ? enText : frText;
 
+  const handleLogout = () => {
+    logAction("User Signed Out", `Operator ${userName} (${currentRole}) signed out from sovereignbusinessbrain.com.`);
+    localStorage.removeItem("sbb_auth_session");
+    setUserSession(null);
+  };
+
+  // If user is not authenticated, display login & registration screen
+  if (!userSession) {
+    return (
+      <LoginScreen
+        companyName={companyProfile.companyName}
+        onLoginSuccess={(session) => {
+          setUserSession(session);
+          setUserName(session.name);
+          setCurrentRole(session.role);
+          if (session.companyName) {
+            setCompanyProfile((prev: any) => ({ ...prev, companyName: session.companyName! }));
+          }
+          logAction("User Authenticated", `Operator ${session.name} logged in as ${session.role} on sovereignbusinessbrain.com.`);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-slate-200">
-      {/* Compliance Top Banner */}
+      {/* Compliance & Auth Top Banner */}
       <div id="compliance-top-banner" className="bg-slate-900 text-white py-2 px-4 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-mono font-medium">
           <div className="flex items-center gap-1.5 text-slate-300">
@@ -371,14 +412,31 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-slate-400">Timezone: {config.timezone}</span>
+            <div className="flex items-center gap-2 bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
+              <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-slate-300">{userSession.name}</span>
+              <span className="text-amber-300 font-bold bg-amber-950/60 text-[10px] px-1.5 py-0.5 rounded border border-amber-800/50">
+                {userSession.role}
+              </span>
+            </div>
+
             <button
               id="lang-toggle-btn"
               onClick={toggleLanguage}
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-0.5 rounded border border-slate-700 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded border border-slate-700 transition-all cursor-pointer"
             >
               <Globe2 className="w-3.5 h-3.5 text-slate-400" />
               <span>{config.language === "EN" ? "FRANÇAIS" : "ENGLISH"}</span>
+            </button>
+
+            <button
+              id="logout-btn"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-white px-2.5 py-1 rounded border border-rose-800/60 transition-all cursor-pointer font-bold"
+              title="Sign Out from sovereignbusinessbrain.com"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
             </button>
           </div>
         </div>
