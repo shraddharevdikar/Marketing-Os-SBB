@@ -53,11 +53,11 @@ export const ALL_TABS: TabConfig[] = [
     id: "user-management",
     labelEN: "User Logins & Agent Factory",
     labelFR: "Utilisateurs & Usine d'Agents",
-    badgeText: "ADMIN & AGENTS",
+    badgeText: "ADMIN & CEO ONLY",
     badgeColor: "bg-emerald-600 text-white",
     iconName: "ShieldCheck",
-    description: "Manage system user logins, position role clearances, custom tab permissions, and AI Agent Factory.",
-    minRole: "Admin"
+    description: "Manage system user logins, position role clearances, custom tab permissions, and AI Agent Factory. Accessible exclusively to Admin and CEO roles.",
+    minRole: "CEO"
   },
   {
     id: "digital-card",
@@ -233,11 +233,11 @@ export const DEFAULT_ROLE_TABS: Record<string, ActiveTabType[]> = {
   ],
   "Vice President": [
     "dashboard", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
-    "ads-tracker", "crm", "marketplace", "seo", "user-management"
+    "ads-tracker", "crm", "marketplace", "seo"
   ],
   AGM: [
     "dashboard", "digital-card", "campaign-commander", "ads-tracker", "crm", "seo",
-    "campaign-generator", "marketing-strategist", "user-management"
+    "campaign-generator", "marketing-strategist"
   ],
   "Marketing Manager": [
     "digital-card", "campaign-commander", "campaign-generator", "seo", "ads-tracker",

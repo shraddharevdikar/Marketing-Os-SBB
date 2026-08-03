@@ -349,6 +349,31 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
     handleRunAgentTest(defaultPrompt);
   };
 
+  // Strict RBAC Access Guard: User Logins & Agent Factory is exclusively for Admin and CEO
+  if (currentRole !== "Admin" && currentRole !== "CEO") {
+    return (
+      <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm text-center max-w-xl mx-auto my-12 space-y-4 font-sans">
+        <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200 shadow-xs">
+          <ShieldAlert className="w-7 h-7" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            The <strong className="text-slate-900">User Logins & Agent Factory</strong> portal is reserved exclusively for <strong className="text-emerald-700">System Admin</strong> and <strong className="text-amber-700">CEO</strong> roles.
+          </p>
+          <p className="text-xs text-slate-500">
+            Your current security clearance level (<strong className="text-slate-800">{currentRole}</strong>) does not have authorization to view user accounts, create logins, or build custom AI agents.
+          </p>
+        </div>
+        <div className="pt-3 border-t border-slate-100 flex items-center justify-center gap-2">
+          <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 font-bold">
+            SECURITY POLICY: ADMIN & CEO CLEARANCE ONLY
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner Header */}
@@ -549,12 +574,21 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
               </span>
             </div>
 
+            {currentRole === "CEO" && (
+              <div className="mx-5 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-medium flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>CEO Security Governance Rule:</strong> System Admin login IDs and passwords are encrypted and strictly hidden from CEO view. Admin credentials can only be accessed by system Admin.
+                </span>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">User ID & Name</th>
-                    <th className="py-3 px-4">Email Credentials</th>
+                    <th className="py-3 px-4">Email Credentials / Login ID</th>
                     <th className="py-3 px-4">Assigned Role</th>
                     <th className="py-3 px-4">Department</th>
                     <th className="py-3 px-4">Status</th>
@@ -562,60 +596,87 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{user.id}</span>
-                          <span>{user.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-600">{user.email}</td>
-                      <td className="py-3 px-4 font-medium">
-                        <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                          user.role === "CEO" ? "bg-amber-100 text-amber-800 border border-amber-300" :
-                          user.role === "Vice President" ? "bg-indigo-100 text-indigo-800 border border-indigo-300" :
-                          user.role === "Marketing Manager" ? "bg-blue-100 text-blue-800 border border-blue-300" :
-                          "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                        }`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">{user.department}</td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
-                          user.status === "Active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${user.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
-                          {user.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                        <button
-                          onClick={() => handleOpenPermissionsModal(user)}
-                          className="px-2.5 py-1 text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded transition-colors cursor-pointer inline-flex items-center gap-1"
-                          title="Grant or restrict specific workspace tab access for this user"
-                        >
-                          <SlidersHorizontal className="w-3 h-3 text-indigo-600" />
-                          <span>Permissions</span>
-                        </button>
+                  {users.map((user) => {
+                    const isAdminUser = user.role === "Admin";
+                    const isCeoViewingAdmin = currentRole === "CEO" && isAdminUser;
 
-                        <button
-                          onClick={() => onSwitchUserSession(user.name, user.role, user.customAllowedTabs)}
-                          className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 hover:bg-emerald-600 text-white rounded transition-colors cursor-pointer"
-                        >
-                          Sign In As
-                        </button>
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-4 font-bold text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{user.id}</span>
+                            <span>{user.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-600">
+                          {isCeoViewingAdmin ? (
+                            <span className="inline-flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded text-[11px] font-mono font-bold select-none" title="CEO cannot view Admin login ID & password">
+                              <Lock className="w-3 h-3 text-amber-600" />
+                              ••••••••@sovereignbusiness.ca [ADMIN RESTRICTED]
+                            </span>
+                          ) : (
+                            user.email
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-medium">
+                          <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                            user.role === "Admin" ? "bg-rose-100 text-rose-800 border border-rose-300" :
+                            user.role === "CEO" ? "bg-amber-100 text-amber-800 border border-amber-300" :
+                            user.role === "Vice President" ? "bg-indigo-100 text-indigo-800 border border-indigo-300" :
+                            user.role === "Marketing Manager" ? "bg-blue-100 text-blue-800 border border-blue-300" :
+                            "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{user.department}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                            user.status === "Active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${user.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                            {user.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                          {isCeoViewingAdmin ? (
+                            <span
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-400 bg-slate-100 border border-slate-200 rounded inline-flex items-center gap-1 cursor-not-allowed select-none"
+                              title="CEO cannot view Admin credentials or modify Admin permissions"
+                            >
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              Admin Restricted
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleOpenPermissionsModal(user)}
+                                className="px-2.5 py-1 text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded transition-colors cursor-pointer inline-flex items-center gap-1"
+                                title="Grant or restrict specific workspace tab access for this user"
+                              >
+                                <SlidersHorizontal className="w-3 h-3 text-indigo-600" />
+                                <span>Permissions</span>
+                              </button>
 
-                        <button
-                          onClick={() => handleToggleUserStatus(user.id)}
-                          className="px-2.5 py-1 text-[11px] font-medium border border-slate-300 hover:bg-slate-100 text-slate-700 rounded transition-colors cursor-pointer"
-                        >
-                          {user.status === "Active" ? "Lock" : "Unlock"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                              <button
+                                onClick={() => onSwitchUserSession(user.name, user.role, user.customAllowedTabs)}
+                                className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 hover:bg-emerald-600 text-white rounded transition-colors cursor-pointer"
+                              >
+                                Sign In As
+                              </button>
+
+                              <button
+                                onClick={() => handleToggleUserStatus(user.id)}
+                                className="px-2.5 py-1 text-[11px] font-medium border border-slate-300 hover:bg-slate-100 text-slate-700 rounded transition-colors cursor-pointer"
+                              >
+                                {user.status === "Active" ? "Lock" : "Unlock"}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -902,7 +963,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
               </h4>
               <ul className="space-y-2 text-slate-600 font-sans leading-relaxed list-disc pl-4">
                 <li>
-                  <strong>Admin User Creation:</strong> Admins (CEOs or VPs) issue user accounts containing an email address, security role (`CEO`, `Vice President`, `Marketing Manager`, etc.), and initial temporary password.
+                  <strong>Admin User Creation & Clearance:</strong> The User Logins & Agent Factory portal is restricted strictly to Admin and CEO roles. Accounts contain an email address, security role (`CEO`, `Vice President`, `Marketing Manager`, etc.), and initial temporary password. System Admin login IDs and passwords are encrypted and strictly hidden from CEO view.
                 </li>
                 <li>
                   <strong>Role-Based Access Control (RBAC):</strong> Each security role grants specific approval authority thresholds (e.g. CEO = unlimited budget approval, Marketing Manager = up to $2,500 CAD approval).
