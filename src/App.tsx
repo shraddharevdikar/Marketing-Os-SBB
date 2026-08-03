@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { 
   Bot, Globe, ShieldAlert, Sparkles, Sliders, LayoutDashboard, BarChart3, 
   Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle, ShieldCheck, Globe2,
-  Megaphone, Target, LogOut, UserCheck, Lock
+  Megaphone, Target, LogOut, UserCheck, Lock, SlidersHorizontal, KeyRound, AlertTriangle, ArrowRight, CreditCard, Building2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ALL_TABS, getAllowedTabsForUser, ActiveTabType, VALID_TABS } from "./lib/rbac";
 
 // Import all workspace sub-modules
 import { RoleSelector } from "./components/RoleSelector";
@@ -25,7 +26,9 @@ import { DiagnosticTriage } from "./components/DiagnosticTriage";
 import { AdsTracker } from "./components/AdsTracker";
 import { AiCampaignGenerator } from "./components/AiCampaignGenerator";
 import { UserManagementPortal } from "./components/UserManagementPortal";
+import { DigitalBusinessCard } from "./components/DigitalBusinessCard";
 import { LoginScreen, UserSession } from "./components/LoginScreen";
+import { BusinessOnboardingModal, CompanyBusinessProfile } from "./components/BusinessOnboardingModal";
 
 const initialCampaigns = [
   {
@@ -105,27 +108,6 @@ const initialAudits = [
   }
 ];
 
-const VALID_TABS = [
-  "user-management",
-  "marketplace",
-  "seo",
-  "campaign-commander",
-  "ads-tracker",
-  "campaign-generator",
-  "marketing-strategist",
-  "discovery",
-  "dashboard",
-  "analytics",
-  "execution",
-  "social",
-  "crm",
-  "advisor",
-  "research",
-  "troubleshoot"
-] as const;
-
-type ActiveTabType = typeof VALID_TABS[number];
-
 const getTabFromUrl = (): ActiveTabType => {
   const pathname = window.location.pathname.replace(/^\/+/, "").split("/")[0];
   if (VALID_TABS.includes(pathname as ActiveTabType)) {
@@ -156,12 +138,27 @@ export default function App() {
   const [userName, setUserName] = useState(() => userSession?.name || "John CEO Smith");
   const [activeTab, setActiveTabState] = useState<ActiveTabType>(getTabFromUrl);
 
+  const allowedTabs = getAllowedTabsForUser(currentRole, userSession?.customAllowedTabs);
+
+  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
+
   useEffect(() => {
     if (userSession) {
       setUserName(userSession.name);
       setCurrentRole(userSession.role);
+      // Auto-trigger onboarding modal for first-time login if business requirements not completed
+      if (!localStorage.getItem("sbb_onboarding_completed")) {
+        setOnboardingModalOpen(true);
+      }
     }
   }, [userSession]);
+
+  // Guard activeTab against RBAC permissions
+  useEffect(() => {
+    if (allowedTabs.length > 0 && !allowedTabs.includes(activeTab)) {
+      setActiveTabState(allowedTabs[0] as ActiveTabType);
+    }
+  }, [currentRole, userSession, allowedTabs, activeTab]);
 
   const setActiveTab = (tab: ActiveTabType) => {
     setActiveTabState(tab);
@@ -393,6 +390,7 @@ export default function App() {
           if (session.companyName) {
             setCompanyProfile((prev: any) => ({ ...prev, companyName: session.companyName! }));
           }
+          setOnboardingModalOpen(true);
           logAction("User Authenticated", `Operator ${session.name} logged in as ${session.role} on sovereignbusinessbrain.com.`);
         }}
       />
@@ -411,7 +409,17 @@ export default function App() {
             <span>PIPEDA & CASL {t("ACTIVE AUDIT", "AUDIT ACTIF")}</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setOnboardingModalOpen(true)}
+              className="flex items-center gap-1.5 bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2.5 py-1 rounded border border-purple-700/60 transition-all cursor-pointer font-bold text-[11px]"
+              title="SBB Business Requirements & AI Knowledge Base Setup"
+            >
+              <Building2 className="w-3.5 h-3.5 text-purple-300" />
+              <span>Business Profile & Goals</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+
             <div className="flex items-center gap-2 bg-slate-800 px-2.5 py-1 rounded border border-slate-700">
               <UserCheck className="w-3.5 h-3.5 text-amber-400" />
               <span className="text-slate-300">{userSession.name}</span>
@@ -494,6 +502,7 @@ export default function App() {
         {/* Role Selector */}
         <RoleSelector
           currentRole={currentRole}
+          authenticatedRole={userSession?.role || currentRole}
           userName={userName}
           onChangeRole={(role) => {
             setCurrentRole(role);
@@ -508,193 +517,66 @@ export default function App() {
           onChangeName={(name) => setUserName(name)}
         />
 
-        {/* Workspace Navigation Tabs */}
-        <nav id="workspace-tabs" className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar pb-1 gap-1">
-          <button
-            id="tab-btn-user-management"
-            onClick={() => setActiveTab("user-management")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "user-management" ? "border-emerald-600 text-slate-900 font-bold bg-emerald-50/40" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>{t("User Logins & Agent Factory", "Utilisateurs & Usine d'Agents")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">ADMIN & AGENTS</span>
-          </button>
+        {/* Workspace Navigation Tabs - Filtered by RBAC Role Security Clearance */}
+        <div className="bg-slate-900 text-white text-[11px] px-4 py-2 rounded-t-xl flex items-center justify-between border-b border-slate-800 font-sans">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="font-bold text-slate-200">Position Clearance:</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+              currentRole === "Admin" ? "bg-purple-900/80 text-purple-200 border border-purple-500/50" :
+              currentRole === "CEO" ? "bg-amber-900/80 text-amber-200 border border-amber-500/50" :
+              currentRole === "Vice President" ? "bg-indigo-900/80 text-indigo-200 border border-indigo-500/50" :
+              currentRole === "AGM" ? "bg-sky-900/80 text-sky-200 border border-sky-500/50" :
+              currentRole === "Marketing Manager" ? "bg-blue-900/80 text-blue-200 border border-blue-500/50" :
+              currentRole === "Team Lead" ? "bg-teal-900/80 text-teal-200 border border-teal-500/50" :
+              "bg-slate-800 text-slate-300 border border-slate-700"
+            }`}>
+              {currentRole}
+            </span>
+            <span className="text-slate-400 font-mono text-[10px] hidden sm:inline">
+              ({allowedTabs.length} of {ALL_TABS.length} Workspace Modules Clearance)
+            </span>
+          </div>
 
-          <button
-            id="tab-btn-marketplace"
-            onClick={() => setActiveTab("marketplace")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "marketplace" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Bot className="w-4 h-4 text-emerald-600 animate-pulse" />
-            <span>{t("SBB AI Marketplace", "Marketplace d'IA SBB")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">AGENTS</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-slate-400 hidden md:inline">
+              Logins & Roles: <strong className="text-slate-200">{userName}</strong>
+            </span>
+            {currentRole === "Admin" && (
+              <span className="bg-emerald-500/20 text-emerald-300 text-[9px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
+                Full RBAC Override Active
+              </span>
+            )}
+          </div>
+        </div>
 
-          <button
-            id="tab-btn-seo"
-            onClick={() => setActiveTab("seo")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "seo" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Globe className="w-4 h-4 text-emerald-600" />
-            <span>{t("SBB SEO Brain", "Cerveau SEO SBB")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">SEO</span>
-          </button>
+        <nav id="workspace-tabs" className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar pb-1 gap-1 bg-white px-2">
+          {ALL_TABS.filter((tab) => allowedTabs.includes(tab.id)).map((tab) => {
+            const IconComponent = {
+              ShieldCheck, CreditCard, Bot, Globe, ShieldAlert, Target, Megaphone, Sparkles, Sliders, LayoutDashboard, BarChart3, Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle
+            }[tab.iconName] || Activity;
 
-          <button
-            id="tab-btn-campaign-commander"
-            onClick={() => setActiveTab("campaign-commander")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "campaign-commander" ? "border-indigo-600 text-slate-900 font-bold bg-indigo-50/30" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <ShieldAlert className="w-4 h-4 text-indigo-600" />
-            <span>{t("SBB Campaign Commander", "Commandant de Campagne SBB")}</span>
-            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">RBAC QUEUE</span>
-          </button>
+            const isSelected = activeTab === tab.id;
 
-          <button
-            id="tab-btn-ads-tracker"
-            onClick={() => setActiveTab("ads-tracker")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "ads-tracker" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Target className="w-4 h-4 text-emerald-600" />
-            <span>{t("Ads & UTM Tracker", "Suivi des Pubs & UTM")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">TRACKING</span>
-          </button>
-
-          <button
-            id="tab-btn-campaign-generator"
-            onClick={() => setActiveTab("campaign-generator")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "campaign-generator" ? "border-indigo-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Megaphone className="w-4 h-4 text-indigo-600 animate-pulse" />
-            <span>{t("AI Campaign Generator", "Générateur de Campagne IA")}</span>
-            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">AI GEN</span>
-          </button>
-
-          <button
-            id="tab-btn-marketing-strategist"
-            onClick={() => setActiveTab("marketing-strategist")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "marketing-strategist" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" />
-            <span>{t("SBB AI Marketing Strategist", "Stratège Marketing IA SBB")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">NEW</span>
-          </button>
-
-          <button
-            id="tab-btn-discovery"
-            onClick={() => setActiveTab("discovery")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "discovery" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Sliders className="w-4 h-4 text-emerald-600" />
-            <span>{t("SBB Intelligence & Memory Discovery", "Découverte d'Intelligence & Mémoire SBB")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">MEMORY</span>
-          </button>
-
-          <button
-            id="tab-btn-dashboard"
-            onClick={() => setActiveTab("dashboard")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "dashboard" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>{t("CEO Telemetry Hub", "Tableau de Bord CEO")}</span>
-          </button>
-
-          <button
-            id="tab-btn-analytics"
-            onClick={() => setActiveTab("analytics")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "analytics" ? "border-emerald-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 text-emerald-600" />
-            <span>{t("SBB Analytics Brain", "Cerveau d'Analyse SBB")}</span>
-            <span className="bg-emerald-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">ANALYTICS</span>
-          </button>
-
-          <button
-            id="tab-btn-execution"
-            onClick={() => setActiveTab("execution")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "execution" ? "border-indigo-600 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Activity className="w-4 h-4 text-indigo-600 animate-pulse" />
-            <span>{t("SBB Execution Brain", "Cerveau d'Exécution SBB")}</span>
-            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">EXEC</span>
-          </button>
-
-          <button
-            id="tab-btn-social"
-            onClick={() => setActiveTab("social")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "social" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>{t("AI Social Campaign", "Campagne Sociale AI")}</span>
-          </button>
-
-          <button
-            id="tab-btn-crm"
-            onClick={() => setActiveTab("crm")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "crm" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <Users2 className="w-4 h-4" />
-            <span>{t("CRM Lead Scoring Router", "Routage Leads CRM")}</span>
-          </button>
-
-          <button
-            id="tab-btn-advisor"
-            onClick={() => setActiveTab("advisor")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "advisor" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span>{t("CRM Intelligence Advisor", "Conseiller CRM LLM")}</span>
-          </button>
-
-          <button
-            id="tab-btn-research"
-            onClick={() => setActiveTab("research")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "research" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <ClipboardCheck className="w-4 h-4" />
-            <span>{t("Market Research LLM", "Recherche de Marché LLM")}</span>
-          </button>
-
-          <button
-            id="tab-btn-troubleshoot"
-            onClick={() => setActiveTab("troubleshoot")}
-            className={`flex items-center gap-2 py-3 px-4 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "troubleshoot" ? "border-slate-800 text-slate-900 font-bold" : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
-            }`}
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>{t("Operational Troubleshooter", "Outil de Diagnostic")}</span>
-          </button>
+            return (
+              <button
+                key={tab.id}
+                id={`tab-btn-${tab.id}`}
+                onClick={() => setActiveTab(tab.id as ActiveTabType)}
+                className={`flex items-center gap-2 py-3 px-3.5 text-xs font-sans font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                  isSelected
+                    ? "border-indigo-600 text-slate-900 font-bold bg-indigo-50/50"
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200"
+                }`}
+              >
+                <IconComponent className={`w-4 h-4 ${isSelected ? "text-indigo-600" : "text-slate-400"}`} />
+                <span>{t(tab.labelEN, tab.labelFR)}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono ${tab.badgeColor}`}>
+                  {tab.badgeText}
+                </span>
+              </button>
+            );
+          })}
         </nav>
 
         {/* Workspace Main Content View */}
@@ -705,11 +587,37 @@ export default function App() {
                 <UserManagementPortal
                   currentRole={currentRole}
                   currentUserName={userName}
-                  onSwitchUserSession={(name, role) => {
+                  onSwitchUserSession={(name, role, customTabs) => {
                     setUserName(name);
                     setCurrentRole(role);
+                    const newSession: UserSession = {
+                      id: "USR-" + Math.floor(100 + Math.random() * 900),
+                      name,
+                      email: name.toLowerCase().replace(/\s+/g, ".") + "@sovereignbusiness.ca",
+                      role: role as any,
+                      department: "Enterprise Operations",
+                      loggedInAt: "Just now",
+                      customAllowedTabs: customTabs
+                    };
+                    setUserSession(newSession);
+                    localStorage.setItem("sbb_auth_session", JSON.stringify(newSession));
+
+                    const newAllowed = getAllowedTabsForUser(role, customTabs);
+                    if (newAllowed.length > 0 && !newAllowed.includes(activeTab)) {
+                      setActiveTab(newAllowed[0] as ActiveTabType);
+                    }
                     logAction("User Session Changed", `Switched active user session to ${name} (${role}).`);
                   }}
+                  onLogAction={logAction}
+                />
+              </motion.div>
+            )}
+
+            {activeTab === "digital-card" && (
+              <motion.div key="digital-card-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                <DigitalBusinessCard
+                  currentRole={currentRole}
+                  currentUserName={userName}
                   onLogAction={logAction}
                 />
               </motion.div>
@@ -904,6 +812,19 @@ export default function App() {
           <p className="text-[10px] text-slate-600">CASL Consent registry: #CASL-EST-2026 | PIPEDA Data Residency standard certified.</p>
         </div>
       </footer>
+
+      {/* SBB First-Time Onboarding & Business Requirements Modal */}
+      <BusinessOnboardingModal
+        isOpen={onboardingModalOpen}
+        onClose={() => setOnboardingModalOpen(false)}
+        companyProfile={companyProfile}
+        onSaveProfile={(updatedProfile) => {
+          setCompanyProfile(updatedProfile);
+          localStorage.setItem("sbb_company_profile", JSON.stringify(updatedProfile));
+        }}
+        onLogAction={logAction}
+        isFirstTime={!localStorage.getItem("sbb_onboarding_completed")}
+      />
     </div>
   );
 }

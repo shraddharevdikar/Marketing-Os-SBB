@@ -9,10 +9,11 @@ export interface UserSession {
   id: string;
   name: string;
   email: string;
-  role: "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
+  role: "Admin" | "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
   department: string;
   companyName?: string;
   loggedInAt: string;
+  customAllowedTabs?: string[];
 }
 
 interface LoginScreenProps {
@@ -27,6 +28,13 @@ const PRESET_DEMO_USERS: Array<{
   role: UserSession["role"];
   department: string;
 }> = [
+  {
+    email: "admin@sovereignbusiness.ca",
+    pass: "admin123",
+    name: "Alex Admin System",
+    role: "Admin",
+    department: "System Administration & Security"
+  },
   {
     email: "john.smith@sovereignbusiness.ca",
     pass: "ceo123",
@@ -492,6 +500,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                       onChange={(e) => setRegRole(e.target.value as UserSession["role"])}
                       className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white cursor-pointer"
                     >
+                      <option value="Admin">System Administrator (Admin - Full App Access)</option>
                       <option value="CEO">Chief Executive Officer (CEO)</option>
                       <option value="Vice President">Vice President (VP)</option>
                       <option value="AGM">Assistant General Manager (AGM)</option>

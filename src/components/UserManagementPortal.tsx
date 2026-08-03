@@ -2,19 +2,21 @@ import React, { useState } from "react";
 import { 
   UserPlus, ShieldCheck, Key, Users, Bot, Cpu, Lock, CheckCircle2, 
   Trash2, Edit3, UserCheck, Sparkles, Terminal, ArrowRight, ShieldAlert, 
-  Settings, Zap, Layers, RefreshCw, Eye, EyeOff
+  Settings, Zap, Layers, RefreshCw, Eye, EyeOff, SlidersHorizontal, Save, X
 } from "lucide-react";
+import { ALL_TABS, DEFAULT_ROLE_TABS, getAllowedTabsForUser, ActiveTabType } from "../lib/rbac";
 
 export interface UserAccount {
   id: string;
   name: string;
   email: string;
-  role: "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
+  role: "Admin" | "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
   department: string;
   tempPassword?: string;
   status: "Active" | "Pending Password Reset" | "Locked";
   createdAt: string;
   createdBy: string;
+  customAllowedTabs?: string[];
 }
 
 export interface CustomAgent {
@@ -32,11 +34,21 @@ export interface CustomAgent {
 interface UserManagementPortalProps {
   currentRole: string;
   currentUserName: string;
-  onSwitchUserSession: (name: string, role: string) => void;
+  onSwitchUserSession: (name: string, role: string, customTabs?: string[]) => void;
   onLogAction: (actionType: string, details: string) => void;
 }
 
 const defaultUsers: UserAccount[] = [
+  {
+    id: "USR-000",
+    name: "Alex Admin System",
+    email: "admin@sovereignbusiness.ca",
+    role: "Admin",
+    department: "System Administration & Security",
+    status: "Active",
+    createdAt: "2026-01-01",
+    createdBy: "Root System"
+  },
   {
     id: "USR-001",
     name: "John CEO Smith",
@@ -76,6 +88,16 @@ const defaultUsers: UserAccount[] = [
     status: "Active",
     createdAt: "2026-04-12",
     createdBy: "Miriam Manager Mercer"
+  },
+  {
+    id: "USR-005",
+    name: "Edward Exec Jones",
+    email: "e.jones@sovereignbusiness.ca",
+    role: "Executive",
+    department: "Operations & Sales",
+    status: "Active",
+    createdAt: "2026-05-01",
+    createdBy: "Thomas TL Jenkins"
   }
 ];
 
@@ -130,6 +152,12 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
   const [newUserPassword, setNewUserPassword] = useState("Sovereign2026!");
   const [showPassword, setShowPassword] = useState(false);
   const [userCreatedNotice, setUserCreatedNotice] = useState<string | null>(null);
+
+  // Admin User RBAC Permission Modal State
+  const [editingPermissionsUser, setEditingPermissionsUser] = useState<UserAccount | null>(null);
+  const [editingUserRole, setEditingUserRole] = useState<UserAccount["role"]>("Executive");
+  const [selectedUserTabs, setSelectedUserTabs] = useState<string[]>([]);
+  const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
 
   // Agent Creation State
   const [agentName, setAgentName] = useState("");
@@ -195,6 +223,58 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
     });
     saveUsersToStorage(updated);
     onLogAction("TOGGLE_USER_STATUS", `Updated user ID ${id} account access status.`);
+  };
+
+  // Open Permission Modal
+  const handleOpenPermissionsModal = (user: UserAccount) => {
+    setEditingPermissionsUser(user);
+    setEditingUserRole(user.role);
+    setSelectedUserTabs(getAllowedTabsForUser(user.role, user.customAllowedTabs));
+  };
+
+  // Toggle tab in selection
+  const handleToggleTabPermission = (tabId: string) => {
+    if (selectedUserTabs.includes(tabId)) {
+      setSelectedUserTabs(selectedUserTabs.filter(t => t !== tabId));
+    } else {
+      setSelectedUserTabs([...selectedUserTabs, tabId]);
+    }
+  };
+
+  // Reset to default tabs for role
+  const handleResetToRoleDefaults = (role: UserAccount["role"]) => {
+    setEditingUserRole(role);
+    setSelectedUserTabs(DEFAULT_ROLE_TABS[role] || DEFAULT_ROLE_TABS.Executive);
+  };
+
+  // Save permissions
+  const handleSaveUserPermissions = () => {
+    if (!editingPermissionsUser) return;
+
+    const updated = users.map(u => {
+      if (u.id === editingPermissionsUser.id) {
+        return {
+          ...u,
+          role: editingUserRole,
+          customAllowedTabs: selectedUserTabs
+        };
+      }
+      return u;
+    });
+
+    saveUsersToStorage(updated);
+    onLogAction(
+      "ADMIN_UPDATE_USER_PERMISSIONS",
+      `Admin ${currentUserName} updated position role (${editingUserRole}) and granted ${selectedUserTabs.length} tab accesses for user '${editingPermissionsUser.name}'.`
+    );
+
+    if (currentUserName.toLowerCase().trim() === editingPermissionsUser.name.toLowerCase().trim()) {
+      onSwitchUserSession(editingPermissionsUser.name, editingUserRole, selectedUserTabs);
+    }
+
+    setPermissionNotice(`Access clearance & workspace tabs updated for ${editingPermissionsUser.name}!`);
+    setEditingPermissionsUser(null);
+    setTimeout(() => setPermissionNotice(null), 4000);
   };
 
   // Handle Creating custom AI Agent
@@ -510,13 +590,23 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                           {user.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right space-x-2">
+                      <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                         <button
-                          onClick={() => onSwitchUserSession(user.name, user.role)}
+                          onClick={() => handleOpenPermissionsModal(user)}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded transition-colors cursor-pointer inline-flex items-center gap-1"
+                          title="Grant or restrict specific workspace tab access for this user"
+                        >
+                          <SlidersHorizontal className="w-3 h-3 text-indigo-600" />
+                          <span>Permissions</span>
+                        </button>
+
+                        <button
+                          onClick={() => onSwitchUserSession(user.name, user.role, user.customAllowedTabs)}
                           className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 hover:bg-emerald-600 text-white rounded transition-colors cursor-pointer"
                         >
                           Sign In As
                         </button>
+
                         <button
                           onClick={() => handleToggleUserStatus(user.id)}
                           className="px-2.5 py-1 text-[11px] font-medium border border-slate-300 hover:bg-slate-100 text-slate-700 rounded transition-colors cursor-pointer"
@@ -840,6 +930,182 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   <strong>Tool Function Calling:</strong> Custom agents can execute tools like keyword research, CPL calculations, and email opt-in validation.
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN RBAC PERMISSION CONFIGURATION MODAL */}
+      {editingPermissionsUser && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full p-6 space-y-6 my-auto animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl">
+                  <SlidersHorizontal className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                      {editingPermissionsUser.id}
+                    </span>
+                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 font-mono">
+                      RBAC Tab Control
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+                    Configure Workspace Access Rights for {editingPermissionsUser.name}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setEditingPermissionsUser(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Position Role Selection */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-900">
+                    Assign Security Clearance / Position Level
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Determines budget sign-off authority and default position privileges.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={editingUserRole}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as UserAccount["role"];
+                      handleResetToRoleDefaults(nextRole);
+                    }}
+                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="Admin">Admin (Full System Control)</option>
+                    <option value="CEO">Chief Executive Officer (CEO)</option>
+                    <option value="Vice President">Vice President (VP)</option>
+                    <option value="AGM">Assistant General Manager (AGM)</option>
+                    <option value="Marketing Manager">Marketing Manager</option>
+                    <option value="Team Lead">Operational Team Lead</option>
+                    <option value="Executive">Marketing Executive</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => handleResetToRoleDefaults(editingUserRole)}
+                    className="px-2.5 py-1.5 text-[11px] font-semibold bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    Reset Defaults
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Workspace Tabs Permissions Grid */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase font-mono tracking-wider">
+                    Granted Workspace Navigation Tabs ({selectedUserTabs.length} of {ALL_TABS.length} Enabled)
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Check or uncheck individual workspace tools this user can access in sovereignbusinessbrain.com
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUserTabs(ALL_TABS.map(t => t.id))}
+                    className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    Select All Tabs
+                  </button>
+                  <span className="text-slate-300">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUserTabs([])}
+                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {ALL_TABS.map((tab) => {
+                  const isChecked = selectedUserTabs.includes(tab.id);
+                  return (
+                    <label
+                      key={tab.id}
+                      onClick={() => handleToggleTabPermission(tab.id)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
+                        isChecked
+                          ? "bg-indigo-50/70 border-indigo-300 shadow-xs"
+                          : "bg-slate-50/50 border-slate-200 opacity-60 hover:opacity-100 hover:bg-white"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // handled by parent container click
+                        className="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-xs font-bold ${isChecked ? "text-indigo-950" : "text-slate-700"}`}>
+                            {tab.labelEN}
+                          </span>
+                          <span className={`text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded ${tab.badgeColor}`}>
+                            {tab.badgeText}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-snug">
+                          {tab.description}
+                        </p>
+                        <span className="text-[9px] font-mono text-slate-400 block pt-0.5">
+                          Standard clearance: {tab.minRole}+
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+              <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Changes take effect immediately for {editingPermissionsUser.name}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPermissionsUser(null)}
+                  className="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveUserPermissions}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save User Permissions & Role</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
