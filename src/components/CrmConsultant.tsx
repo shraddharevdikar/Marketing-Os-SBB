@@ -98,7 +98,7 @@ export const CrmConsultant: React.FC<CrmConsultantProps> = ({ userName }) => {
             <textarea
               required
               rows={3}
-              placeholder="e.g. How do I build a CASL compliance opt-in form with automated double opt-in validation?"
+              placeholder="e.g. How do I build a privacy-compliant lead capture form with automated double opt-in validation?"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               className="w-full text-xs p-2.5 border border-slate-200 rounded-lg outline-none bg-slate-50 focus:bg-white focus:border-indigo-400 font-sans text-slate-700 placeholder-slate-400"

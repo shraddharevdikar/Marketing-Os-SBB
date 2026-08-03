@@ -73,7 +73,7 @@ const defaultComparisonPool: ComparisonCampaign[] = [
   },
   {
     id: "cmp-04",
-    name: "Organic CASL Compliance Hub Content",
+    name: "Organic Global Compliance Hub Content",
     platform: "SEO Content",
     budget: 3500,
     spend: 3100,
@@ -159,10 +159,10 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
 
   // Recharts Side-By-Side Grouped Data
   const groupedChartData = [
-    { metric: "Spend ($ CAD)", [campaignA.name]: campaignA.spend, [campaignB.name]: campaignB.spend },
+    { metric: "Spend ($)", [campaignA.name]: campaignA.spend, [campaignB.name]: campaignB.spend },
     { metric: "Leads Generated", [campaignA.name]: campaignA.leads, [campaignB.name]: campaignB.leads },
-    { metric: "Revenue ($ CAD)", [campaignA.name]: campaignA.revenue, [campaignB.name]: campaignB.revenue },
-    { metric: "CPL ($ CAD)", [campaignA.name]: campaignA.cpl, [campaignB.name]: campaignB.cpl },
+    { metric: "Revenue ($)", [campaignA.name]: campaignA.revenue, [campaignB.name]: campaignB.revenue },
+    { metric: "CPL ($)", [campaignA.name]: campaignA.cpl, [campaignB.name]: campaignB.cpl },
     { metric: "ROAS (Multiple)", [campaignA.name]: campaignA.roas * 1000, [campaignB.name]: campaignB.roas * 1000 }, // scaled for visibility
   ];
 
@@ -333,7 +333,7 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Actual Spend</p>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignA.spend.toLocaleString()} CAD</p>
+              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignA.spend.toLocaleString()}</p>
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
@@ -343,12 +343,12 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Cost Per Lead (CPL)</p>
-              <p className="text-base font-bold text-indigo-600 font-mono mt-0.5">${campaignA.cpl.toFixed(2)} CAD</p>
+              <p className="text-base font-bold text-indigo-600 font-mono mt-0.5">${campaignA.cpl.toFixed(2)}</p>
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Attributed Revenue</p>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignA.revenue.toLocaleString()} CAD</p>
+              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignA.revenue.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -368,7 +368,7 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Actual Spend</p>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignB.spend.toLocaleString()} CAD</p>
+              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignB.spend.toLocaleString()}</p>
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
@@ -378,12 +378,12 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Cost Per Lead (CPL)</p>
-              <p className="text-base font-bold text-purple-600 font-mono mt-0.5">${campaignB.cpl.toFixed(2)} CAD</p>
+              <p className="text-base font-bold text-purple-600 font-mono mt-0.5">${campaignB.cpl.toFixed(2)}</p>
             </div>
 
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
               <p className="text-slate-500 text-[10px] uppercase font-medium">Attributed Revenue</p>
-              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignB.revenue.toLocaleString()} CAD</p>
+              <p className="text-base font-bold text-slate-900 font-mono mt-0.5">${campaignB.revenue.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -515,7 +515,7 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
 
               {/* Cost Per Lead Row */}
               <tr className="hover:bg-slate-50 transition-colors">
-                <td className="py-3 px-4 font-bold text-slate-900">Cost Per Lead (CPL CAD)</td>
+                <td className="py-3 px-4 font-bold text-slate-900">Cost Per Lead (CPL $)</td>
                 <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">${campaignA.cpl.toFixed(2)}</td>
                 <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">${campaignB.cpl.toFixed(2)}</td>
                 <td className="py-3 px-4 text-right font-mono">${Math.abs(cplDelta.diff).toFixed(2)}</td>
@@ -553,7 +553,7 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
 
               {/* Revenue Row */}
               <tr className="hover:bg-slate-50 transition-colors">
-                <td className="py-3 px-4 font-bold text-slate-900">Attributed Revenue (CAD)</td>
+                <td className="py-3 px-4 font-bold text-slate-900">Attributed Revenue ($)</td>
                 <td className="py-3 px-4 text-right font-mono font-bold text-emerald-600">${campaignA.revenue.toLocaleString()}</td>
                 <td className="py-3 px-4 text-right font-mono font-bold text-indigo-600">${campaignB.revenue.toLocaleString()}</td>
                 <td className="py-3 px-4 text-right font-mono">${Math.abs(revenueDelta.diff).toLocaleString()}</td>
@@ -583,11 +583,11 @@ export const CampaignComparison: React.FC<CampaignComparisonProps> = ({ campaign
         <p className="text-xs text-slate-200 leading-relaxed">
           {roasDelta.winner === "A" ? (
             <>
-              <strong>{campaignA.name} ({campaignA.platform})</strong> outperforms <strong>{campaignB.name} ({campaignB.platform})</strong> with a <strong>{campaignA.roas}x ROAS</strong> vs {campaignB.roas}x. Campaign A captures leads at <strong>${campaignA.cpl.toFixed(2)} CPL</strong> (${Math.abs(campaignA.cpl - campaignB.cpl).toFixed(2)} CAD lower per lead than Campaign B).
+              <strong>{campaignA.name} ({campaignA.platform})</strong> outperforms <strong>{campaignB.name} ({campaignB.platform})</strong> with a <strong>{campaignA.roas}x ROAS</strong> vs {campaignB.roas}x. Campaign A captures leads at <strong>${campaignA.cpl.toFixed(2)} CPL</strong> (${Math.abs(campaignA.cpl - campaignB.cpl).toFixed(2)} lower per lead than Campaign B).
             </>
           ) : (
             <>
-              <strong>{campaignB.name} ({campaignB.platform})</strong> outperforms <strong>{campaignA.name} ({campaignA.platform})</strong> with a <strong>{campaignB.roas}x ROAS</strong> vs {campaignA.roas}x. Campaign B captures leads at <strong>${campaignB.cpl.toFixed(2)} CPL</strong> (${Math.abs(campaignA.cpl - campaignB.cpl).toFixed(2)} CAD lower per lead than Campaign A).
+              <strong>{campaignB.name} ({campaignB.platform})</strong> outperforms <strong>{campaignA.name} ({campaignA.platform})</strong> with a <strong>{campaignB.roas}x ROAS</strong> vs {campaignA.roas}x. Campaign B captures leads at <strong>${campaignB.cpl.toFixed(2)} CPL</strong> (${Math.abs(campaignA.cpl - campaignB.cpl).toFixed(2)} lower per lead than Campaign A).
             </>
           )}
         </p>

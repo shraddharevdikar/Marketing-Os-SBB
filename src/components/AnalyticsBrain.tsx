@@ -86,9 +86,9 @@ const fallbackLeads = [
 
 const fallbackCampaigns = [
   { id: "CMP-01", title: "Q3 Search Intent High-Value Leads", platform: "Google Ads", budget: 10000, spend: 8400, leads: 284, cpl: 29.58, revenue: 40320, roas: "4.8x", status: "Exceeding" },
-  { id: "CMP-02", title: "GTA Luxury Buyer Meta Video Reels", platform: "Meta Ads", budget: 7500, spend: 6200, leads: 195, cpl: 31.79, revenue: 19840, roas: "3.2x", status: "Exceeding" },
+  { id: "CMP-02", title: "Luxury Buyer Meta Video Reels", platform: "Meta Ads", budget: 7500, spend: 6200, leads: 195, cpl: 31.79, revenue: 19840, roas: "3.2x", status: "Exceeding" },
   { id: "CMP-03", title: "Enterprise B2B Decision Maker Sponsored", platform: "LinkedIn Ads", budget: 8500, spend: 7800, leads: 98, cpl: 79.59, revenue: 28080, roas: "3.6x", status: "On Track" },
-  { id: "CMP-04", title: "Organic CASL Compliance Hub Content", platform: "SEO Content", budget: 3500, spend: 3100, leads: 165, cpl: 18.79, revenue: 22400, roas: "7.2x", status: "Exceeding" },
+  { id: "CMP-04", title: "Organic Global Compliance Hub Content", platform: "SEO Content", budget: 3500, spend: 3100, leads: 165, cpl: 18.79, revenue: 22400, roas: "7.2x", status: "Exceeding" },
   { id: "CMP-05", title: "Drip Nurture Double Opt-in Workflow", platform: "Email Nurture", budget: 2000, spend: 1850, leads: 82, cpl: 22.56, revenue: 11100, roas: "6.0x", status: "On Track" }
 ];
 
@@ -146,11 +146,11 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
       "Campaign ID",
       "Campaign Title",
       "Platform Channel",
-      "Allocated Budget (CAD)",
-      "Actual Spend (CAD)",
+      "Allocated Budget ($)",
+      "Actual Spend ($)",
       "Leads Generated",
-      "Cost Per Lead (CAD)",
-      "Attributed Revenue (CAD)",
+      "Cost Per Lead ($)",
+      "Attributed Revenue ($)",
       "ROAS",
       "Status"
     ];
@@ -299,7 +299,7 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
               <DollarSign className="w-5 h-5 text-emerald-400" />
               <div>
                 <p className="text-[10px] font-mono text-emerald-300 uppercase">Attributed Pipeline Revenue</p>
-                <p className="text-lg font-bold font-mono text-white">${estimatedRevenue} CAD</p>
+                <p className="text-lg font-bold font-mono text-white">${estimatedRevenue}</p>
               </div>
             </div>
 
@@ -435,7 +435,7 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
 
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
               <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">Cost Per Acquisition (CPA)</span>
-              <p className="text-2xl font-black text-slate-900 font-mono">$41.50 CAD</p>
+              <p className="text-2xl font-black text-slate-900 font-mono">$41.50</p>
               <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5"><ArrowUpRight className="w-3 h-3" /> -8.5% CPA Reduction</p>
             </div>
 
@@ -498,7 +498,7 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
               <span className="font-mono font-bold text-emerald-600">20% Weight</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
-              <span>CASL-Compliant Email Nurture</span>
+              <span>Privacy-Compliant Email Nurture</span>
               <span className="font-mono font-bold text-emerald-600">20% Weight</span>
             </div>
           </div>

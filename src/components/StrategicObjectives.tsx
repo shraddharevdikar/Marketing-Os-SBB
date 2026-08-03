@@ -64,7 +64,7 @@ const defaultObjectives: StrategicObjective[] = [
     goalName: "Pipeline Contract Value Ingestion",
     currentValue: 42000,
     targetValue: 50000,
-    unit: "$ CAD",
+    unit: "$ USD",
     deadline: "Jul 31, 2026",
     status: "On Track",
     copilot: "Miriam Manager Mercer",
@@ -82,7 +82,7 @@ const defaultObjectives: StrategicObjective[] = [
     deadline: "Jul 31, 2026",
     status: "Behind",
     copilot: "Thomas TL Jenkins",
-    notes: "Indexing delayed for 3 GTA commercial real estate keywords. Submitting sitemap updates."
+    notes: "Indexing delayed for 3 commercial real estate keywords. Submitting sitemap updates."
   },
   {
     id: "OBJ-104",
@@ -96,7 +96,7 @@ const defaultObjectives: StrategicObjective[] = [
     deadline: "Jul 31, 2026",
     status: "At Risk",
     copilot: "Victoria VP Hastings",
-    notes: "CASL double opt-in sequence complete. Needs secondary subject line A/B test."
+    notes: "Privacy double opt-in sequence complete. Needs secondary subject line A/B test."
   }
 ];
 

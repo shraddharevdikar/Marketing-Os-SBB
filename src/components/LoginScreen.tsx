@@ -173,7 +173,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     }
 
     if (!agreedTerms) {
-      setRegError("You must accept PIPEDA & CASL compliance terms to proceed.");
+      setRegError("You must accept global privacy & compliance terms to proceed.");
       return;
     }
 
@@ -251,7 +251,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
               </span>
               <span className="bg-slate-800 text-slate-300 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded border border-slate-700 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                CASL & PIPEDA Verified
+                GDPR & PIPEDA Verified
               </span>
             </div>
             
@@ -549,7 +549,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                     className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   <span>
-                    I confirm that this account registration adheres to Canadian PIPEDA & CASL privacy mandates and corporate security authorization rules.
+                    I confirm that this account registration adheres to global privacy mandates (GDPR, CCPA, PIPEDA) and corporate security authorization rules.
                   </span>
                 </label>
               </div>

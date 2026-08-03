@@ -186,7 +186,7 @@ export const ALL_TABS: TabConfig[] = [
     badgeText: "CRM",
     badgeColor: "bg-blue-600 text-white",
     iconName: "Users2",
-    description: "Lead contact directory, intent scoring router, CASL compliance verification, and sales tasks.",
+    description: "Lead contact directory, intent scoring router, global privacy compliance verification, and sales tasks.",
     minRole: "Executive"
   },
   {

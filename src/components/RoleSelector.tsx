@@ -31,35 +31,35 @@ export const ci: Record<string, {
     icon: Crown,
     color: "border-yellow-500 text-yellow-600 bg-yellow-50",
     desc: "Full enterprise oversight. Can approve any budget, override lower-tier approvals, and view global performance logs.",
-    authority: "All Budgets (CAD ∞), Global Strategies, System Overrides"
+    authority: "All Budgets ($ Unlimited), Global Strategies, System Overrides"
   },
   "Vice President": {
     label: "Vice President of Marketing",
     icon: Shield,
     color: "border-indigo-500 text-indigo-600 bg-indigo-50",
     desc: "Manages cross-department activities. Approves enterprise campaigns and mid-tier regional strategies.",
-    authority: "Budgets up to CAD 15,000, Multi-Channel Campaigns"
+    authority: "Budgets up to $15,000, Multi-Channel Campaigns"
   },
   AGM: {
     label: "Assistant General Manager",
     icon: Users,
     color: "border-emerald-500 text-emerald-600 bg-emerald-50",
     desc: "Oversight of tactical department managers, campaign performance review, and departmental budget checks.",
-    authority: "Budgets up to CAD 5,000, SEO & CRM Adjustments"
+    authority: "Budgets up to $5,000, SEO & CRM Adjustments"
   },
   "Marketing Manager": {
     label: "Marketing Manager",
     icon: Briefcase,
     color: "border-blue-500 text-blue-600 bg-blue-50",
     desc: "Designs multi-channel campaign parameters, reviews AI outputs, assigns execution tasks, and guides creative teams.",
-    authority: "Budgets up to CAD 2,500, PPC & Ad copy review"
+    authority: "Budgets up to $2,500, PPC & Ad copy review"
   },
   "Team Lead": {
     label: "Operational Team Lead",
     icon: Star,
     color: "border-purple-500 text-purple-600 bg-purple-50",
     desc: "Direct oversight of task execution. Reviews copy, approves immediate social postings, and keyword setups.",
-    authority: "Budgets up to CAD 500, Daily Social Calendar"
+    authority: "Budgets up to $500, Daily Social Calendar"
   },
   Executive: {
     label: "Marketing Executive",

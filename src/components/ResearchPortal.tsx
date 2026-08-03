@@ -7,29 +7,29 @@ interface ResearchPortalProps {
 }
 
 export const Pb = [
-  "Ontario (ON)",
-  "Quebec (QC)",
-  "British Columbia (BC)",
-  "Alberta (AB)",
-  "Nova Scotia (NS)",
-  "Canada National"
+  "North America (US & CA)",
+  "Europe (UK & EU)",
+  "Asia Pacific (APAC)",
+  "Latin America (LATAM)",
+  "Middle East & Africa (MEA)",
+  "Worldwide / Global"
 ];
 
 export const h3 = [
   {
-    topic: "Canadian Insurance Market",
-    province: "Ontario (ON)",
-    desc: "High-growth fintech / insurtech demand analysis."
+    topic: "Global Enterprise AI & Tech Market",
+    province: "North America (US & CA)",
+    desc: "High-growth B2B SaaS, fintech & AI automation demand analysis."
   },
   {
-    topic: "Bilingual Organic Grocery Logistics",
-    province: "Quebec (QC)",
-    desc: "Niche local retail & food-delivery trends."
+    topic: "European Sustainable & Tech Innovation",
+    province: "Europe (UK & EU)",
+    desc: "Cross-border e-commerce, green energy, and GDPR-compliant tech trends."
   },
   {
-    topic: "CleanTech Heat Pump Adoption",
-    province: "British Columbia (BC)",
-    desc: "Environmental subsidy and carbon demand analysis."
+    topic: "APAC E-Commerce & Mobile Growth",
+    province: "Asia Pacific (APAC)",
+    desc: "Rapid digital expansion, super-app integration & mobile consumer analytics."
   }
 ];
 
@@ -179,7 +179,7 @@ export const ResearchPortal: React.FC<ResearchPortalProps> = ({
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-2 text-slate-400 text-xs">
                 <RefreshCw className="w-5 h-5 animate-spin text-indigo-500" />
-                <span>Harvesting local database signals and PIPEDA policies...</span>
+                <span>Harvesting global market signals and privacy policies...</span>
               </div>
             ) : response ? (
               <div className="text-xs text-slate-700 leading-relaxed font-sans font-medium bg-white p-4 rounded-lg border border-slate-150 shadow-inner whitespace-pre-line max-h-[380px] overflow-y-auto">
@@ -192,7 +192,7 @@ export const ResearchPortal: React.FC<ResearchPortalProps> = ({
             )}
           </div>
           <div className="text-[10px] font-mono text-slate-400 border-t border-slate-100 pt-2 flex items-center justify-between">
-            <span>Security Framework: PIPEDA & CASL compliant</span>
+            <span>Security Framework: GDPR, CCPA & PIPEDA compliant</span>
             <span>Focus Node: {province}</span>
           </div>
         </div>

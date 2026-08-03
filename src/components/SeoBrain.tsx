@@ -3,7 +3,7 @@ import { Search, Sparkles, RefreshCw, Compass, Shield, BookOpen, Layers, Award, 
 
 interface Keyword {
   keyword: string;
-  monthlySearchVolumeCanada: number;
+  monthlySearchVolumeCanada: number; // Volume field
   difficultyPercentage: number;
   intent: string;
 }
@@ -91,7 +91,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
         setAuditedUrl(null);
         localStorage.setItem(`sbb_seo_report_${companyProfile.companyName}`, JSON.stringify(data));
         if (forceRegenerate) {
-          onLogAction("SEO Brain Synchronized", `Regenerated Canadian SEO strategy & content clusters for ${companyProfile.companyName}`);
+          onLogAction("SEO Brain Synchronized", `Regenerated global SEO strategy & content clusters for ${companyProfile.companyName}`);
         }
       }
     } catch (err) {
@@ -128,7 +128,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
             <span>SBB SEO Content & Analytics Engine</span>
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Conduct keyword search density audits, discover competitors gaps, and build Health Canada/PIPEDA compliant localized cluster hierarchies.
+            Conduct keyword search density audits, discover competitor gaps, and build privacy-compliant global cluster hierarchies.
           </p>
         </div>
         <div className="flex gap-2 self-start sm:self-auto">
@@ -147,7 +147,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
         <input
           type="url"
           required
-          placeholder="e.g. https://my-competitor-site.ca/blog"
+          placeholder="e.g. https://my-competitor-site.com/blog"
           value={customUrl}
           onChange={(e) => setCustomUrl(e.target.value)}
           className="flex-1 text-xs px-3 py-1.5 border border-slate-200 rounded-lg outline-none bg-slate-50 focus:bg-white focus:border-slate-400 font-sans text-slate-700"
@@ -175,7 +175,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-slate-400 text-xs font-mono">
           <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-          <span>Analyzing Canadian search landscapes and indexing keyword vectors...</span>
+          <span>Analyzing global search landscapes and indexing keyword vectors...</span>
         </div>
       ) : report ? (
         <div className="space-y-4">
@@ -262,7 +262,7 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                   <tr>
                     <th className="p-3">Keyword Idea</th>
-                    <th className="p-3">Monthly Volume (Canada)</th>
+                    <th className="p-3">Monthly Volume (Global)</th>
                     <th className="p-3">Difficulty %</th>
                     <th className="p-3">Search Intent</th>
                   </tr>

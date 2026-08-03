@@ -123,12 +123,12 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
       "Campaign ID",
       "Campaign Name",
       "Platform",
-      "Allocated Budget (CAD)",
-      "Actual Spend (CAD)",
+      "Allocated Budget ($)",
+      "Actual Spend ($)",
       "Generated Leads",
       "Target Leads",
-      "Cost Per Lead (CAD CPL)",
-      "Attributed Revenue (CAD)",
+      "Cost Per Lead ($ CPL)",
+      "Attributed Revenue ($)",
       "ROAS",
       "Performance Status"
     ];
@@ -221,11 +221,11 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
                 {typeof entry.value === "number" && entry.name.toLowerCase().includes("lead")
                   ? entry.value.toLocaleString() + " leads"
                   : typeof entry.value === "number" && (entry.name.toLowerCase().includes("cpl") || entry.name.toLowerCase().includes("cost"))
-                  ? `$${entry.value.toFixed(2)} CAD`
+                  ? `$${entry.value.toFixed(2)}`
                   : typeof entry.value === "number" && entry.name.toLowerCase().includes("roas")
                   ? `${entry.value}x`
                   : typeof entry.value === "number"
-                  ? `$${entry.value.toLocaleString()} CAD`
+                  ? `$${entry.value.toLocaleString()}`
                   : entry.value}
               </span>
             </div>
@@ -262,7 +262,7 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
             <div>
               <p className="text-[10px] text-slate-400 font-mono uppercase">Net Profit Yield</p>
               <p className="text-lg font-black text-emerald-400 font-mono">
-                ${totalNetProfit > 0 ? `+${totalNetProfit.toLocaleString()}` : totalNetProfit.toLocaleString()} CAD
+                ${totalNetProfit > 0 ? `+${totalNetProfit.toLocaleString()}` : totalNetProfit.toLocaleString()}
               </p>
             </div>
             <div className="h-8 w-[1px] bg-slate-700" />
@@ -311,7 +311,7 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">Allocated vs Actual Spend</p>
-            <p className="text-xl font-bold text-slate-900 mt-1 font-mono">${totalSpend.toLocaleString()} CAD</p>
+            <p className="text-xl font-bold text-slate-900 mt-1 font-mono">${totalSpend.toLocaleString()}</p>
             <p className="text-slate-500 text-[11px] mt-0.5">
               Budget: <span className="font-semibold text-slate-700">${totalBudget.toLocaleString()}</span>
             </p>
@@ -338,9 +338,9 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">Average Cost Per Lead (CPL)</p>
-            <p className="text-xl font-bold text-indigo-600 mt-1 font-mono">${avgCpl} CAD</p>
+            <p className="text-xl font-bold text-indigo-600 mt-1 font-mono">${avgCpl}</p>
             <p className="text-slate-500 text-[11px] mt-0.5">
-              Target CPL Benchmark: <span className="font-semibold text-slate-700">$38.00 CAD</span>
+              Target CPL Benchmark: <span className="font-semibold text-slate-700">$38.00</span>
             </p>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
@@ -351,7 +351,7 @@ export const RoiPerformanceVisualizer: React.FC<RoiPerformanceVisualizerProps> =
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Attributed Revenue</p>
-            <p className="text-xl font-bold text-slate-900 mt-1 font-mono">${totalRevenue.toLocaleString()} CAD</p>
+            <p className="text-xl font-bold text-slate-900 mt-1 font-mono">${totalRevenue.toLocaleString()}</p>
             <p className="text-emerald-600 text-[11px] mt-0.5 font-bold">
               {overallRoas}x Return on Ad Spend
             </p>

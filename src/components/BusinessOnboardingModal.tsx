@@ -48,14 +48,14 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
 
   // Form states initialized with current profile
   const [companyName, setCompanyName] = useState(companyProfile?.companyName || "Sovereign Enterprise Solutions");
-  const [websiteUrl, setWebsiteUrl] = useState(companyProfile?.websiteUrl || "https://sovereignbusiness.ca");
+  const [websiteUrl, setWebsiteUrl] = useState(companyProfile?.websiteUrl || "https://sovereignbusiness.com");
   const [sector, setSector] = useState(companyProfile?.sector || "Real Estate & Enterprise Tech");
-  const [description, setDescription] = useState(companyProfile?.description || "Providing high-value enterprise consulting, automation, and luxury real estate advisory.");
-  const [headquarters, setHeadquarters] = useState(companyProfile?.headquarters || "Toronto, Ontario, Canada");
-  const [targetAudience, setTargetAudience] = useState(companyProfile?.targetAudience || "High-net-worth homebuyers, business owners, and corporate decision makers");
+  const [description, setDescription] = useState(companyProfile?.description || "Providing high-value enterprise consulting, automation, and global advisory.");
+  const [headquarters, setHeadquarters] = useState(companyProfile?.headquarters || "Global Headquarters");
+  const [targetAudience, setTargetAudience] = useState(companyProfile?.targetAudience || "High-net-worth homebuyers, business owners, and global decision makers");
   
   const [productsServices, setProductsServices] = useState(companyProfile?.productsServices || "Luxury Residential Listings, Autonomous AI Ad Management, Enterprise Consulting");
-  const [usp, setUsp] = useState(companyProfile?.usp || "Guaranteed 24/7 AI-driven lead response, high-ROAS UTM tracking, and PIPEDA-compliant workflows");
+  const [usp, setUsp] = useState(companyProfile?.usp || "Guaranteed 24/7 AI-driven lead response, high-ROAS UTM tracking, and multi-region privacy compliance");
   const [phone, setPhone] = useState(companyProfile?.phone || "+1 (437) 997-6707");
   const [adBudget, setAdBudget] = useState<number>(companyProfile?.adBudget || 5000);
   
@@ -115,7 +115,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
       websiteUrl,
       sector,
       description,
-      countriesServed: "Canada & North America",
+      countriesServed: "Global / Worldwide Markets",
       targetAudience,
       headquarters,
       teamSize,
@@ -128,7 +128,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
       brandVoice,
       instagram,
       linkedin,
-      complianceProfile: "PIPEDA, CASL, GDPR"
+      complianceProfile: "GDPR, CCPA, PIPEDA, ISO 27001"
     };
 
     onSaveProfile(updated);
@@ -270,7 +270,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                         type="text"
                         value={headquarters}
                         onChange={(e) => setHeadquarters(e.target.value)}
-                        placeholder="e.g. Toronto, Ontario, Canada"
+                        placeholder="e.g. New York, London, Tokyo, Toronto, Sydney"
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
@@ -366,7 +366,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Ad Budget ($ CAD) *</label>
+                      <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Ad Budget ($ USD / Local Currency) *</label>
                       <input
                         type="number"
                         min="500"

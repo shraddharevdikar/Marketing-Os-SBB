@@ -94,12 +94,12 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
   const [website, setWebsite] = useState(companyProfile.websiteUrl);
   const [sector, setSector] = useState(companyProfile.sector);
   const [description, setDescription] = useState(companyProfile.description);
-  const [headquarters, setHeadquarters] = useState(companyProfile.headquarters || "Toronto, ON");
-  const [countriesServed, setCountriesServed] = useState(companyProfile.countriesServed || "Canada");
-  const [teamSize, setTeamSize] = useState(companyProfile.teamSize || "5-10");
+  const [headquarters, setHeadquarters] = useState(companyProfile.headquarters || "Global Headquarters");
+  const [countriesServed, setCountriesServed] = useState(companyProfile.countriesServed || "Global / Worldwide");
+  const [teamSize, setTeamSize] = useState(companyProfile.teamSize || "5-50");
   const [softwareStack, setSoftwareStack] = useState(companyProfile.softwareStack);
   const [adBudget, setAdBudget] = useState(companyProfile.adBudget);
-  const [complianceProfile, setComplianceProfile] = useState(companyProfile.complianceProfile || "CASL & PIPEDA Standard");
+  const [complianceProfile, setComplianceProfile] = useState(companyProfile.complianceProfile || "Global Standards (GDPR, CCPA, PIPEDA)");
   const [goals, setGoals] = useState<string[]>(companyProfile.goals);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -176,26 +176,26 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
       // Fallback
       const fallbackReport: BusinessReport = {
         confidenceScore: 88,
-        executiveSummary: `Sovereign Business intelligence audit completed for ${name}. Based on local parameters in ${countriesServed}, our core trajectory focuses on securing highly certified local market authority.`,
+        executiveSummary: `Sovereign Business intelligence audit completed for ${name}. Based on global market parameters in ${countriesServed}, our core trajectory focuses on securing high-value international market authority.`,
         swotAnalysis: {
-          strengths: ["Strong regulatory CASL compliant data capture framework.", "Flexible operational agility with specialized software integration."],
-          weaknesses: ["Limited historical local attribution benchmarks.", "Ad budget constraints compared to national aggregates."],
-          opportunities: ["Localized geo-fenced search campaign expansions.", "Positioning brand as organic authority niche under SEO clusters."],
-          threats: ["Rising CPC search auction thresholds in major zones.", "Tightening provincial privacy audits under PIPEDA."]
+          strengths: ["Strong global privacy compliant data capture framework.", "Flexible operational agility with specialized software integration."],
+          weaknesses: ["Limited historical attribution benchmarks in newly entered regions.", "Ad budget constraints compared to multi-billion conglomerates."],
+          opportunities: ["Global search campaign expansions & hyper-targeted localized audiences.", "Positioning brand as organic authority under SEO clusters."],
+          threats: ["Rising CPC search auction thresholds in major competitive zones.", "Evolving cross-border privacy regulations."]
         },
         pestleAnalysis: {
-          political: "Local municipal small-business clean subsidies create potential growth runways.",
-          economic: "High interest rate trends require extremely careful CAC and LTV mapping.",
-          social: "Consumers demanding 100% data visibility, requiring audited double-opt-ins.",
-          technological: "Low-code AI CRM frameworks allow small teams to scale at enterprise rate.",
-          environmental: "Sustainability metrics becoming core buying consideration in local hubs.",
-          legal: "Double-opt-in CASL audits demand compliant registration forms with zero risk."
+          political: "International digital trade agreements create friction-free global expansion runways.",
+          economic: "Global market trends require extremely careful CAC and LTV mapping.",
+          social: "Consumers demanding 100% data transparency and consent controls.",
+          technological: "AI-driven marketing frameworks allow teams to scale at enterprise rate.",
+          environmental: "ESG & sustainability metrics becoming core buying considerations globally.",
+          legal: "Global privacy standards (GDPR, CCPA, PIPEDA) demand compliant data pipelines."
         },
-        icp: `### SBB Custom Ideal Customer Persona (ICP)\n- **Profile Roles**: Senior decision makers, operations leads, local luxury consumers.\n- **Demographics**: Major metropolitan hubs in Canada.\n- **Pain Points**: High compliance audit risk, CAC bleed, tracking leakage.`,
-        buyerJourney: `### 3-Stage Acquisition Journey\n1. **Discovery**: Found via hyper-targeted local SEO or CASL-compliant opt-in ads.\n2. **Evaluation**: Automated CRM tele-calling triggers build trust and verify service standards.\n3. **Commitment**: Interactive strategic brief delivery leads to close.`,
+        icp: `### SBB Custom Ideal Customer Persona (ICP)\n- **Profile Roles**: Senior decision makers, operations leads, global enterprise consumers.\n- **Demographics**: Major metropolitan hubs worldwide.\n- **Pain Points**: High regulatory audit risk, CAC bleed, tracking leakage.`,
+        buyerJourney: `### 3-Stage Acquisition Journey\n1. **Discovery**: Found via hyper-targeted SEO or privacy-compliant opt-in ads.\n2. **Evaluation**: Automated CRM tele-calling & email workflows build trust.\n3. **Commitment**: Interactive strategic brief delivery leads to close.`,
         growthRoadmap90Day: [
-          "**Month 1 (Setup)**: Audit compliance double-opt-ins and localize directories.",
-          "**Month 2 (SEO Content)**: Write 8 highly relevant blog pieces for core keywords.",
+          "**Month 1 (Setup)**: Audit global privacy opt-ins and optimize marketing funnel.",
+          "**Month 2 (SEO Content)**: Write 8 high-ranking articles for core global keywords.",
           "**Month 3 (Scoring Sync)**: Interlink CRM filters with custom scoring pipelines."
         ],
         missingInfo: [
@@ -305,7 +305,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-600 block">Ad Budget ($ CAD/mo)</label>
+              <label className="text-[11px] font-bold text-slate-600 block">Ad Budget ($ USD / Local Currency)</label>
               <input
                 type="number"
                 required
@@ -481,7 +481,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
               {reportTab === "pestle" && businessReport.pestleAnalysis && (
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide border-b border-slate-200 pb-1.5 flex items-center gap-1">
-                    <Layers className="w-4 h-4 text-indigo-500" /> PESTLE Analysis (CAD Context)
+                    <Layers className="w-4 h-4 text-indigo-500" /> PESTLE Analysis (Global Market Context)
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-[11px]">
                     {[
@@ -490,7 +490,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                       { title: "Social Demographics", text: businessReport.pestleAnalysis.social },
                       { title: "Technological Automation", text: businessReport.pestleAnalysis.technological },
                       { title: "Environmental/Carbon", text: businessReport.pestleAnalysis.environmental },
-                      { title: "Legal (CASL / PIPEDA)", text: businessReport.pestleAnalysis.legal }
+                      { title: "Legal (GDPR / CCPA / PIPEDA)", text: businessReport.pestleAnalysis.legal }
                     ].map((pst) => (
                       <div key={pst.title} className="bg-white p-3 border border-slate-200 rounded-lg shadow-sm">
                         <strong className="text-slate-700 block mb-0.5">{pst.title}</strong>

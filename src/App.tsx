@@ -179,16 +179,16 @@ export default function App() {
     const saved = localStorage.getItem("sbb_company_profile");
     return saved ? JSON.parse(saved) : {
       companyName: "John and Jan Real Estate Company",
-      websiteUrl: "https://johnandjanrealestate.ca",
-      sector: "Real Estate",
-      description: "Premier luxury residential properties across Toronto and the Greater Toronto Area.",
-      countriesServed: "Canada",
-      headquarters: "Toronto, Ontario",
-      teamSize: "1-10 employees",
-      softwareStack: "Salesforce & HubSpot",
-      goals: ["Increase Revenue", "Generate Leads", "Improve Customer Retention"],
-      adBudget: 3500,
-      complianceProfile: "PIPEDA, CASL"
+      websiteUrl: "https://johnandjanrealestate.com",
+      sector: "Real Estate & Enterprise Services",
+      description: "Premier luxury residential properties and high-value real estate services worldwide.",
+      countriesServed: "Global / Worldwide (US, EU, UK, APAC, LATAM)",
+      headquarters: "Global Headquarters",
+      teamSize: "1-50 employees",
+      softwareStack: "Salesforce, Meta Ads & HubSpot",
+      goals: ["Increase Revenue", "Generate High-Quality Leads", "Global Market Expansion"],
+      adBudget: 5000,
+      complianceProfile: "Global Standards (GDPR, CCPA, PIPEDA, ISO 27001)"
     };
   });
 
@@ -214,9 +214,9 @@ export default function App() {
 
   const [config, setConfig] = useState({
     language: "EN",
-    compliance: { casl: true, pipeda: true, gdpr: true },
-    timezone: "Eastern Standard Time (EST)",
-    currency: "CAD"
+    compliance: { casl: true, pipeda: true, gdpr: true, ccpa: true },
+    timezone: "Coordinated Universal Time (UTC)",
+    currency: "USD"
   });
 
   const [coreStatus, setCoreStatus] = useState({
@@ -320,7 +320,7 @@ export default function App() {
     } : c);
     saveCampaigns(updated);
     const target = campaigns.find((c) => c.id === id);
-    logAction("Approved Campaign Workflow", `Authorized '${target?.title}' ($${target?.budgetImpact} CAD). Remarks: "${comments || "None"}"`);
+    logAction("Approved Campaign Workflow", `Authorized '${target?.title}' ($${target?.budgetImpact}). Remarks: "${comments || "None"}"`);
   };
 
   const handleRejectCampaign = (id: string, comments?: string) => {
@@ -404,9 +404,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-mono font-medium">
           <div className="flex items-center gap-1.5 text-slate-300">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>{t("CANADIAN DATA RESIDENCY ENFORCED", "RÉSIDENCE DES DONNÉES CANADIENNES APPLIQUÉE")}</span>
+            <span>{t("GLOBAL DATA PRIVACY & COMPLIANCE ENFORCED", "CONFIDENTIALITÉ ET CONFORMITÉ MONDIALES APPLIQUÉES")}</span>
             <span className="text-slate-500">|</span>
-            <span>PIPEDA & CASL {t("ACTIVE AUDIT", "AUDIT ACTIF")}</span>
+            <span>GDPR, CCPA & PIPEDA {t("ACTIVE GUARDRAILS", "GARDE-FOUS ACTIFS")}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -808,8 +808,8 @@ export default function App() {
       {/* Main Footer */}
       <footer id="main-footer" className="bg-slate-900 border-t border-slate-800 text-slate-400 py-6 text-center mt-20 text-xs font-mono">
         <div className="max-w-7xl mx-auto px-4 space-y-2">
-          <p>Sovereign Business Brain MarketingOS © 2026. All corporate systems logged and secured.</p>
-          <p className="text-[10px] text-slate-600">CASL Consent registry: #CASL-EST-2026 | PIPEDA Data Residency standard certified.</p>
+          <p>Sovereign Business Brain MarketingOS © 2026. Global multi-region deployment & autonomous enterprise architecture.</p>
+          <p className="text-[10px] text-slate-600">Global Privacy Shield: GDPR, CCPA, PIPEDA & ISO 27001 Data Residency standard certified.</p>
         </div>
       </footer>
 

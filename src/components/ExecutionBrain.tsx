@@ -20,7 +20,7 @@ export const ExecutionBrain: React.FC<ExecutionBrainProps> = ({
   const [logs, setLogs] = useState<string[]>([
     "[09:15 AM] SBB Autonomous Execution Engine armed.",
     "[09:16 AM] Syncing live ad bids across Meta, Google & LinkedIn APIs.",
-    "[09:18 AM] CASL & PIPEDA compliance check passed for Ontario & GTA region."
+    "[09:18 AM] Global privacy & security compliance check passed for active campaigns."
   ]);
 
   const handleRunCycle = () => {
@@ -73,7 +73,7 @@ export const ExecutionBrain: React.FC<ExecutionBrainProps> = ({
               <div key={c.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-slate-900">{c.title}</p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Budget: ${c.budgetImpact} CAD • Agent: {c.agent}</p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">Budget: ${c.budgetImpact} • Agent: {c.agent}</p>
                 </div>
                 <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${
                   c.status === "Approved" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"

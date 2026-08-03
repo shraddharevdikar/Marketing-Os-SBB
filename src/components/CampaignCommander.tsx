@@ -63,7 +63,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
       accessToken: "ya29.a0ARdaC7mX8...",
       lastSynced: "Just now",
       latency: "14ms",
-      activeAccountName: "Sovereign Real Estate - Google CAD",
+      activeAccountName: "Sovereign Real Estate - Google Ads Global",
       iconBg: "bg-blue-600"
     },
     {
@@ -273,7 +273,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
             name: "SBB Paid Media Strategist",
             systemPrompt: "You are a senior Paid Media Strategist for luxury real estate and enterprise marketing. Synthesize a concise 2-sentence media strategy."
           },
-          prompt: `Optimize allocation for budget CAD $${totalMonthlyBudget} targeting '${targetAudience}' with goal '${campaignGoal}'.`
+          prompt: `Optimize allocation for budget $${totalMonthlyBudget} targeting '${targetAudience}' with goal '${campaignGoal}'.`
         })
       });
       if (res.ok) {
@@ -286,7 +286,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
       setStrategyNotes("AI Strategy Refined: Reallocated 45% budget to Google Search Core high-intent terms, capping Meta Ads retargeting at 25% for maximum ROAS.");
     } finally {
       setIsGeneratingStrategy(false);
-      onLogAction("Synthesized Media Strategy", `Updated paid media strategy for $${totalMonthlyBudget} CAD budget.`);
+      onLogAction("Synthesized Media Strategy", `Updated paid media strategy for $${totalMonthlyBudget} budget.`);
     }
   };
 
@@ -350,11 +350,11 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
     }, 600);
 
     setTimeout(() => {
-      setSynthesisProgress("Step 3/4: Calculating optimal CAD $ channel budget distribution & ROAS forecasts...");
+      setSynthesisProgress("Step 3/4: Calculating optimal channel budget distribution & ROAS forecasts...");
     }, 1200);
 
     setTimeout(() => {
-      setSynthesisProgress("Step 4/4: Validating PIPEDA & CASL compliance guardrails...");
+      setSynthesisProgress("Step 4/4: Validating privacy & compliance guardrails...");
     }, 1800);
 
     try {
@@ -615,7 +615,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    CASL & PIPEDA Encrypted
+                    Global Privacy & Encrypted
                   </span>
                 </div>
               </div>
@@ -788,7 +788,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                       Interactive AI Campaign Wizard
                     </span>
                     <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">
-                      CASL & PIPEDA Guardrails Active
+                      Global Compliance Guardrails Active
                     </span>
                   </div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -959,10 +959,10 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                           <label className="block text-[11px] font-bold text-slate-500 mb-1">Select Audience Preset Profile:</label>
                           <div className="flex flex-wrap gap-2">
                             {[
-                              "GTA High-Net-Worth Investors & Luxury Home Buyers (Age 30-65)",
-                              "Tech Founders, VPs & CMOs in Canada & US (B2B SaaS)",
+                              "Global High-Net-Worth Investors & Luxury Buyers (Age 30-65)",
+                              "Tech Founders, VPs & CMOs Worldwide (B2B SaaS)",
                               "Commercial Real Estate Brokers & Institutional Investors",
-                              "First-Time Home Buyers & Young Professionals in Ontario"
+                              "Global Enterprise Decision Makers & Operations Leads"
                             ].map((preset) => (
                               <button
                                 key={preset}
@@ -990,12 +990,12 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                             <DollarSign className="w-4 h-4 text-indigo-600" />
                             Question 3: What is your Monthly Ad Budget & Target Outcome Metric?
                           </h4>
-                          <p className="text-xs text-slate-500 mt-1">Set total budget in CAD $ and the key performance targets for AI budget allocation.</p>
+                          <p className="text-xs text-slate-500 mt-1">Set total budget in $ USD / Local currency and the key performance targets for AI budget allocation.</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                           <div className="space-y-1">
-                            <label className="font-bold text-slate-700">Total Monthly Budget (CAD $) *</label>
+                            <label className="font-bold text-slate-700">Total Monthly Budget ($ USD / Local Currency) *</label>
                             <div className="relative">
                               <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                               <input
@@ -1035,7 +1035,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                                     : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                                 }`}
                               >
-                                ${amt.toLocaleString()} CAD
+                                ${amt.toLocaleString()}
                               </button>
                             ))}
                           </div>
@@ -1099,7 +1099,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                             rows={3}
                             value={builderNotes}
                             onChange={(e) => setBuilderNotes(e.target.value)}
-                            placeholder="e.g. Drive VIP tour requests using Google Search intent and Meta Instagram Reels retargeting. CASL double opt-in required."
+                            placeholder="e.g. Drive high-intent lead requests using Google Search intent and Meta Instagram Reels retargeting. Privacy double opt-in enabled."
                             className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                           />
                         </div>
@@ -1107,7 +1107,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200 text-xs flex items-center justify-between text-emerald-900">
                           <span className="flex items-center gap-2 font-bold">
                             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                            Compliance Guardrails: PIPEDA & CASL Auto-Applied
+                            Compliance Guardrails: Global Privacy Auto-Applied
                           </span>
                           <span className="text-[10px] font-mono font-bold text-emerald-700">Verified Active</span>
                         </div>
@@ -1160,7 +1160,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-[11px] text-slate-600">
                             <div>• Title: <span className="text-slate-900 font-bold">{builderTitle}</span></div>
                             <div>• Goal: <span className="text-slate-900 font-bold">{builderGoal}</span></div>
-                            <div>• Budget: <span className="text-emerald-700 font-bold">${builderBudget.toLocaleString()} CAD</span></div>
+                            <div>• Budget: <span className="text-emerald-700 font-bold">${builderBudget.toLocaleString()}</span></div>
                             <div>• Target: <span className="text-slate-900 font-bold">{builderTargetMetrics}</span></div>
                             <div>• Agent: <span className="text-slate-900 font-bold">{builderAgent}</span></div>
                             <div>• Clearance: <span className="text-slate-900 font-bold">{builderApprovalRole}</span></div>
@@ -1245,7 +1245,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">Total Monthly Budget (CAD $)</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Total Monthly Budget ($ USD / Local Currency)</label>
                       <div className="relative">
                         <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                         <input
@@ -1373,7 +1373,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
 
                     <div className="text-right">
                       <span className="text-xs font-mono font-bold text-indigo-300">TOTAL BUDGET</span>
-                      <p className="text-xl font-black font-mono text-emerald-400">${(Number(generatedWholeCampaign?.totalBudget) || 0).toLocaleString()} CAD</p>
+                      <p className="text-xl font-black font-mono text-emerald-400">${(Number(generatedWholeCampaign?.totalBudget) || 0).toLocaleString()}</p>
                     </div>
                   </div>
 
@@ -1407,7 +1407,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                             {dist.percentage}%
                           </span>
                         </div>
-                        <p className="text-lg font-black font-mono text-slate-900">${(Number(dist?.amount) || 0).toLocaleString()} CAD</p>
+                        <p className="text-lg font-black font-mono text-slate-900">${(Number(dist?.amount) || 0).toLocaleString()}</p>
                         <div className="flex justify-between text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-200">
                           <span>Avg CPC: {dist.cpc}</span>
                           <span className="text-emerald-600 font-bold">{dist.estLeads}</span>
@@ -1588,7 +1588,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         <h4 className="text-xs font-bold text-slate-900">{camp.title}</h4>
                       </div>
                       <div className="text-[11px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        ${camp.budgetImpact} CAD
+                        ${camp.budgetImpact}
                       </div>
                     </div>
 
@@ -1658,7 +1658,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
               {/* Budget & Target Audience Parameters */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Total Monthly Budget (CAD $)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Total Monthly Budget ($ USD / Local Currency)</label>
                   <div className="relative">
                     <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
@@ -1724,7 +1724,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
               <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm space-y-1">
                 <span className="text-[10px] font-mono font-bold uppercase text-slate-500">PROJECTED LEADS</span>
                 <p className="text-xl font-black text-indigo-600 font-mono">384 Leads</p>
-                <span className="text-[10px] text-indigo-600 font-bold">Est CPA: $32.55 CAD</span>
+                <span className="text-[10px] text-indigo-600 font-bold">Est CPA: $32.55</span>
               </div>
 
               <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm space-y-1">
@@ -1755,7 +1755,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-black font-mono text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                            ${(Number(channelSpend) || 0).toLocaleString()} CAD ({channel.percent}%)
+                            ${(Number(channelSpend) || 0).toLocaleString()} ({channel.percent}%)
                           </span>
                         </div>
                       </div>
@@ -1810,7 +1810,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
               {/* Threshold Controls */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-bold">MAX CPC CAP (CAD)</span>
+                  <span className="text-[10px] font-mono uppercase text-slate-400 font-bold">MAX CPC CAP</span>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-black font-mono text-emerald-400">${maxCpcCap.toFixed(2)}</span>
                     <input
