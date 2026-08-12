@@ -3,6 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { sanitizeAndTokenizePII, rehydratePII } from "./src/lib/piiSanitizer";
 
 dotenv.config();
 
@@ -28,6 +29,49 @@ function getAiClient() {
     }
   }
   return aiClient;
+}
+
+/**
+ * Pre-flight Server-Side PII Gateway: Tokenizes raw PII (names, emails, phones, IDs)
+ * before prompt contents are transmitted to the Gemini API, then re-hydrates responses.
+ */
+async function generateContentWithPiiProtection(
+  client: GoogleGenAI,
+  options: {
+    model: string;
+    contents: any;
+    systemInstruction?: string;
+  }
+) {
+  let combinedTokenMap: Record<string, string> = {};
+  let totalPiiSanitized = 0;
+
+  if (Array.isArray(options.contents)) {
+    options.contents = options.contents.map((item) => {
+      if (item.parts && Array.isArray(item.parts)) {
+        const sanitizedParts = item.parts.map((part: any) => {
+          if (part && typeof part.text === "string") {
+            const { sanitizedText, tokenMap, piiCount } = sanitizeAndTokenizePII(part.text);
+            combinedTokenMap = { ...combinedTokenMap, ...tokenMap };
+            totalPiiSanitized += piiCount;
+            return { ...part, text: sanitizedText };
+          }
+          return part;
+        });
+        return { ...item, parts: sanitizedParts };
+      }
+      return item;
+    });
+  }
+
+  const response = await client.models.generateContent(options);
+
+  if (response.text) {
+    const rehydrated = rehydratePII(response.text, combinedTokenMap);
+    return { ...response, text: rehydrated, piiTokenizedCount: totalPiiSanitized };
+  }
+
+  return response;
 }
 
 // API Routes
@@ -92,7 +136,7 @@ app.post("/api/strategist/query", async (req, res) => {
       If the user asks an unrelated question, gracefully bring them back to the realm of marketing performance, brand scaling, conversion intelligence, and marketing operations.
     `;
 
-    const response = await client.models.generateContent({
+    const response = await generateContentWithPiiProtection(client, {
       model: "gemini-3.6-flash",
       contents: [
         { role: "user", parts: [{ text: `${systemInstruction}\n\nContext:\n${formattedContext}\n\nUser Question:\n${prompt}` }] }

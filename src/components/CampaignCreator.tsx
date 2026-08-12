@@ -935,9 +935,15 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   <Eye className="w-4 h-4" />
                   Live Social Media Mockup ({composerPlatform})
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/30">
-                  CASL Verified
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1" title="Meta Platform Policy: Visible AI Content Disclosure">
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    AI Info
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+                    CASL Verified
+                  </span>
+                </div>
               </div>
 
               {/* Realistic Social Card */}
@@ -952,7 +958,13 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                         {companyName}
                         <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400/20" />
                       </p>
-                      <p className="text-[10px] text-slate-400 font-mono">Sponsored • Toronto, ON</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-[10px] text-slate-400 font-mono">Sponsored • Toronto, ON</p>
+                        <span className="text-[9px] bg-purple-950/90 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded font-mono font-bold flex items-center gap-0.5" title="Visible AI Disclosure for Meta/Google Ad Compliance">
+                          <Sparkles className="w-2.5 h-2.5 text-purple-400" />
+                          AI-Generated
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <span className="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded">HubSpot Sync</span>
@@ -966,6 +978,11 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                     alt="Property Preview"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
+                  {/* Visible AI-Info Badge Overlay on Media */}
+                  <div className="absolute top-2.5 right-2.5 bg-slate-950/90 border border-purple-500/50 text-purple-200 text-[9px] font-mono font-bold px-2.5 py-1 rounded-full backdrop-blur-md flex items-center gap-1.5 shadow-lg">
+                    <Sparkles className="w-3 h-3 text-purple-400" />
+                    <span>AI Info • Synthetic Media</span>
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-3">
                     <span className="text-[10px] font-mono text-white bg-slate-900/80 px-2 py-1 rounded backdrop-blur">
                       📷 {sampleImages[selectedImageIndex].name}
@@ -984,8 +1001,11 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             </div>
 
             <div className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-[10px] font-mono text-slate-400 flex items-center justify-between">
-              <span>Opt-in Footnote: "Double opt-in timestamped via CASL Registry."</span>
-              <span className="text-emerald-400">100% Compliant</span>
+              <span>Meta & Platform Policy: "Visible AI Info disclosure badge & watermark active on media."</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                100% Compliant
+              </span>
             </div>
           </div>
         </div>

@@ -587,14 +587,22 @@ export default function App() {
                 <UserManagementPortal
                   currentRole={currentRole}
                   currentUserName={userName}
-                  onSwitchUserSession={(name, role, customTabs) => {
+                  companyProfile={companyProfile}
+                  onSwitchUserSession={(name, role, customTabs, companyName) => {
                     setUserName(name);
                     setCurrentRole(role);
+                    if (companyName) {
+                      setCompanyProfile((prev) => ({
+                        ...prev,
+                        companyName: companyName
+                      }));
+                    }
                     const newSession: UserSession = {
                       id: "USR-" + Math.floor(100 + Math.random() * 900),
                       name,
                       email: name.toLowerCase().replace(/\s+/g, ".") + "@sovereignbusiness.ca",
                       role: role as any,
+                      company: companyName || companyProfile.companyName,
                       department: "Enterprise Operations",
                       loggedInAt: "Just now",
                       customAllowedTabs: customTabs
@@ -606,7 +614,7 @@ export default function App() {
                     if (newAllowed.length > 0 && !newAllowed.includes(activeTab)) {
                       setActiveTab(newAllowed[0] as ActiveTabType);
                     }
-                    logAction("User Session Changed", `Switched active user session to ${name} (${role}).`);
+                    logAction("User Session Changed", `Switched active user session to ${name} (${role}) - Organization: ${companyName || companyProfile.companyName}.`);
                   }}
                   onLogAction={logAction}
                 />

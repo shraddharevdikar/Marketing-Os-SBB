@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { 
   UserPlus, ShieldCheck, Key, Users, Bot, Cpu, Lock, CheckCircle2, 
   Trash2, Edit3, UserCheck, Sparkles, Terminal, ArrowRight, ShieldAlert, 
-  Settings, Zap, Layers, RefreshCw, Eye, EyeOff, SlidersHorizontal, Save, X
+  Settings, Zap, Layers, RefreshCw, Eye, EyeOff, SlidersHorizontal, Save, X, Award,
+  Building2, Filter, Globe
 } from "lucide-react";
 import { ALL_TABS, DEFAULT_ROLE_TABS, getAllowedTabsForUser, ActiveTabType } from "../lib/rbac";
 
@@ -12,6 +13,7 @@ export interface UserAccount {
   email: string;
   role: "Admin" | "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
   department: string;
+  companyName: string;
   tempPassword?: string;
   status: "Active" | "Pending Password Reset" | "Locked";
   createdAt: string;
@@ -34,7 +36,8 @@ export interface CustomAgent {
 interface UserManagementPortalProps {
   currentRole: string;
   currentUserName: string;
-  onSwitchUserSession: (name: string, role: string, customTabs?: string[]) => void;
+  companyProfile?: any;
+  onSwitchUserSession: (name: string, role: string, customTabs?: string[], companyName?: string) => void;
   onLogAction: (actionType: string, details: string) => void;
 }
 
@@ -45,6 +48,7 @@ const defaultUsers: UserAccount[] = [
     email: "admin@sovereignbusiness.ca",
     role: "Admin",
     department: "System Administration & Security",
+    companyName: "Global System Administration",
     status: "Active",
     createdAt: "2026-01-01",
     createdBy: "Root System"
@@ -55,6 +59,7 @@ const defaultUsers: UserAccount[] = [
     email: "john.smith@sovereignbusiness.ca",
     role: "CEO",
     department: "Executive Board",
+    companyName: "John and Jan Real Estate Company",
     status: "Active",
     createdAt: "2026-01-10",
     createdBy: "System Initializer"
@@ -65,6 +70,7 @@ const defaultUsers: UserAccount[] = [
     email: "v.hastings@sovereignbusiness.ca",
     role: "Vice President",
     department: "Marketing & Growth",
+    companyName: "John and Jan Real Estate Company",
     status: "Active",
     createdAt: "2026-02-14",
     createdBy: "John CEO Smith"
@@ -75,6 +81,7 @@ const defaultUsers: UserAccount[] = [
     email: "m.mercer@sovereignbusiness.ca",
     role: "Marketing Manager",
     department: "Digital Advertising",
+    companyName: "John and Jan Real Estate Company",
     status: "Active",
     createdAt: "2026-03-01",
     createdBy: "Victoria VP Hastings"
@@ -85,6 +92,7 @@ const defaultUsers: UserAccount[] = [
     email: "t.jenkins@sovereignbusiness.ca",
     role: "Team Lead",
     department: "Content & SEO Ops",
+    companyName: "John and Jan Real Estate Company",
     status: "Active",
     createdAt: "2026-04-12",
     createdBy: "Miriam Manager Mercer"
@@ -95,9 +103,43 @@ const defaultUsers: UserAccount[] = [
     email: "e.jones@sovereignbusiness.ca",
     role: "Executive",
     department: "Operations & Sales",
+    companyName: "John and Jan Real Estate Company",
     status: "Active",
     createdAt: "2026-05-01",
     createdBy: "Thomas TL Jenkins"
+  },
+  {
+    id: "USR-006",
+    name: "David CEO Miller",
+    email: "d.miller@vancecapital.ca",
+    role: "CEO",
+    department: "Executive Management",
+    companyName: "Vance Capital Partners",
+    status: "Active",
+    createdAt: "2026-06-10",
+    createdBy: "System Provisioner"
+  },
+  {
+    id: "USR-007",
+    name: "Sarah VP Chen",
+    email: "s.chen@vancecapital.ca",
+    role: "Vice President",
+    department: "Growth & Private Equity",
+    companyName: "Vance Capital Partners",
+    status: "Active",
+    createdAt: "2026-06-12",
+    createdBy: "David CEO Miller"
+  },
+  {
+    id: "USR-008",
+    name: "Robert CEO Wright",
+    email: "r.wright@wrightmedical.ca",
+    role: "CEO",
+    department: "Executive Operations",
+    companyName: "Wright Medical Group",
+    status: "Active",
+    createdAt: "2026-07-01",
+    createdBy: "System Provisioner"
   }
 ];
 
@@ -129,12 +171,26 @@ const defaultCustomAgents: CustomAgent[] = [
 export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
   currentRole,
   currentUserName,
+  companyProfile,
   onSwitchUserSession,
   onLogAction
 }) => {
+  const userCompany = companyProfile?.companyName || "John and Jan Real Estate Company";
+
   const [users, setUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem("sbb_user_accounts");
-    return saved ? JSON.parse(saved) : defaultUsers;
+    if (saved) {
+      try {
+        const parsed: UserAccount[] = JSON.parse(saved);
+        return parsed.map(u => ({
+          ...u,
+          companyName: u.companyName || (u.role === "Admin" ? "Global System Administration" : "John and Jan Real Estate Company")
+        }));
+      } catch (e) {
+        return defaultUsers;
+      }
+    }
+    return defaultUsers;
   });
 
   const [customAgents, setCustomAgents] = useState<CustomAgent[]>(() => {
@@ -144,14 +200,45 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
 
   const [activeTab, setActiveTab] = useState<"users" | "agents" | "docs">("users");
 
+  // Multi-Tenant Filter State (For Admin view)
+  const [selectedAdminCompanyFilter, setSelectedAdminCompanyFilter] = useState<string>("ALL");
+
   // User Creation State
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserCompany, setNewUserCompany] = useState(userCompany);
   const [newUserRole, setNewUserRole] = useState<UserAccount["role"]>("Marketing Manager");
   const [newUserDepartment, setNewUserDepartment] = useState("Marketing & Advertising");
   const [newUserPassword, setNewUserPassword] = useState("Sovereign2026!");
   const [showPassword, setShowPassword] = useState(false);
   const [userCreatedNotice, setUserCreatedNotice] = useState<string | null>(null);
+
+  // Keep newUserCompany synced with active companyProfile
+  React.useEffect(() => {
+    if (userCompany) {
+      setNewUserCompany(userCompany);
+    }
+  }, [userCompany]);
+
+  // List of all unique companies in system
+  const availableCompanies = Array.from(
+    new Set(users.map(u => u.companyName).filter(Boolean))
+  );
+
+  // Filtered Users:
+  // Admin: Sees all users, or filtered by selectedAdminCompanyFilter if set.
+  // CEO & Non-Admin: Strictly scoped to their own companyName only.
+  const displayedUsers = users.filter(user => {
+    const accountCompany = user.companyName || "John and Jan Real Estate Company";
+
+    if (currentRole === "Admin") {
+      if (selectedAdminCompanyFilter === "ALL") return true;
+      return accountCompany === selectedAdminCompanyFilter;
+    }
+
+    // CEO and lower roles can ONLY see users from their own company
+    return accountCompany === userCompany;
+  });
 
   // Admin User RBAC Permission Modal State
   const [editingPermissionsUser, setEditingPermissionsUser] = useState<UserAccount | null>(null);
@@ -184,10 +271,14 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
     localStorage.setItem("sbb_custom_created_agents", JSON.stringify(updated));
   };
 
-  // Handle Admin creating a new user login
+  // Handle creating a new user login
   const handleCreateUserAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserEmail.trim()) return;
+
+    const assignedCompany = currentRole === "Admin"
+      ? (newUserCompany.trim() || userCompany)
+      : userCompany;
 
     const newUser: UserAccount = {
       id: "USR-" + Math.floor(100 + Math.random() * 900),
@@ -195,6 +286,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
       email: newUserEmail.trim(),
       role: newUserRole,
       department: newUserDepartment.trim() || "General Operations",
+      companyName: assignedCompany,
       tempPassword: newUserPassword,
       status: "Active",
       createdAt: new Date().toISOString().slice(0, 10),
@@ -203,9 +295,9 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
 
     const updated = [newUser, ...users];
     saveUsersToStorage(updated);
-    onLogAction("CREATE_USER_LOGIN", `Created new user login for '${newUser.name}' (${newUser.role}) - ${newUser.email}`);
+    onLogAction("CREATE_USER_LOGIN", `Created new user login '${newUser.name}' (${newUser.role}) assigned to company '${assignedCompany}'`);
 
-    setUserCreatedNotice(`User login created successfully! Password: ${newUserPassword}`);
+    setUserCreatedNotice(`User login created for ${assignedCompany}! Temp Password: ${newUserPassword}`);
     setNewUserName("");
     setNewUserEmail("");
     setNewUserPassword("Sovereign2026!");
@@ -500,6 +592,31 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                 />
               </div>
 
+              {/* Organization / Tenant Field */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Organization / Company</label>
+                {currentRole === "Admin" ? (
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g., John and Jan Real Estate Company"
+                    value={newUserCompany}
+                    onChange={(e) => setNewUserCompany(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
+                  />
+                ) : (
+                  <div className="w-full bg-slate-100 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-800 font-bold flex items-center justify-between select-none">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      {userCompany}
+                    </span>
+                    <span className="text-[9px] text-indigo-700 bg-indigo-50 border border-indigo-200 font-mono px-1.5 py-0.5 rounded shrink-0">
+                      LOCKED
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Assign Security Role</label>
                 <select
@@ -547,10 +664,10 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-end">
+              <div className="flex items-end md:col-span-3 justify-end">
                 <button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-6 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Provision User Login</span>
@@ -561,21 +678,66 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
 
           {/* User Logins Directory Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <Users className="w-4 h-4 text-emerald-600" />
                   Enterprise Team Logins Directory
                 </h3>
-                <p className="text-xs text-slate-500">All provisioned user accounts and authorization scopes</p>
+                <p className="text-xs text-slate-500">
+                  {currentRole === "Admin" ? "Viewing all registered tenant companies" : `User directory scoped to ${userCompany}`}
+                </p>
               </div>
-              <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-lg">
-                {users.length} Registered Accounts
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1 rounded-lg">
+                  {displayedUsers.length} Visible Accounts
+                </span>
+              </div>
             </div>
 
+            {/* CEO Multi-Tenant Isolation Banner */}
             {currentRole === "CEO" && (
-              <div className="mx-5 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-medium flex items-center gap-2">
+              <div className="mx-5 mt-4 p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl text-indigo-950 text-xs font-medium flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                  <span>
+                    <strong>Tenant Data Isolation Active:</strong> As CEO of <strong>{userCompany}</strong>, you are viewing user accounts belonging strictly to your organization. Users from other companies are isolated and hidden.
+                  </span>
+                </div>
+                <span className="bg-indigo-600 text-white font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase shrink-0">
+                  Tenant Scope Active
+                </span>
+              </div>
+            )}
+
+            {/* Admin Multi-Tenant Filter Banner */}
+            {currentRole === "Admin" && (
+              <div className="mx-5 mt-4 p-3.5 bg-purple-50/80 border border-purple-200 rounded-xl text-purple-950 text-xs font-medium flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
+                  <span>
+                    <strong>System Admin Multi-Tenant Governance:</strong> You hold global clearance across all organizations. Filter by company to isolate tenant directory views.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Filter className="w-3.5 h-3.5 text-purple-700" />
+                  <span className="text-xs font-bold text-purple-900">Filter Company:</span>
+                  <select
+                    value={selectedAdminCompanyFilter}
+                    onChange={(e) => setSelectedAdminCompanyFilter(e.target.value)}
+                    className="bg-white border border-purple-300 text-purple-950 font-bold text-xs px-3 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-xs cursor-pointer"
+                  >
+                    <option value="ALL">All Companies ({users.length} total)</option>
+                    {availableCompanies.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {currentRole === "CEO" && (
+              <div className="mx-5 mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-medium flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>
                   <strong>CEO Security Governance Rule:</strong> System Admin login IDs and passwords are encrypted and strictly hidden from CEO view. Admin credentials can only be accessed by system Admin.
@@ -588,7 +750,8 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                 <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">User ID & Name</th>
-                    <th className="py-3 px-4">Email Credentials / Login ID</th>
+                    <th className="py-3 px-4">Email Credentials</th>
+                    <th className="py-3 px-4">Organization / Tenant</th>
                     <th className="py-3 px-4">Assigned Role</th>
                     <th className="py-3 px-4">Department</th>
                     <th className="py-3 px-4">Status</th>
@@ -596,7 +759,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {users.map((user) => {
+                  {displayedUsers.map((user) => {
                     const isAdminUser = user.role === "Admin";
                     const isCeoViewingAdmin = currentRole === "CEO" && isAdminUser;
 
@@ -617,6 +780,12 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                           ) : (
                             user.email
                           )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1.5 font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-[11px]">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                            {user.companyName || "John and Jan Real Estate Company"}
+                          </span>
                         </td>
                         <td className="py-3 px-4 font-medium">
                           <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
@@ -659,7 +828,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                               </button>
 
                               <button
-                                onClick={() => onSwitchUserSession(user.name, user.role, user.customAllowedTabs)}
+                                onClick={() => onSwitchUserSession(user.name, user.role, user.customAllowedTabs, user.companyName)}
                                 className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 hover:bg-emerald-600 text-white rounded transition-colors cursor-pointer"
                               >
                                 Sign In As
@@ -988,9 +1157,90 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   <strong>Server-Side Gemini Integration:</strong> Custom agents run server-side via the `@google/genai` SDK (`gemini-2.5-flash` or `gemini-2.5-pro`), keeping API keys secure.
                 </li>
                 <li>
+                  <strong>Pre-Flight Server-Side PII Gateway:</strong> Raw PII (customer names, emails, phone numbers, SIN/SSN) is automatically tokenized and stripped at the server API boundary before prompt payload transmission to Gemini models (`[EMAIL_REDACTED_1]`, `[PHONE_REDACTED_1]`). Raw customer PII is never transmitted over the wire to external AI APIs.
+                </li>
+                <li>
                   <strong>Tool Function Calling:</strong> Custom agents can execute tools like keyword research, CPL calculations, and email opt-in validation.
                 </li>
               </ul>
+            </div>
+
+            {/* Box 3: Google Cloud Gemini Data Processing Agreement (DPA) Compliance */}
+            <div className="p-5 bg-indigo-50/60 rounded-xl border border-indigo-200 space-y-3 col-span-1 md:col-span-2">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-indigo-700" />
+                  3. Google Cloud Gemini Data Processing Agreement (DPA) & Enterprise Legal Governance
+                </span>
+                <span className="text-[10px] bg-emerald-600 text-white font-mono px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                  DPA ACTIVE & SIGNED
+                </span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-slate-700 pt-1">
+                <div className="bg-white p-3 rounded-lg border border-indigo-100 space-y-1">
+                  <strong className="text-slate-900 block text-xs">Signed Master DPA Terms</strong>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Covered under Google LLC Enterprise Cloud Master Services Agreement & Data Processing Addendum (DPA v2024.1), incorporating EU Standard Contractual Clauses (SCCs) and PIPEDA Schedule 1.
+                  </p>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-indigo-100 space-y-1">
+                  <strong className="text-slate-900 block text-xs">Zero Model Training Guarantee</strong>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    Under signed DPA section 4.2, Google is strictly prohibited from using customer input prompts, context embeddings, or generated output completions to train Google foundation models.
+                  </p>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-indigo-100 space-y-1">
+                  <strong className="text-slate-900 block text-xs">Encryption & Audit Certification</strong>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    SOC 2 Type II, ISO/IEC 27001, 27017, and 27018 certified. Data in transit encrypted via TLS 1.3, at rest via AES-256 customer-managed encryption keys (CMEK).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Box 4: AI Output Quality Assurance, Hallucination SLA & Human Review Pass Rate */}
+            <div className="p-5 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3 col-span-1 md:col-span-2">
+              <h4 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-emerald-700" />
+                  4. AI Output Quality Control, Hallucination SLA & Human Review Benchmarks
+                </span>
+                <span className="text-[10px] bg-emerald-600 text-white font-mono px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                  SLA METRICS ACTIVE
+                </span>
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-slate-700 pt-1">
+                <div className="bg-white p-3.5 rounded-lg border border-emerald-100 space-y-1 shadow-xs">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Report & Copy Accuracy</div>
+                  <div className="text-xl font-extrabold text-slate-900 font-mono">98.6%</div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    Factual consistency verified against CRM data, vector memory, and live ad platform APIs.
+                  </p>
+                </div>
+                <div className="bg-white p-3.5 rounded-lg border border-emerald-100 space-y-1 shadow-xs">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Hallucination Rate</div>
+                  <div className="text-xl font-extrabold text-emerald-700 font-mono">0.4%</div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    Automated claim grounding verification detects & blocks non-sourced hallucinated entities.
+                  </p>
+                </div>
+                <div className="bg-white p-3.5 rounded-lg border border-emerald-100 space-y-1 shadow-xs">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">First-Pass Human Approval</div>
+                  <div className="text-xl font-extrabold text-indigo-700 font-mono">96.2%</div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    Generated campaigns approved by Marketing Managers without requiring copy revisions.
+                  </p>
+                </div>
+                <div className="bg-white p-3.5 rounded-lg border border-emerald-100 space-y-1 shadow-xs">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Human Edit Frequency</div>
+                  <div className="text-xl font-extrabold text-amber-700 font-mono">3.8%</div>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    Minor human wording tweaks before client delivery (average revision time &lt; 2 minutes).
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

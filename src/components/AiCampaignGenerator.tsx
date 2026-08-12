@@ -1059,23 +1059,45 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
             {activeAdPreviewTab === "meta" && generatedCampaign.metaAds && (
               <div className="space-y-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Live Instagram / Facebook Feed Ad Preview</div>
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Live Instagram / Facebook Feed Ad Preview</span>
+                    <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-200 font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-purple-600" />
+                      Visible AI Disclosure
+                    </span>
+                  </div>
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm max-w-md space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
-                        S
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+                          S
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-slate-900">{companyProfile?.companyName || "Sovereign Systems"}</div>
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                            <span>Sponsored</span>
+                            <span>•</span>
+                            <span className="bg-purple-50 text-purple-700 font-mono text-[9px] px-1.5 py-0.2 rounded border border-purple-200 font-bold flex items-center gap-0.5" title="Visible Meta AI Disclosure Tag">
+                              <Sparkles className="w-2.5 h-2.5 text-purple-600" />
+                              AI-Generated
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-xs text-slate-900">{companyProfile?.companyName || "Sovereign Systems"}</div>
-                        <div className="text-[10px] text-slate-400">Sponsored</div>
-                      </div>
+                      <span className="text-[9px] bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded border border-slate-200 font-bold">
+                        AI Info Active
+                      </span>
                     </div>
 
                     <div className="text-xs text-slate-800 whitespace-pre-line leading-relaxed">
                       {generatedCampaign.metaAds.primaryText}
                     </div>
 
-                    <div className="bg-slate-900 h-48 rounded-lg flex flex-col items-center justify-center text-white p-4 text-center border border-slate-800">
+                    <div className="relative bg-slate-900 h-48 rounded-lg flex flex-col items-center justify-center text-white p-4 text-center border border-slate-800 overflow-hidden">
+                      <div className="absolute top-2 right-2 bg-slate-950/90 border border-purple-500/40 text-purple-200 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full backdrop-blur flex items-center gap-1 shadow-md">
+                        <Sparkles className="w-2.5 h-2.5 text-purple-400" />
+                        <span>AI Info • Media Disclosure</span>
+                      </div>
                       <Sparkles className="w-8 h-8 text-emerald-400 mb-2 animate-bounce" />
                       <span className="text-xs font-semibold text-slate-200">AI Visual Asset Placeholder</span>
                       <span className="text-[10px] text-slate-400 mt-1 max-w-xs">{generatedCampaign.creativePrompts?.[0]}</span>
@@ -1133,16 +1155,28 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
             {activeAdPreviewTab === "tiktok" && (
               <div className="space-y-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Live TikTok / Reel Short-Form Video Script Hook</div>
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span>Live TikTok / Reel Short-Form Video Script Hook</span>
+                    <span className="text-[10px] bg-purple-900/40 text-purple-300 border border-purple-500/30 font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      AI Script Disclosure
+                    </span>
+                  </div>
                   <div className="bg-slate-900 text-white p-5 rounded-xl border border-slate-800 shadow-sm max-w-md space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-rose-500 text-white font-black flex items-center justify-center text-xs">
-                        <Video className="w-4 h-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-rose-500 text-white font-black flex items-center justify-center text-xs">
+                          <Video className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-xs text-white">{companyProfile?.companyName || "Sovereign Systems"}</div>
+                          <div className="text-[10px] text-rose-400 font-mono font-bold">Short-Form Video Script</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-bold text-xs text-white">{companyProfile?.companyName || "Sovereign Systems"}</div>
-                        <div className="text-[10px] text-rose-400 font-mono font-bold">Short-Form Video Script</div>
-                      </div>
+                      <span className="text-[9px] bg-purple-950 text-purple-300 border border-purple-500/40 font-mono px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-purple-400" />
+                        AI Info
+                      </span>
                     </div>
 
                     <div className="p-3 bg-slate-800 rounded-lg border border-slate-700 space-y-2">
