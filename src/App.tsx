@@ -602,7 +602,7 @@ export default function App() {
                       name,
                       email: name.toLowerCase().replace(/\s+/g, ".") + "@sovereignbusiness.ca",
                       role: role as any,
-                      company: companyName || companyProfile.companyName,
+                      companyName: companyName || companyProfile.companyName,
                       department: "Enterprise Operations",
                       loggedInAt: "Just now",
                       customAllowedTabs: customTabs
