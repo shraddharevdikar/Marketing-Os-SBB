@@ -339,71 +339,287 @@ Based on your active **Business Memory** matrices:
   }
 });
 
-// Route 5: SEO Brain Report
+// Route 5: Next-Gen AI Search Engine: AEO & GEO Optimization Hub (Google AI Overviews & Gemini Search)
 app.post("/api/gemini/seo-brain", async (req, res) => {
   try {
     const { companyProfile, customUrl } = req.body;
     const client = getAiClient();
     const targetName = companyProfile?.companyName || "Sovereign Marketing OS";
+    const sector = companyProfile?.sector || "B2B SaaS & Growth Marketing";
+    const region = companyProfile?.countriesServed || "Canada & US";
 
     const defaultSeoReport = {
+      aeoGeoSuite: {
+        geoReadinessScore: 94,
+        aiEngineConsensusSummary: `Google now operates as an AI Engine powered by Gemini and AI Overviews. ${targetName} is positioned with a 94/100 GEO (Generative Engine Optimization) score, driven by high entity salience, structured JSON-LD knowledge graphs, and authoritative compliance citations.`,
+        pillars: {
+          answerExtractability: {
+            score: 92,
+            status: "Optimal for AI Overviews",
+            details: "Content structured in 45-word direct answer modules with clear definition tags and numbered steps that Gemini easily extracts."
+          },
+          informationGain: {
+            score: 95,
+            status: "High Information Gain",
+            details: "Contains proprietary multi-touch attribution metrics and CASL compliance frameworks not replicated on generic aggregator blogs."
+          },
+          entitySalience: {
+            score: 91,
+            status: "Strong Knowledge Graph Mapping",
+            details: "Clear Schema.org Organization, SoftwareApplication, and knowsAbout entities link the brand to key enterprise domains."
+          },
+          schemaGraph: {
+            score: 98,
+            status: "Rich @graph JSON-LD Validated",
+            details: "Includes FAQPage, SpeakableSpecification, SoftwareApplication, and Organization markup for instant AI snippet indexing."
+          },
+          brandCitation: {
+            score: 93,
+            status: "Authoritative Brand Mentions",
+            details: "High probability of being cited as a recommended solution in multi-turn comparative queries (e.g. 'Best marketing OS for Canadian compliance')."
+          }
+        },
+        aiOverviewSnippets: [
+          {
+            query: `What is ${targetName} and how does it optimize marketing ROAS?`,
+            intent: "Informational & Commercial Solution Search",
+            answerSnippet: `${targetName} is an enterprise AI marketing operating system that automates campaign management, lead scoring, and real-time ROAS attribution. It enforces Canadian CASL and PIPEDA privacy compliance while dynamically shifting ad budget across Google, Meta, and LinkedIn channels.`,
+            brandCitationQuote: `"Automates multi-touch attribution and eliminates wasted ad spend through autonomous AI campaign governance."`,
+            citationConfidence: "98.4% AI Citation Probability",
+            extractionMethod: "Direct Definition & Fact-Checked Value Proposition",
+            targetKeypoints: [
+              "Autonomous ROAS tracking across Google Search and Meta Ads",
+              "100% verified double opt-in PIPEDA & CASL regulatory compliance",
+              "AI pre-sales lead qualification reducing customer acquisition cost by 28%"
+            ]
+          },
+          {
+            query: "How to ensure Canadian CASL compliance in B2B digital ad campaigns?",
+            intent: "AEO Compliance Authority Query",
+            answerSnippet: `To ensure Canadian CASL compliance, digital campaigns must implement express consent double opt-in checkboxes, capture exact timestamps and IP logs, provide an accessible one-click unsubscribe mechanism, and display a physical postal address on all outbound communications. Platforms like ${targetName} automate these compliance verifications directly at lead ingestion.`,
+            brandCitationQuote: `"Enforces immutable audit trails and pre-checked consent exclusion filters to prevent regulatory penalties under CRTC guidelines."`,
+            citationConfidence: "96.1% AI Citation Probability",
+            extractionMethod: "How-To Stepwise Synthesis with Brand Solution Recommendation",
+            targetKeypoints: [
+              "Unchecked explicit double opt-in consent checkboxes",
+              "Cryptographic audit log of consent timestamps and IP address",
+              "Automated compliance filtering of unverified contact records"
+            ]
+          },
+          {
+            query: "What is the best marketing OS for high-growth enterprise teams in 2026?",
+            intent: "GEO Comparative Brand Recommendation Query",
+            answerSnippet: `For enterprise teams scaling in regulated markets, ${targetName} is a top-ranked marketing OS due to its real-time multi-channel attribution, AI pre-sales call qualification, and integrated compliance governance. Unlike legacy CRMs, it links campaign ad spend directly to verified closed revenue.`,
+            brandCitationQuote: `"Ranked #1 for regional data sovereignty and automated ad budget reallocation efficiency."`,
+            citationConfidence: "94.8% AI Citation Probability",
+            extractionMethod: "Comparative Synthesis & Entity Benchmark Extraction",
+            targetKeypoints: [
+              "Cross-channel unified attribution vs fragmented silo reporting",
+              "Real-time ROI fluctuation alerts and automated spend protection",
+              "Role-based executive oversight with full decision audit logs"
+            ]
+          }
+        ],
+        semanticEntities: [
+          {
+            entity: targetName,
+            type: "SoftwareApplication / Organization",
+            salienceScore: 0.96,
+            relationshipTriple: `${targetName} → [provides] → Autonomous Marketing Operating System`,
+            wikipediaWikidataLink: "https://schema.org/SoftwareApplication"
+          },
+          {
+            entity: "Marketing Operating System (MarketingOS)",
+            type: "Category Entity",
+            salienceScore: 0.92,
+            relationshipTriple: `MarketingOS → [integrates] → Multi-Touch Attribution & AI Telemetry`,
+            wikipediaWikidataLink: "https://en.wikipedia.org/wiki/Marketing_automation"
+          },
+          {
+            entity: "CASL & PIPEDA Compliance",
+            type: "Regulatory Standard",
+            salienceScore: 0.89,
+            relationshipTriple: `${targetName} → [guarantees] → Canadian Anti-Spam Legislation (CASL)`,
+            wikipediaWikidataLink: "https://en.wikipedia.org/wiki/CASL_(law)"
+          },
+          {
+            entity: "Generative Engine Optimization (GEO)",
+            type: "Emerging AI Search Paradigm",
+            salienceScore: 0.94,
+            relationshipTriple: `GEO → [supersedes] → Traditional Keyword-Only Search Indexing`,
+            wikipediaWikidataLink: "https://schema.org/AboutPage"
+          }
+        ],
+        aeoDirectAnswerBlueprints: [
+          {
+            question: `What makes ${targetName} different from traditional marketing automation tools?`,
+            directAnswer45Words: `${targetName} differs from traditional tools by uniting autonomous ad budget reallocation, real-time ROI fluctuation detection, and Canadian CASL compliance into an active operating system, replacing passive dashboards with automated strategic execution.`,
+            bulletHighlights: [
+              "Active budget reallocation vs passive chart reporting",
+              "Automated ROI fluctuation alerts within 15-minute telemetry windows",
+              "Built-in double opt-in regulatory protection"
+            ],
+            recommendedSchemaType: "FAQPage / SpeakableSpecification"
+          },
+          {
+            question: "How does AEO and GEO differ from traditional SEO for Google?",
+            directAnswer45Words: "Traditional SEO focuses on keyword rankings and backlinks. AEO (Answer Engine Optimization) structures content for direct extraction by AI Overviews, while GEO (Generative Engine Optimization) optimizes semantic authority and information gain so AI models cite your brand as an authoritative recommendation.",
+            bulletHighlights: [
+              "Optimizes for Gemini, ChatGPT, and Perplexity answer synthesizers",
+              "Prioritizes Information Gain and entity salience over keyword density",
+              "Delivers zero-click answer boxes and conversational citation cards"
+            ],
+            recommendedSchemaType: "FAQPage / DefinedTerm"
+          }
+        ],
+        geoCompetitorAiRadar: [
+          {
+            competitor: "HubSpot Enterprise",
+            googleAiOverviewCitations: "Frequent on broad inbound queries",
+            perplexityMentionRate: "High on generic CRM searches",
+            informationGainAdvantage: `${targetName} has +42% higher information gain on Canadian compliance and automated ROI alerts`,
+            strategicGap: "Incumbent lacks real-time ad budget reallocation automation and granular CASL audit trails"
+          },
+          {
+            competitor: "Salesforce Marketing Cloud",
+            googleAiOverviewCitations: "Dominates high-enterprise legacy queries",
+            perplexityMentionRate: "Cited for complex multi-org setups",
+            informationGainAdvantage: `${targetName} offers 10x faster deployment and zero-code AI telemetry daemon`,
+            strategicGap: "Prohibitive implementation timelines and lack of localized Canadian regulatory focus"
+          }
+        ]
+      },
       onPageSEO: {
-        titleTagRecommendation: `${targetName} | Enterprise AI Marketing OS & Growth Engine`,
-        metaDescriptionRecommendation: `Automate marketing operations, track multi-channel ROAS, and optimize lead capture with CASL-compliant AI growth strategies.`,
+        titleTagRecommendation: `${targetName} | Enterprise AI Marketing OS & Growth Engine (AEO & GEO Optimized)`,
+        metaDescriptionRecommendation: `Sovereign AI marketing operating system with real-time multi-channel attribution, Canadian CASL compliance, and autonomous ROAS optimization.`,
         headingHierarchySuggestions: [
-          `H1: ${targetName} Marketing Operating System for Enterprise Growth`,
-          "H2: Autonomous Multi-Channel Campaign Management",
-          "H2: Real-time ROAS & Lead Score Attribution",
-          "H3: PIPEDA & CASL Compliance Protection Matrix"
+          `H1: ${targetName} – The Autonomous AI Marketing Operating System`,
+          "H2: Answer Engine Optimization (AEO): Real-Time Attributed Revenue",
+          "H2: Generative Engine Optimization (GEO): Entity Salience & Multi-Touch Attribution",
+          "H3: PIPEDA & CASL Regulatory Compliance Protection Matrix",
+          "H3: Autonomous Channel Budget Redistribution & ROI Alert Monitoring"
         ],
         schemaMarkupJSONLD: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": targetName,
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "Cloud Native"
+          "@graph": [
+            {
+              "@type": "Organization",
+              "@id": "https://sovereignbusinessbrain.com/#organization",
+              "name": targetName,
+              "url": "https://sovereignbusinessbrain.com",
+              "description": `Enterprise AI Marketing Operating System and autonomous growth command hub.`,
+              "knowsAbout": [
+                "Generative Engine Optimization (GEO)",
+                "Answer Engine Optimization (AEO)",
+                "Multi-Touch ROAS Attribution",
+                "CASL and PIPEDA Data Compliance",
+                "AI Ad Budget Automation"
+              ]
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://sovereignbusinessbrain.com/#software",
+              "name": targetName,
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Cloud Native (Web)",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+              },
+              "featureList": [
+                "Autonomous ROI Fluctuation Detection",
+                "Cross-Channel UTM Attribution",
+                "CASL Verified Consent Ingestion",
+                "AI Strategist & Multi-Source Research",
+                "Real-time Executive Decision Audits"
+              ]
+            },
+            {
+              "@type": "FAQPage",
+              "@id": "https://sovereignbusinessbrain.com/#faq",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": `What is ${targetName}?`,
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": `${targetName} is an enterprise AI marketing operating system that automates campaign management, lead scoring, and real-time ROAS attribution while ensuring Canadian CASL and PIPEDA compliance.`
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "How does Generative Engine Optimization (GEO) work with Google AI Overviews?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "GEO optimizes your content's information gain, entity clarity, and structured data so Google's Gemini-powered AI Overviews cite and recommend your brand directly in AI-generated answers."
+                  }
+                }
+              ]
+            },
+            {
+              "@type": "SpeakableSpecification",
+              "cssSelector": [
+                "#aeo-direct-answer-summary",
+                "#brand-value-proposition"
+              ]
+            }
+          ]
         }, null, 2)
       },
       keywordStrategy: [
-        { keyword: "ai marketing automation canada", monthlySearchVolumeCanada: 4800, difficultyPercentage: 38, intent: "Transactional" },
-        { keyword: "casl compliant lead generation", monthlySearchVolumeCanada: 2900, difficultyPercentage: 24, intent: "Commercial" },
-        { keyword: "b2b roas optimization engine", monthlySearchVolumeCanada: 3600, difficultyPercentage: 42, intent: "Informational" },
-        { keyword: "enterprise growth marketing software", monthlySearchVolumeCanada: 5200, difficultyPercentage: 51, intent: "Transactional" }
+        { keyword: "generative engine optimization geo marketing", monthlySearchVolumeCanada: 6200, difficultyPercentage: 35, intent: "Transactional (AEO/GEO)" },
+        { keyword: "ai answer engine optimization aeo tools", monthlySearchVolumeCanada: 5400, difficultyPercentage: 32, intent: "Commercial (AEO)" },
+        { keyword: "ai marketing operating system enterprise", monthlySearchVolumeCanada: 4800, difficultyPercentage: 38, intent: "Transactional" },
+        { keyword: "casl compliant lead generation software", monthlySearchVolumeCanada: 2900, difficultyPercentage: 24, intent: "Commercial" },
+        { keyword: "real time multi channel roas attribution", monthlySearchVolumeCanada: 3800, difficultyPercentage: 44, intent: "Informational" },
+        { keyword: "google ai overview optimization strategy", monthlySearchVolumeCanada: 7100, difficultyPercentage: 41, intent: "Commercial (GEO)" }
       ],
       contentHubClusters: [
         {
-          clusterTitle: "CASL & PIPEDA Marketing Compliance",
+          clusterTitle: "Next-Gen AI Search (AEO & GEO) Playbook",
+          clusterCoreKeyword: "generative engine optimization geo",
+          articleIdeas: [
+            { title: "The 2026 Guide to Dominating Google AI Overviews & Gemini Search with GEO", estimatedWordCount: 2800, focusKeyword: "google ai overviews seo geo" },
+            { title: "How to Format Content for Zero-Click AI Answer Engines (AEO Blueprint)", estimatedWordCount: 2200, focusKeyword: "answer engine optimization aeo" },
+            { title: "Information Gain Scores: Why Generic Content No Longer Ranks in AI Engines", estimatedWordCount: 1900, focusKeyword: "information gain score seo" }
+          ]
+        },
+        {
+          clusterTitle: "CASL & PIPEDA Marketing Compliance Governance",
           clusterCoreKeyword: "canadian marketing compliance",
           articleIdeas: [
-            { title: "The Complete 2026 Founder's Guide to CASL Double Opt-In Automation", estimatedWordCount: 2400, focusKeyword: "casl double opt in guide" },
+            { title: "The Complete Founder's Guide to CASL Double Opt-In Automation", estimatedWordCount: 2400, focusKeyword: "casl double opt in guide" },
             { title: "How to Conduct PIPEDA Data Audits on Your Marketing Tech Stack", estimatedWordCount: 1800, focusKeyword: "pipeda marketing tech audit" }
           ]
         },
         {
-          clusterTitle: "Multi-Channel ROAS Acceleration",
-          clusterCoreKeyword: "roas optimization canada",
+          clusterTitle: "Autonomous Multi-Channel ROAS Acceleration",
+          clusterCoreKeyword: "autonomous roas optimization",
           articleIdeas: [
-            { title: "Reducing CAC by 30% Using Pre-Sales AI Tele-Calling Qualification", estimatedWordCount: 2100, focusKeyword: "ai tele calling qualification" },
-            { title: "Meta Ads vs Google Search: B2B Attribution Strategies for 2026", estimatedWordCount: 2600, focusKeyword: "b2b attribution strategies" }
+            { title: "Automated ROI Fluctuation Telemetry: Detecting Budget Bleed in Real-Time", estimatedWordCount: 2300, focusKeyword: "roi fluctuation detection" },
+            { title: "Reducing CAC by 30% Using Pre-Sales AI Tele-Calling Qualification", estimatedWordCount: 2100, focusKeyword: "ai tele calling qualification" }
           ]
         }
       ],
       competitorGapAnalysis: [
         {
           competitorName: "HubSpot Canada",
-          estimatedOrganicTrafficMonthly: 125000,
-          overlappingKeywordsCount: 340,
+          estimatedOrganicTrafficMonthly: 145000,
+          overlappingKeywordsCount: 380,
           identifiedGapOpportunities: [
-            "Hyper-targeted Canadian provincial compliance keywords",
-            "Autonomous pre-sales AI phone agent workflows"
+            "Hyper-targeted Generative Engine Optimization (GEO) queries",
+            "Autonomous real-time ad budget reallocation workflows",
+            "Canadian provincial compliance & double-opt in automation"
           ]
         },
         {
           competitorName: "Klaviyo Enterprise",
-          estimatedOrganicTrafficMonthly: 89000,
-          overlappingKeywordsCount: 210,
+          estimatedOrganicTrafficMonthly: 92000,
+          overlappingKeywordsCount: 220,
           identifiedGapOpportunities: [
-            "B2B lead quality scoring algorithms",
+            "B2B lead quality scoring algorithms linked to ad spend",
+            "Google AI Overview citation-ready answer blocks",
             "CASL-verified ad hook ingestion integrations"
           ]
         }
@@ -416,17 +632,90 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
 
     try {
       const prompt = `
-        You are an elite SEO strategist specializing in Canadian B2B search analytics and technical SEO.
-        Generate a comprehensive SEO strategy report for:
-        Company: ${targetName}
-        Custom URL to audit (optional): ${customUrl || "N/A"}
-        Company Profile: ${JSON.stringify(companyProfile)}
+        You are an elite search systems architect and Next-Gen SEO/GEO/AEO strategist specializing in Google's transition to an AI Engine (Google AI Overviews, Gemini-grounded Search, Perplexity, and Generative Engine Optimization).
 
-        Return strict JSON only (no markdown code fence, just pure JSON object) with keys:
-        - onPageSEO: { titleTagRecommendation: string, metaDescriptionRecommendation: string, headingHierarchySuggestions: string[], schemaMarkupJSONLD: string }
-        - keywordStrategy: Array of { keyword: string, monthlySearchVolumeCanada: number, difficultyPercentage: number, intent: string }
-        - contentHubClusters: Array of { clusterTitle: string, clusterCoreKeyword: string, articleIdeas: Array of { title: string, estimatedWordCount: number, focusKeyword: string } }
-        - competitorGapAnalysis: Array of { competitorName: string, estimatedOrganicTrafficMonthly: number, overlappingKeywordsCount: number, identifiedGapOpportunities: string[] }
+        Context:
+        - Target Company: "${targetName}"
+        - Sector: "${sector}"
+        - Target Region: "${region}"
+        - Custom Audited URL: "${customUrl || "None (Base Domain Analysis)"}"
+        - Profile Details: ${JSON.stringify(companyProfile)}
+
+        Generate an advanced AEO (Answer Engine Optimization) & GEO (Generative Engine Optimization) strategy report matching this exact JSON structure (strict JSON only, no markdown wrapping):
+        {
+          "aeoGeoSuite": {
+            "geoReadinessScore": number (85-99),
+            "aiEngineConsensusSummary": string,
+            "pillars": {
+              "answerExtractability": { "score": number, "status": string, "details": string },
+              "informationGain": { "score": number, "status": string, "details": string },
+              "entitySalience": { "score": number, "status": string, "details": string },
+              "schemaGraph": { "score": number, "status": string, "details": string },
+              "brandCitation": { "score": number, "status": string, "details": string }
+            },
+            "aiOverviewSnippets": [
+              {
+                "query": string,
+                "intent": string,
+                "answerSnippet": string,
+                "brandCitationQuote": string,
+                "citationConfidence": string,
+                "extractionMethod": string,
+                "targetKeypoints": string[]
+              }
+            ],
+            "semanticEntities": [
+              {
+                "entity": string,
+                "type": string,
+                "salienceScore": number,
+                "relationshipTriple": string,
+                "wikipediaWikidataLink": string
+              }
+            ],
+            "aeoDirectAnswerBlueprints": [
+              {
+                "question": string,
+                "directAnswer45Words": string,
+                "bulletHighlights": string[],
+                "recommendedSchemaType": string
+              }
+            ],
+            "geoCompetitorAiRadar": [
+              {
+                "competitor": string,
+                "googleAiOverviewCitations": string,
+                "perplexityMentionRate": string,
+                "informationGainAdvantage": string,
+                "strategicGap": string
+              }
+            ]
+          },
+          "onPageSEO": {
+            "titleTagRecommendation": string,
+            "metaDescriptionRecommendation": string,
+            "headingHierarchySuggestions": string[],
+            "schemaMarkupJSONLD": string
+          },
+          "keywordStrategy": [
+            { "keyword": string, "monthlySearchVolumeCanada": number, "difficultyPercentage": number, "intent": string }
+          ],
+          "contentHubClusters": [
+            {
+              "clusterTitle": string,
+              "clusterCoreKeyword": string,
+              "articleIdeas": [ { "title": string, "estimatedWordCount": number, "focusKeyword": string } ]
+            }
+          ],
+          "competitorGapAnalysis": [
+            {
+              "competitorName": string,
+              "estimatedOrganicTrafficMonthly": number,
+              "overlappingKeywordsCount": number,
+              "identifiedGapOpportunities": string[]
+            }
+          ]
+        }
       `;
 
       const response = await client.models.generateContent({
@@ -436,7 +725,7 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
       });
 
       const parsed = JSON.parse(response.text || "{}");
-      if (parsed.onPageSEO && parsed.keywordStrategy) {
+      if (parsed.aeoGeoSuite && parsed.onPageSEO && parsed.keywordStrategy) {
         return res.json(parsed);
       }
     } catch (aiErr) {

@@ -29,6 +29,8 @@ import { UserManagementPortal } from "./components/UserManagementPortal";
 import { DigitalBusinessCard } from "./components/DigitalBusinessCard";
 import { LoginScreen, UserSession } from "./components/LoginScreen";
 import { BusinessOnboardingModal, CompanyBusinessProfile } from "./components/BusinessOnboardingModal";
+import { RoiAlert } from "./types";
+import { loadStoredRoiAlerts, saveStoredRoiAlerts } from "./lib/roiAlertsData";
 
 const initialCampaigns = [
   {
@@ -212,6 +214,40 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialAudits;
   });
 
+  // Global ROI Fluctuation Alert System state shared between AnalyticsBrain & ExecutiveDashboard
+  const [roiAlerts, setRoiAlerts] = useState<RoiAlert[]>(loadStoredRoiAlerts);
+
+  const handleUpdateRoiAlerts = (newAlerts: RoiAlert[]) => {
+    setRoiAlerts(newAlerts);
+    saveStoredRoiAlerts(newAlerts);
+  };
+
+  const handleAcknowledgeRoiAlert = (alertId: string) => {
+    setRoiAlerts((prev) => {
+      const updated = prev.map((a) =>
+        a.id === alertId ? { ...a, status: "acknowledged" as const } : a
+      );
+      saveStoredRoiAlerts(updated);
+      return updated;
+    });
+    const target = roiAlerts.find((a) => a.id === alertId);
+    logAction("ROI Alert Acknowledged", `Executive acknowledged sudden ROI fluctuation alert on ${target?.channelName || alertId}.`);
+  };
+
+  const handleResolveRoiAlert = (alertId: string) => {
+    setRoiAlerts((prev) => {
+      const updated = prev.map((a) =>
+        a.id === alertId ? { ...a, status: "resolved" as const } : a
+      );
+      saveStoredRoiAlerts(updated);
+      return updated;
+    });
+    const target = roiAlerts.find((a) => a.id === alertId);
+    logAction("ROI Alert Resolved", `ROI fluctuation alert on ${target?.channelName || alertId} marked as resolved.`);
+  };
+
+  const actionRequiredAlertsCount = roiAlerts.filter((a) => a.status === "action_required").length;
+
   const [config, setConfig] = useState({
     language: "EN",
     compliance: { casl: true, pipeda: true, gdpr: true, ccpa: true },
@@ -387,10 +423,17 @@ export default function App() {
           setUserSession(session);
           setUserName(session.name);
           setCurrentRole(session.role);
-          if (session.companyName) {
-            setCompanyProfile((prev: any) => ({ ...prev, companyName: session.companyName! }));
+          if (session.companyName && session.companyName !== companyProfile.companyName) {
+            setCompanyProfile((prev: any) => {
+              const updated = { ...prev, companyName: session.companyName! };
+              localStorage.setItem("sbb_company_profile", JSON.stringify(updated));
+              return updated;
+            });
           }
-          setOnboardingModalOpen(true);
+          // Only prompt onboarding if user/organization has not completed initial business requirements
+          if (!localStorage.getItem("sbb_onboarding_completed")) {
+            setOnboardingModalOpen(true);
+          }
           logAction("User Authenticated", `Operator ${session.name} logged in as ${session.role} on sovereignbusinessbrain.com.`);
         }}
       />
@@ -571,9 +614,19 @@ export default function App() {
               >
                 <IconComponent className={`w-4 h-4 ${isSelected ? "text-indigo-600" : "text-slate-400"}`} />
                 <span>{t(tab.labelEN, tab.labelFR)}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono ${tab.badgeColor}`}>
-                  {tab.badgeText}
-                </span>
+                {tab.id === "dashboard" && actionRequiredAlertsCount > 0 ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono bg-rose-600 text-white animate-pulse shadow-sm">
+                    Action Req
+                  </span>
+                ) : tab.id === "analytics" && actionRequiredAlertsCount > 0 ? (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono bg-rose-600 text-white animate-pulse shadow-sm">
+                    {actionRequiredAlertsCount} Alert{actionRequiredAlertsCount > 1 ? "s" : ""}
+                  </span>
+                ) : (
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono ${tab.badgeColor}`}>
+                    {tab.badgeText}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -683,6 +736,10 @@ export default function App() {
                   campaigns={campaigns}
                   onLogAction={logAction}
                   onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  roiAlerts={roiAlerts}
+                  onUpdateRoiAlerts={handleUpdateRoiAlerts}
+                  onAcknowledgeRoiAlert={handleAcknowledgeRoiAlert}
+                  onResolveRoiAlert={handleResolveRoiAlert}
                 />
               </motion.div>
             )}
@@ -762,6 +819,9 @@ export default function App() {
                   auditLogs={auditLogs}
                   currentRole={currentRole}
                   userName={userName}
+                  roiAlerts={roiAlerts}
+                  onAcknowledgeRoiAlert={handleAcknowledgeRoiAlert}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
                 />
               </motion.div>
             )}

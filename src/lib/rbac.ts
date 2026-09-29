@@ -141,12 +141,12 @@ export const ALL_TABS: TabConfig[] = [
   },
   {
     id: "seo",
-    labelEN: "SBB SEO Brain",
-    labelFR: "Cerveau SEO SBB",
-    badgeText: "SEO",
-    badgeColor: "bg-emerald-600 text-white",
+    labelEN: "AEO / GEO & AI Search Engine",
+    labelFR: "Moteur AEO / GEO & IA",
+    badgeText: "AEO / GEO",
+    badgeColor: "bg-indigo-600 text-white",
     iconName: "Globe",
-    description: "Search engine optimization audit, keyword research, meta tag builder, and competitor ranking.",
+    description: "Answer Engine Optimization (AEO) and Generative Engine Optimization (GEO) visualizer, local geographic search queries footprint, and Google AI Overview indexing.",
     minRole: "Team Lead"
   },
   {

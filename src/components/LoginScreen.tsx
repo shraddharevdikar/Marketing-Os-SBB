@@ -75,12 +75,20 @@ const PRESET_DEMO_USERS: Array<{
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, companyName }) => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
 
-  // Login Form States
-  const [loginEmail, setLoginEmail] = useState("john.smith@sovereignbusiness.ca");
-  const [loginPassword, setLoginPassword] = useState("ceo123");
+  // Login Form States - Cleanly initialized to empty inputs so logged-out operators or new users must enter credentials anew
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState("");
+
+  // Ensure fields are fresh on mount (no autofill memory)
+  React.useEffect(() => {
+    setLoginEmail("");
+    setLoginPassword("");
+    setRememberMe(false);
+    setLoginError("");
+  }, []);
 
   // Registration Form States
   const [regName, setRegName] = useState("");
@@ -143,6 +151,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
     if (rememberMe) {
       localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
+    } else {
+      localStorage.removeItem("sbb_auth_session");
     }
 
     onLoginSuccess(userSession);
@@ -301,8 +311,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
         {/* Content Body */}
         <div className="p-6 sm:p-8 space-y-6 bg-white">
+          {/* Project Memory & Data Safety Banner */}
+          <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold flex items-center gap-1.5">
+                <span>Project Memory & Workspace Details Preserved</span>
+                <span className="text-[10px] bg-emerald-200/70 text-emerald-900 px-1.5 py-0.2 rounded font-mono font-semibold">100% Persistent</span>
+              </span>
+              <p className="text-[11px] text-emerald-800 leading-relaxed">
+                All saved company profiles, AI business memory, campaigns, CRM leads, ROI alerts, and strategy reports remain intact in local storage across sessions. Credentials are not saved or pre-filled on logout to guarantee access security.
+              </p>
+            </div>
+          </div>
+
           {activeTab === "login" ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-5 animate-fadeIn">
+            <form onSubmit={handleLoginSubmit} className="space-y-5 animate-fadeIn" autoComplete="off">
               {loginError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
@@ -312,34 +336,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Work Email / User Login ID *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Work Email / User Login ID *
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">Enter manually (not auto-filled)</span>
+                  </div>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
                       type="email"
+                      name="sbb_operator_email_clean"
                       required
+                      autoComplete="off"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="e.g. john.smith@sovereignbusiness.ca"
+                      placeholder="Enter your email ID (e.g. alex@company.ca)"
                       className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Password *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Password *
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">Fresh entry required</span>
+                  </div>
                   <div className="relative">
                     <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                     <input
                       type={showPassword ? "text" : "password"}
+                      name="sbb_operator_pass_clean"
                       required
+                      autoComplete="new-password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder="Enter your account password"
                       className="w-full pl-9 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                     />
                     <button
@@ -352,54 +386,87 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Keep me logged in on sovereignbusinessbrain.com</span>
-                  </label>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1">
+                  <div className="flex items-center gap-2 text-slate-500 text-[11px]">
+                    <span className="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span>No auto-fill memory (enter credentials each time)</span>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("register")}
-                    className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
-                  >
-                    Need a new account?
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {(loginEmail || loginPassword) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginEmail("");
+                          setLoginPassword("");
+                          setLoginError("");
+                        }}
+                        className="text-slate-400 hover:text-rose-600 text-xs font-semibold cursor-pointer underline"
+                      >
+                        Clear Form
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("register")}
+                      className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer"
+                    >
+                      Need a new account? Register
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-slate-800 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
-              >
-                <LogIn className="w-4 h-4 text-amber-300" />
-                <span>Sign In to MarketingOS Portal</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-slate-800 hover:to-slate-800 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99]"
+                >
+                  <LogIn className="w-4 h-4 text-amber-300" />
+                  <span>Sign In with Credentials</span>
+                </button>
+              </div>
 
-              {/* Quick Preset Accounts */}
+              {/* Quick Preset Accounts for Demo Evaluation */}
               <div className="pt-4 border-t border-slate-100 space-y-2">
-                <span className="text-[11px] font-bold text-slate-500 uppercase font-mono block">
-                  Quick One-Click Preset Positions (Demo Evaluation)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase font-mono block">
+                    Quick Preset Positions (Demo Evaluation)
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Click to fill credentials</span>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {PRESET_DEMO_USERS.map((preset) => (
-                    <button
+                    <div
                       key={preset.role}
-                      type="button"
-                      onClick={() => handleQuickDemoLogin(preset)}
-                      className="p-2.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all cursor-pointer group"
+                      className="p-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all group space-y-1.5"
                     >
-                      <div className="text-[11px] font-bold text-slate-900 group-hover:text-indigo-700 flex items-center justify-between">
+                      <div className="text-[11px] font-bold text-slate-900 flex items-center justify-between">
                         <span>{preset.role}</span>
-                        <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600" />
+                        <span className="text-[9px] font-mono text-slate-400 bg-slate-200/60 px-1 py-0.2 rounded">{preset.pass}</span>
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate">{preset.name}</div>
-                    </button>
+                      <div className="text-[10px] text-slate-500 truncate">{preset.email}</div>
+                      <div className="flex items-center gap-1 pt-1 border-t border-slate-150 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoginEmail(preset.email);
+                            setLoginPassword(preset.pass);
+                          }}
+                          className="flex-1 py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
+                        >
+                          Fill Form
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickDemoLogin(preset)}
+                          className="flex-1 py-0.5 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded font-semibold cursor-pointer text-center"
+                        >
+                          Sign In
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

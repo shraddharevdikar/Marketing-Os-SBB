@@ -12,13 +12,15 @@ import {
   Cell
 } from "recharts";
 import { 
-  BarChart3, TrendingUp, PieChart, ArrowUpRight, ArrowDownRight, DollarSign, Users, Target, Activity, RefreshCw,
+  BarChart3, TrendingUp, TrendingDown, PieChart, ArrowUpRight, ArrowDownRight, DollarSign, Users, Target, Activity, RefreshCw,
   Download, FileSpreadsheet, CheckCircle2, ChevronDown, Archive, Zap, Sparkles, Filter, Sliders, Layers, GitCompare, ArrowRight,
-  HelpCircle, Eye
+  HelpCircle, Eye, AlertTriangle, AlertCircle, ShieldAlert, BellRing, Bell, SlidersHorizontal, Check, ShieldCheck, Compass
 } from "lucide-react";
 import { RoiPerformanceVisualizer } from "./RoiPerformanceVisualizer";
 import { CampaignComparison } from "./CampaignComparison";
 import { LeadFunnelVisualizer } from "./LeadFunnelVisualizer";
+import { RoiAlert } from "../types";
+import { loadStoredRoiAlerts, saveStoredRoiAlerts, initialRoiAlerts } from "../lib/roiAlertsData";
 
 interface AnalyticsBrainProps {
   companyProfile: any;
@@ -26,6 +28,10 @@ interface AnalyticsBrainProps {
   campaigns: any[];
   onLogAction: (action: string, details: string) => void;
   onNavigateToTab: (tab: string) => void;
+  roiAlerts?: RoiAlert[];
+  onUpdateRoiAlerts?: (alerts: RoiAlert[]) => void;
+  onAcknowledgeRoiAlert?: (alertId: string) => void;
+  onResolveRoiAlert?: (alertId: string) => void;
 }
 
 export interface ChannelRoiMetric {
@@ -239,12 +245,109 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
   leads = [],
   campaigns = [],
   onLogAction,
-  onNavigateToTab
+  onNavigateToTab,
+  roiAlerts,
+  onUpdateRoiAlerts,
+  onAcknowledgeRoiAlert,
+  onResolveRoiAlert
 }) => {
   const [attributionModel, setAttributionModel] = useState("Linear");
-  const [activeTab, setActiveTab] = useState<"channel-roi" | "roi" | "comparison" | "overview" | "funnel" | "attribution">("channel-roi");
+  const [activeTab, setActiveTab] = useState<"channel-roi" | "fluctuation-alerts" | "roi" | "comparison" | "overview" | "funnel" | "attribution">("channel-roi");
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // ROI Fluctuation Alert System State
+  const [internalAlerts, setInternalAlerts] = useState<RoiAlert[]>(() => roiAlerts || loadStoredRoiAlerts());
+  const alerts = roiAlerts || internalAlerts;
+
+  const updateAlertsState = (newAlerts: RoiAlert[]) => {
+    setInternalAlerts(newAlerts);
+    saveStoredRoiAlerts(newAlerts);
+    onUpdateRoiAlerts?.(newAlerts);
+  };
+
+  const [alertFilter, setAlertFilter] = useState<"all" | "action_required" | "acknowledged" | "resolved">("all");
+  const [sensitivityThreshold, setSensitivityThreshold] = useState<number>(15);
+  const [monitoringWindow, setMonitoringWindow] = useState<string>("Trailing 48h");
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+
+  const actionRequiredAlerts = alerts.filter(a => a.status === "action_required");
+  const actionRequiredCount = actionRequiredAlerts.length;
+
+  const handleAcknowledge = (alertId: string) => {
+    if (onAcknowledgeRoiAlert) {
+      onAcknowledgeRoiAlert(alertId);
+    } else {
+      const updated = alerts.map(a => a.id === alertId ? { ...a, status: "acknowledged" as const } : a);
+      updateAlertsState(updated);
+    }
+    const target = alerts.find(a => a.id === alertId);
+    onLogAction("ROI_ALERT_ACKNOWLEDGED", `User acknowledged sudden ROI fluctuation alert on ${target?.channelName || alertId}.`);
+    showToast(`Alert acknowledged for ${target?.channelName || alertId}`);
+  };
+
+  const handleResolve = (alertId: string) => {
+    if (onResolveRoiAlert) {
+      onResolveRoiAlert(alertId);
+    } else {
+      const updated = alerts.map(a => a.id === alertId ? { ...a, status: "resolved" as const } : a);
+      updateAlertsState(updated);
+    }
+    const target = alerts.find(a => a.id === alertId);
+    onLogAction("ROI_ALERT_RESOLVED", `User marked ROI fluctuation on ${target?.channelName || alertId} as resolved.`);
+    showToast(`ROI alert resolved for ${target?.channelName || alertId}`);
+  };
+
+  const handleRunDiagnosticScan = () => {
+    setIsScanning(true);
+    setScanMessage(`AnalyticsBrain Daemon scanning 6 omni-channels against ${sensitivityThreshold}% variance hurdle...`);
+    setTimeout(() => {
+      setIsScanning(false);
+      setScanMessage(null);
+      showToast(`Scan complete: ${actionRequiredCount} active sudden ROI fluctuations detected exceeding ${sensitivityThreshold}% hurdle.`);
+      onLogAction("ROI_DIAGNOSTIC_SCAN", `Ran live ROI fluctuation diagnostic scan. Detected ${actionRequiredCount} action-required events.`);
+    }, 850);
+  };
+
+  const handleSimulateSuddenDrop = () => {
+    const candidateChannels = [
+      { name: "Google Ads (Search & PMax)", previous: 380, dropTo: 245, delta: -35.5, campaign: "CMP-01", impact: 6400, reason: "Sudden spike in negative keyword leakage drove CPC from $2.80 to $6.10, compressing net channel ROI by -35.5%." },
+      { name: "Meta Ads (Reels & Feed)", previous: 320, dropTo: 210, delta: -34.4, campaign: "CMP-02", impact: 4800, reason: "Ad creative saturation on Ontario luxury buyer audience caused CPM surge and -34.4% drop in ROAS." },
+      { name: "Organic SEO & Content Hub", previous: 620, dropTo: 430, delta: -30.6, campaign: "CMP-04", impact: 3200, reason: "Search algorithm core update caused transient volatility in page 1 SERP rankings, dropping organic ROI." }
+    ];
+    const chosen = candidateChannels.find(c => !alerts.some(a => a.channelName === c.name && a.status === "action_required")) || candidateChannels[0];
+    
+    const newAlert: RoiAlert = {
+      id: "ALERT-ROI-" + Math.floor(100 + Math.random() * 900),
+      campaignId: chosen.campaign,
+      channelName: chosen.name,
+      type: "sudden_drop",
+      severity: "critical",
+      previousRoi: chosen.previous,
+      currentRoi: chosen.dropTo,
+      fluctuationPercentage: chosen.delta,
+      timeframe: "Last 24h",
+      thresholdTriggered: sensitivityThreshold,
+      timestamp: "Just now",
+      status: "action_required",
+      recommendedAction: `Inspect ${chosen.name} ad sets and reallocate underutilized budget to high-performing baseline campaigns.`,
+      sourceMetric: `${chosen.name} Telemetry Stream`,
+      details: chosen.reason,
+      attributedImpactCad: chosen.impact
+    };
+
+    const updated = [newAlert, ...alerts];
+    updateAlertsState(updated);
+    onLogAction("SIMULATE_ROI_DROP", `Simulated sudden ROI drop of ${chosen.delta}% on ${chosen.name}. Action Required flag dispatched to ExecutiveDashboard.`);
+    showToast(`⚠️ Simulated sudden ROI drop on ${chosen.name}: Action Required flag dispatched to ExecutiveDashboard!`);
+  };
+
+  const handleResetAlerts = () => {
+    updateAlertsState(initialRoiAlerts);
+    showToast("Reset ROI alerts to default diagnostic set");
+    onLogAction("RESET_ROI_ALERTS", "Reset ROI alerts to default diagnostic state.");
+  };
 
   // Recharts Channel ROI Controls
   const [channelCategoryFilter, setChannelCategoryFilter] = useState<string>("All");
@@ -671,6 +774,25 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
           <span className="bg-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded font-mono font-bold">RECHARTS BAR CHART</span>
         </button>
         <button
+          id="tab-btn-fluctuation-alerts"
+          onClick={() => setActiveTab("fluctuation-alerts")}
+          className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === "fluctuation-alerts" ? "border-rose-600 text-rose-700 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <AlertTriangle className={`w-4 h-4 ${actionRequiredCount > 0 ? "text-rose-600 animate-pulse" : "text-slate-400"}`} />
+          <span>ROI Fluctuation Alerts</span>
+          {actionRequiredCount > 0 ? (
+            <span className="bg-rose-100 text-rose-700 text-[9px] px-2 py-0.5 rounded-full font-mono font-black border border-rose-300 animate-pulse">
+              {actionRequiredCount} ACTION REQUIRED
+            </span>
+          ) : (
+            <span className="bg-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded font-mono font-bold">
+              ALL STABLE
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab("roi")}
           className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === "roi" ? "border-emerald-600 text-emerald-700 font-extrabold" : "border-transparent text-slate-500 hover:text-slate-800"
@@ -720,6 +842,37 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
       {/* TAB 1: Channel ROI Projected vs Actual Recharts Visualizer */}
       {activeTab === "channel-roi" && (
         <div className="space-y-6 animate-fadeIn">
+          {/* Action Required Alert Banner inside Channel ROI */}
+          {actionRequiredCount > 0 && (
+            <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 border border-rose-500/80 rounded-2xl p-4 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 shrink-0 animate-pulse">
+                  <AlertTriangle className="w-5 h-5 text-rose-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-rose-600 text-white text-[10px] font-mono font-black px-2.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                      ACTION REQUIRED
+                    </span>
+                    <span className="font-bold text-xs sm:text-sm font-sans">
+                      {actionRequiredCount} Channel ROI Sudden Fluctuation{actionRequiredCount > 1 ? "s" : ""} Monitored
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-rose-200/90 mt-1 leading-relaxed">
+                    Channels breaching the {sensitivityThreshold}% risk hurdle: <strong>{actionRequiredAlerts.map(a => `${a.channelName} (${a.fluctuationPercentage}%)`).join(", ")}</strong>. Executive triage flag active on ExecutiveDashboard.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab("fluctuation-alerts")}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold font-sans rounded-xl shadow-lg transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5 active:scale-95 shrink-0"
+              >
+                <span>Triage in Fluctuation Monitor</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Executive Channel KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2">
@@ -1007,13 +1160,33 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
                     const varianceRoi = item.actualRoi - item.projectedRoi;
                     const isAhead = varianceRoi >= 0;
 
+                    // Match channel alert
+                    const channelAlert = alerts.find(a => 
+                      a.channelName.toLowerCase().includes(item.channel.toLowerCase()) || 
+                      item.channel.toLowerCase().includes(a.channelName.toLowerCase())
+                    );
+                    const hasActiveAlert = channelAlert && channelAlert.status === "action_required";
+
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={item.id} className={`transition-colors ${hasActiveAlert ? "bg-rose-50/20 hover:bg-rose-50/40" : "hover:bg-slate-50"}`}>
                         <td className="py-3.5 px-4 font-medium text-slate-900">
-                          <div className="font-semibold text-slate-900">{item.channel}</div>
-                          <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-mono border border-slate-200 mt-0.5">
-                            {item.category}
-                          </span>
+                          <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                            <span>{item.channel}</span>
+                            {hasActiveAlert && (
+                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-mono border border-slate-200">
+                              {item.category}
+                            </span>
+                            {hasActiveAlert && (
+                              <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[10px] font-mono font-black px-2 py-0.5 rounded border border-rose-300">
+                                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                Action Required: {channelAlert.fluctuationPercentage}%
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-3.5 px-4 text-right font-mono text-slate-700">
@@ -1069,19 +1242,474 @@ export const AnalyticsBrain: React.FC<AnalyticsBrainProps> = ({
                         </td>
 
                         <td className="py-3.5 px-4 text-center">
-                          <button
-                            onClick={() => onNavigateToTab("campaigns")}
-                            className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] hover:underline cursor-pointer inline-flex items-center gap-1"
-                          >
-                            <span>Manage</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                          {hasActiveAlert ? (
+                            <button
+                              onClick={() => setActiveTab("fluctuation-alerts")}
+                              className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-sm transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
+                            >
+                              <span>Triage Alert</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onNavigateToTab("campaign-commander")}
+                              className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] hover:underline cursor-pointer inline-flex items-center gap-1"
+                            >
+                              <span>Manage</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: ROI Fluctuation Alerts Monitoring Engine */}
+      {activeTab === "fluctuation-alerts" && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Engine Telemetry & Controls Daemon Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+              <ShieldAlert className="w-32 h-32 text-rose-500" />
+            </div>
+
+            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 relative z-10">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-rose-600/90 text-white text-[10px] font-mono font-black px-2.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    Live Telemetry Daemon
+                  </span>
+                  <span className="text-slate-400 text-xs font-mono">
+                    24/7 Volatility & Sudden Deviation Watchdog
+                  </span>
+                  <span className="bg-emerald-950 text-emerald-400 border border-emerald-800/60 text-[10px] font-mono font-bold px-2 py-0.5 rounded">
+                    Connected to ExecutiveDashboard
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-bold tracking-tight text-white font-sans flex items-center gap-2.5">
+                  <AlertTriangle className="w-6 h-6 text-rose-400" />
+                  Campaign ROI Fluctuation & Sudden Deviation Alert Engine
+                </h3>
+
+                <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+                  Continuously inspects trailing performance across all marketing channels. When actual ROI drops abruptly past the configured sensitivity hurdle rate or experiences anomalous CPL surges, this engine automatically raises an <strong>'Action Required'</strong> flag on the <strong>ExecutiveDashboard</strong> for CEO triage.
+                </p>
+              </div>
+
+              {/* Daemon Interactive Controls */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full xl:w-auto">
+                <button
+                  id="btn-run-diagnostic-scan"
+                  onClick={handleRunDiagnosticScan}
+                  disabled={isScanning}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold font-sans rounded-xl border border-slate-700 shadow flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isScanning ? "animate-spin" : ""}`} />
+                  <span>{isScanning ? "Running Scan..." : "Run Telemetry Scan"}</span>
+                </button>
+
+                <button
+                  id="btn-simulate-sudden-drop"
+                  onClick={handleSimulateSuddenDrop}
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black font-sans rounded-xl shadow-lg shadow-rose-950/60 flex items-center justify-center gap-2 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Simulate Sudden ROI Drop</span>
+                </button>
+
+                <button
+                  id="btn-reset-roi-alerts"
+                  onClick={handleResetAlerts}
+                  className="px-3 py-2.5 bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold font-sans rounded-xl border border-slate-800 transition-all cursor-pointer whitespace-nowrap"
+                  title="Reset to baseline alerts dataset"
+                >
+                  Reset Defaults
+                </button>
+              </div>
+            </div>
+
+            {/* Scan Progress Feedback */}
+            {scanMessage && (
+              <div className="mt-4 p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center gap-2 animate-fadeIn">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400 shrink-0" />
+                <span>{scanMessage}</span>
+              </div>
+            )}
+
+            {/* Parameters Settings Bar */}
+            <div className="mt-5 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Fluctuation Sensitivity Hurdle:</span>
+                  <div className="bg-slate-950 p-1 rounded-lg border border-slate-800 flex items-center gap-1 font-mono text-[11px]">
+                    {[10, 15, 20, 30].map(val => (
+                      <button
+                        key={val}
+                        onClick={() => {
+                          setSensitivityThreshold(val);
+                          showToast(`Fluctuation hurdle updated to ${val}% threshold.`);
+                        }}
+                        className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
+                          sensitivityThreshold === val ? "bg-rose-600 text-white font-black shadow" : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {val}% Drop
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400 font-medium">Monitoring Window:</span>
+                  <select
+                    value={monitoringWindow}
+                    onChange={(e) => setMonitoringWindow(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 text-slate-200 px-2.5 py-1 rounded-lg text-xs font-mono focus:outline-none cursor-pointer"
+                  >
+                    <option value="Trailing 24h">Trailing 24 Hours</option>
+                    <option value="Trailing 48h">Trailing 48 Hours</option>
+                    <option value="Trailing 7d">Trailing 7 Days</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-slate-400 text-[11px] font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Executive Alert Sync Active</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Summary Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`p-5 rounded-2xl border shadow-sm space-y-1 transition-all ${
+              actionRequiredCount > 0 ? "bg-rose-50/20 border-rose-400 ring-2 ring-rose-500/20" : "bg-white border-slate-200"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  Action Required Flags
+                </span>
+                <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded ${
+                  actionRequiredCount > 0 ? "bg-rose-600 text-white animate-pulse" : "bg-emerald-100 text-emerald-800"
+                }`}>
+                  {actionRequiredCount > 0 ? "URGENT" : "STABLE"}
+                </span>
+              </div>
+              <p className="text-3xl font-black font-mono text-slate-900">{actionRequiredCount}</p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {actionRequiredCount > 0 
+                  ? "Alerting CEO via ExecutiveDashboard"
+                  : "All monitored channels within hurdle bounds"
+                }
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  Max Negative Fluctuation
+                </span>
+                <TrendingDown className="w-4 h-4 text-rose-500" />
+              </div>
+              <p className="text-3xl font-black font-mono text-rose-600">
+                {alerts.length > 0 ? `${Math.min(...alerts.map(a => a.fluctuationPercentage))}%` : "0%"}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Largest sudden drop observed across channels
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  Capital Impact At Risk
+                </span>
+                <DollarSign className="w-4 h-4 text-amber-500" />
+              </div>
+              <p className="text-3xl font-black font-mono text-slate-900">
+                ${actionRequiredAlerts.reduce((sum, a) => sum + (a.attributedImpactCad || 0), 0).toLocaleString()}
+                <span className="text-xs font-sans text-slate-400 font-bold ml-1">CAD</span>
+              </p>
+              <p className="text-[11px] text-slate-500">
+                Modeled pipeline variance across flagged channels
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  Configured Hurdle Rate
+                </span>
+                <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+              </div>
+              <p className="text-3xl font-black font-mono text-indigo-600">{sensitivityThreshold}%</p>
+              <p className="text-[11px] text-slate-500">
+                Deviations beyond {sensitivityThreshold}% dispatch executive alerts
+              </p>
+            </div>
+          </div>
+
+          {/* Alert Filter Navigation Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <button
+                onClick={() => setAlertFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  alertFilter === "all" ? "bg-slate-900 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All Events ({alerts.length})
+              </button>
+              <button
+                onClick={() => setAlertFilter("action_required")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  alertFilter === "action_required" ? "bg-rose-600 text-white shadow-sm" : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Action Required ({actionRequiredCount})</span>
+              </button>
+              <button
+                onClick={() => setAlertFilter("acknowledged")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  alertFilter === "acknowledged" ? "bg-amber-600 text-white shadow-sm" : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                }`}
+              >
+                Acknowledged ({alerts.filter(a => a.status === "acknowledged").length})
+              </button>
+              <button
+                onClick={() => setAlertFilter("resolved")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  alertFilter === "resolved" ? "bg-emerald-600 text-white shadow-sm" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                }`}
+              >
+                Resolved ({alerts.filter(a => a.status === "resolved").length})
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Compass className="w-3.5 h-3.5 text-slate-400" />
+              <span>Showing {alerts.filter(a => alertFilter === "all" || a.status === alertFilter).length} of {alerts.length} registered alerts</span>
+            </div>
+          </div>
+
+          {/* Alert Cards Container */}
+          <div className="space-y-4">
+            {alerts.filter(a => alertFilter === "all" || a.status === alertFilter).length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+                <h4 className="text-base font-bold text-slate-800">No alerts found in this view</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Either all alerts have been triaged or no campaigns have breached the {sensitivityThreshold}% hurdle in this category.
+                </p>
+                <button
+                  onClick={handleSimulateSuddenDrop}
+                  className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors inline-flex items-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Simulate a Sudden Fluctuation</span>
+                </button>
+              </div>
+            ) : (
+              alerts
+                .filter(a => alertFilter === "all" || a.status === alertFilter)
+                .map((alert) => {
+                  const isActionRequired = alert.status === "action_required";
+                  const isAcknowledged = alert.status === "acknowledged";
+                  const isResolved = alert.status === "resolved";
+
+                  return (
+                    <div
+                      key={alert.id}
+                      className={`bg-white rounded-2xl border p-6 shadow-sm transition-all space-y-4 ${
+                        isActionRequired
+                          ? "border-rose-400 ring-2 ring-rose-500/20 shadow-rose-100"
+                          : isAcknowledged
+                          ? "border-amber-300 bg-amber-50/10"
+                          : "border-slate-200 opacity-80"
+                      }`}
+                    >
+                      {/* Top Row: Channel, Badges, Status */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-base text-slate-900 font-sans">{alert.channelName}</span>
+                            {alert.campaignId && (
+                              <span className="bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
+                                {alert.campaignId}
+                              </span>
+                            )}
+                            <span className="text-slate-400 text-xs font-mono">• {alert.timestamp} ({alert.timeframe})</span>
+                          </div>
+                          <p className="text-xs text-slate-500 font-mono">{alert.sourceMetric}</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* Severity Badge */}
+                          <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                            alert.severity === "critical"
+                              ? "bg-rose-100 text-rose-800 border border-rose-300"
+                              : alert.severity === "warning"
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          }`}>
+                            {alert.severity}
+                          </span>
+
+                          {/* Status Badge */}
+                          <span className={`text-[10px] font-mono font-black px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 ${
+                            isActionRequired
+                              ? "bg-rose-600 text-white animate-pulse"
+                              : isAcknowledged
+                              ? "bg-amber-500 text-white"
+                              : "bg-emerald-600 text-white"
+                          }`}>
+                            {isActionRequired && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                            {alert.status.replace("_", " ")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Middle Grid: ROI Variance Metrics */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-150">
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">Previous Baseline ROI</span>
+                          <span className="text-xl font-black font-mono text-slate-700">{alert.previousRoi}%</span>
+                          <span className="text-[10px] text-slate-400 block font-mono">Historical hurdle</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">Current Realized ROI</span>
+                          <span className="text-xl font-black font-mono text-rose-600">{alert.currentRoi}%</span>
+                          <span className="text-[10px] text-rose-500 block font-mono font-bold">
+                            {alert.fluctuationPercentage}% Sudden Delta
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">Hurdle Tolerance Breached</span>
+                          <span className="text-xl font-black font-mono text-amber-600">{alert.thresholdTriggered}%</span>
+                          <span className="text-[10px] text-slate-400 block font-mono">Allowed drop limit</span>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase font-bold block">Attributed Capital Risk</span>
+                          <span className="text-xl font-black font-mono text-slate-900">
+                            ${(alert.attributedImpactCad || 0).toLocaleString()} CAD
+                          </span>
+                          <span className="text-[10px] text-slate-400 block font-mono">Pipeline value variance</span>
+                        </div>
+                      </div>
+
+                      {/* Root Cause & Diagnostic Detail */}
+                      <div className="space-y-2 text-xs">
+                        <div className="p-3.5 bg-rose-50/50 border border-rose-200/80 rounded-xl space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-900 font-mono text-[11px] uppercase tracking-wider">
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span>Telemetry Root-Cause Analysis</span>
+                          </div>
+                          <p className="text-rose-900/90 leading-relaxed font-sans">{alert.details}</p>
+                        </div>
+
+                        <div className="p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-xl space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-900 font-mono text-[11px] uppercase tracking-wider">
+                            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>AI Strategic Directive & Remediation</span>
+                          </div>
+                          <p className="text-emerald-900/90 leading-relaxed font-sans font-medium">{alert.recommendedAction}</p>
+                        </div>
+                      </div>
+
+                      {/* Actions Toolbar */}
+                      <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {isActionRequired && (
+                            <button
+                              onClick={() => handleAcknowledge(alert.id)}
+                              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Acknowledge Fluctuation</span>
+                            </button>
+                          )}
+
+                          {!isResolved && (
+                            <button
+                              onClick={() => handleResolve(alert.id)}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>Mark as Resolved</span>
+                            </button>
+                          )}
+
+                          {isResolved && (
+                            <span className="text-emerald-700 text-xs font-mono font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>Triage Completed & Hurdle Restored</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onNavigateToTab("campaign-commander")}
+                            className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span>Triage in Campaign Commander</span>
+                            <ArrowRight className="w-3 h-3 text-slate-500" />
+                          </button>
+
+                          <button
+                            onClick={() => onNavigateToTab("dashboard")}
+                            className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <span>View on Executive Dashboard</span>
+                            <ArrowRight className="w-3 h-3 text-indigo-500" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+
+          {/* Architecture Card: How Alert Sync Works */}
+          <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-slate-600" />
+              <h4 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-wider">
+                Telemetry Synchronization Architecture
+              </h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-sans text-slate-600">
+              <div className="bg-white p-3.5 rounded-xl border border-slate-150 space-y-1">
+                <span className="font-bold text-slate-900 block font-mono text-[11px]">1. Automated Fluctuation Scanning</span>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  AnalyticsBrain compares trailing returns against historical projections across Google Ads, Meta, LinkedIn, and organic channels.
+                </p>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-150 space-y-1">
+                <span className="font-bold text-slate-900 block font-mono text-[11px]">2. Risk Hurdle Breach Detection</span>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  Sudden drops exceeding the configured sensitivity threshold trigger an instantaneous 'Action Required' status.
+                </p>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-150 space-y-1">
+                <span className="font-bold text-slate-900 block font-mono text-[11px]">3. Executive Notification Dispatch</span>
+                <p className="text-[11px] leading-relaxed text-slate-500">
+                  The ExecutiveDashboard surfaces the persistent Action Required banner and alters ROI card indicators for rapid leadership decision-making.
+                </p>
+              </div>
             </div>
           </div>
         </div>

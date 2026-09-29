@@ -27,6 +27,25 @@ export interface Campaign {
   dateCreated: string;
 }
 
+export interface RoiAlert {
+  id: string;
+  campaignId?: string;
+  channelName: string;
+  type: "sudden_drop" | "sudden_spike" | "volatility_surge";
+  severity: "critical" | "warning" | "info";
+  previousRoi: number; // percentage, e.g. 300
+  currentRoi: number;  // percentage, e.g. 215
+  fluctuationPercentage: number; // percentage change, e.g. -28.3
+  timeframe: string; // e.g. "Trailing 24h"
+  thresholdTriggered: number; // e.g. 15
+  timestamp: string;
+  status: "action_required" | "acknowledged" | "resolved";
+  recommendedAction: string;
+  sourceMetric: string;
+  details: string;
+  attributedImpactCad: number;
+}
+
 export interface BusinessState {
   revenue: number;
   roasTarget: number;

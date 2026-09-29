@@ -17,8 +17,15 @@ import {
   Cpu,
   HelpCircle,
   MessageSquare,
-  Sparkles
+  Sparkles,
+  AlertTriangle,
+  AlertCircle,
+  ArrowRight,
+  ShieldAlert,
+  CheckCircle2
 } from "lucide-react";
+import { RoiAlert } from "../types";
+import { loadStoredRoiAlerts } from "../lib/roiAlertsData";
 
 interface Campaign {
   id: string;
@@ -65,6 +72,9 @@ interface ExecutiveDashboardProps {
   auditLogs: AuditLog[];
   currentRole: string;
   userName: string;
+  roiAlerts?: RoiAlert[];
+  onAcknowledgeRoiAlert?: (alertId: string) => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
@@ -72,13 +82,20 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
   leads,
   auditLogs,
   currentRole,
-  userName
+  userName,
+  roiAlerts,
+  onAcknowledgeRoiAlert,
+  onNavigateToTab
 }) => {
   const isCeo = currentRole === "CEO";
   const [timeframe, setTimeframe] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [selectedMetric, setSelectedMetric] = useState<string>("overall");
   const [customQuery, setCustomQuery] = useState<string>("");
   const [customResponse, setCustomResponse] = useState<string | null>(null);
+
+  // Active ROI Fluctuation alerts monitored by AnalyticsBrain
+  const activeAlertsList = roiAlerts || loadStoredRoiAlerts();
+  const actionRequiredAlerts = activeAlertsList.filter((a) => a.status === "action_required");
 
   // Filters based on role visibility
   const filteredCampaigns = isCeo
@@ -266,6 +283,11 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
 
   const currentMetrics = perspectives[timeframe];
 
+  // Tactical briefing text accounting for active ROI fluctuations
+  const ceoOverallMessage = actionRequiredAlerts.length > 0
+    ? `⚠️ ACTION REQUIRED ALERT: SBB AnalyticsBrain has flagged ${actionRequiredAlerts.length} severe campaign ROI fluctuation${actionRequiredAlerts.length > 1 ? "s" : ""} (${actionRequiredAlerts.map(a => `${a.channelName} ${a.fluctuationPercentage}%`).join(", ")}). Projected capital efficiency is at risk. I recommend immediate tactical budget reallocation in AnalyticsBrain.`
+    : currentMetrics.ceoExplanations.overall;
+
   // Export CSV Handler
   const handleExportCSV = () => {
     const rows: string[] = [];
@@ -387,6 +409,92 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
         </div>
       </div>
 
+      {/* ACTION REQUIRED NOTIFICATION FLAG: Campaign ROI Fluctuations */}
+      {actionRequiredAlerts.length > 0 && (
+        <div
+          id="executive-action-required-flag"
+          className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 border-2 border-rose-500 rounded-xl p-5 shadow-2xl relative overflow-hidden animate-fadeIn"
+        >
+          <div className="absolute top-0 right-0 p-3 opacity-15 pointer-events-none">
+            <ShieldAlert className="w-24 h-24 text-rose-500" />
+          </div>
+
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 shrink-0">
+                <AlertTriangle className="w-6 h-6 text-rose-400 animate-bounce" />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-rose-600 text-white text-[11px] font-mono font-black px-2.5 py-0.5 rounded uppercase tracking-wider shadow-sm flex items-center gap-1.5 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    ACTION REQUIRED
+                  </span>
+                  <span className="text-white font-bold text-sm font-sans">
+                    {actionRequiredAlerts.length} Campaign ROI Sudden Fluctuation{actionRequiredAlerts.length > 1 ? "s" : ""} Flagged
+                  </span>
+                  <span className="text-rose-400 text-xs font-mono font-bold bg-rose-950/80 px-2 py-0.5 rounded border border-rose-900/60">
+                    SBB AnalyticsBrain Telemetry
+                  </span>
+                </div>
+
+                <p className="text-xs text-rose-100/90 leading-relaxed font-sans max-w-3xl">
+                  Sudden volatility triggers detected by AnalyticsBrain: campaign ROI has deviated sharply past the risk tolerance hurdle rate. Executive intervention is required to avoid ongoing budget dissipation.
+                </p>
+
+                {/* Flagged Channel Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5">
+                  {actionRequiredAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="bg-slate-950/80 border border-rose-500/40 rounded-lg p-2.5 text-xs font-sans space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white truncate max-w-[200px]">{alert.channelName}</span>
+                        <span className="text-rose-400 font-mono font-black bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
+                          {alert.fluctuationPercentage}% Delta
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-300 font-mono flex items-center justify-between">
+                        <span>
+                          ROI: <strong className="text-slate-400">{alert.previousRoi}%</strong> &rarr;{" "}
+                          <strong className="text-rose-400">{alert.currentRoi}%</strong>
+                        </span>
+                        <span className="text-rose-300 font-bold">-${alert.attributedImpactCad.toLocaleString()} CAD Impact</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 italic line-clamp-1">{alert.details}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0 w-full lg:w-auto">
+              <button
+                id="btn-investigate-analytics-brain"
+                onClick={() => onNavigateToTab?.("analytics")}
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-sans text-xs font-black rounded-xl shadow-lg shadow-rose-950 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                <span>Investigate in AnalyticsBrain</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              {onAcknowledgeRoiAlert && (
+                <button
+                  id="btn-acknowledge-roi-alerts"
+                  onClick={() => actionRequiredAlerts.forEach((a) => onAcknowledgeRoiAlert(a.id))}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Acknowledge All ({actionRequiredAlerts.length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AI CEO Briefing Card */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-3 opacity-10">
@@ -407,7 +515,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               <span className="text-[10px] font-mono text-slate-500">SYSTEM RESPONSE DEPLOYED (UTC-07)</span>
             </div>
             <p className="text-xs sm:text-sm font-sans text-slate-200 leading-relaxed font-medium italic">
-              "{currentMetrics.ceoExplanations.overall}"
+              "{ceoOverallMessage}"
             </p>
             <div className="pt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-400">
               <span className="flex items-center gap-1">
@@ -470,7 +578,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             setCustomResponse(null);
           }}
           className={`bg-white border rounded-xl p-5 shadow-sm transition-all cursor-pointer relative group ${
-            selectedMetric === "roi"
+            actionRequiredAlerts.length > 0
+              ? "border-rose-400 ring-2 ring-rose-500/30 bg-rose-50/10 shadow-rose-100"
+              : selectedMetric === "roi"
               ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/5"
               : "border-slate-200 hover:border-slate-300 hover:shadow-md"
           }`}
@@ -479,8 +589,14 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             <span className="text-xs font-bold text-slate-500 font-sans block uppercase tracking-wider">
               Marketing ROI
             </span>
-            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 group-hover:scale-110 transition-transform">
-              <Percent className="w-4 h-4" />
+            <div className={`p-2 rounded-lg transition-transform ${
+              actionRequiredAlerts.length > 0 ? "bg-rose-100 text-rose-600 animate-pulse" : "bg-indigo-50 text-indigo-600 group-hover:scale-110"
+            }`}>
+              {actionRequiredAlerts.length > 0 ? (
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+              ) : (
+                <Percent className="w-4 h-4" />
+              )}
             </div>
           </div>
           <div className="mt-3.5 space-y-2">
@@ -494,6 +610,25 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               </span>
               <span className="text-slate-400 font-semibold uppercase">CAC Offset Optimal</span>
             </div>
+
+            {/* Action Required Flag badge within the ROI card */}
+            {actionRequiredAlerts.length > 0 && (
+              <div className="mt-2.5 pt-2 border-t border-rose-200/80 flex items-center justify-between text-[10px] font-mono">
+                <span className="text-rose-600 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                  Action Required: {actionRequiredAlerts.length} Fluctuation{actionRequiredAlerts.length > 1 ? "s" : ""}
+                </span>
+                <span 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToTab?.("analytics");
+                  }}
+                  className="text-rose-700 font-black hover:underline"
+                >
+                  Triage &rarr;
+                </span>
+              </div>
+            )}
           </div>
           <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-mono bg-slate-900 text-slate-100 px-1.5 py-0.5 rounded shadow">
             CEO Explains
@@ -820,7 +955,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-700 leading-relaxed font-sans font-medium bg-slate-50/50 p-3 rounded-lg border border-slate-100 min-h-[90px]">
-                {customResponse || currentMetrics.ceoExplanations[selectedMetric as keyof typeof currentMetrics.ceoExplanations] || currentMetrics.ceoExplanations.overall}
+                {customResponse || (
+                  selectedMetric === "overall" ? ceoOverallMessage :
+                  selectedMetric === "roi" && actionRequiredAlerts.length > 0
+                    ? `Marketing ROI currently estimates at ${currentMetrics.roi}%, however SBB AnalyticsBrain has raised an 'Action Required' flag due to sudden negative fluctuations on ${actionRequiredAlerts.map(a => `${a.channelName} (${a.fluctuationPercentage}%)`).join(" and ")}. Investigate in AnalyticsBrain to prevent further ad-spend waste.`
+                    : currentMetrics.ceoExplanations[selectedMetric as keyof typeof currentMetrics.ceoExplanations] || ceoOverallMessage
+                )}
               </p>
             </div>
             {selectedMetric !== "overall" && !customResponse && (
