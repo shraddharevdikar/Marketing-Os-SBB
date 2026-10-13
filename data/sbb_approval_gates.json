@@ -1,0 +1,17 @@
+[
+  {
+    "id": "GATE-TEST-SELF",
+    "tenantId": "acme_corp",
+    "title": "Test $20,000 Budget Release",
+    "category": "CRITICAL_BUDGET_RELEASE",
+    "requestedBy": "marketing.manager@acme.ca",
+    "requestedRole": "Marketing Manager",
+    "department": "Marketing",
+    "amountCad": 20000,
+    "description": "Ad spend increase",
+    "riskScore": 85,
+    "requiredMinRole": "CEO",
+    "status": "PENDING_APPROVAL",
+    "createdAt": "2026-10-13T06:10:05.596Z"
+  }
+]

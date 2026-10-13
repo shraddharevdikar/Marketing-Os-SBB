@@ -124,45 +124,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     }
 
     try {
-      // 1. Authenticate with Firebase Authentication
-      let token: string | null = null;
-      let uid = "USR-" + Math.random().toString(36).substring(2, 8).toUpperCase();
-      let displayName = loginEmail.split("@")[0];
+      // 1. Authenticate with verified Firebase Authentication
+      const user = await signInWithEmail(loginEmail.trim(), loginPassword.trim());
+      const token = await user.getIdToken();
+      const uid = user.uid;
+      const displayName = user.displayName || loginEmail.split("@")[0];
 
-      try {
-        const user = await signInWithEmail(loginEmail.trim(), loginPassword.trim());
-        token = await user.getIdToken();
-        uid = user.uid;
-        displayName = user.displayName || displayName;
-      } catch (fbErr: any) {
-        // Fallback for sandboxed evaluation operator session
-        const resp = await fetch("/api/auth/demo-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: loginEmail.trim(),
-            companyName: companyName || "sovereign_enterprise"
-          })
-        });
-
-        if (resp.ok) {
-          const data = await resp.json();
-          token = data.token;
-          uid = data.user.id;
-          displayName = data.user.name;
-        } else {
-          setLoginError(fbErr?.message || "Invalid credentials. Please verify your Email and Password.");
-          return;
-        }
-      }
-
-      if (!token) {
-        setLoginError("Failed to obtain cryptographic authentication token.");
-        return;
-      }
-
-      // 2. Resolve trusted role & tenant from server
-      let verifiedRole: UserSession["role"] = "Marketing Manager";
+      // 2. Resolve trusted role & tenant from server records
+      let verifiedRole: UserSession["role"] = "Executive";
       let orgId = (companyName || "sovereign_enterprise").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
       
       try {
@@ -201,9 +170,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       }
 
       onLoginSuccess(userSession);
-    } catch (err: any) {
-      console.error("Login submission error:", err);
-      setLoginError(err?.message || "Failed to complete authentication.");
+    } catch (fbErr: any) {
+      console.error("Firebase authentication error:", fbErr);
+      setLoginError(fbErr?.message || "Invalid credentials. Please verify your Email and Password.");
     }
   };
 
@@ -237,33 +206,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     }
 
     try {
-      let token: string | null = null;
-      let uid = "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase();
-
-      try {
-        const user = await signUpWithEmail(regEmail.trim(), regPassword);
-        token = await user.getIdToken();
-        uid = user.uid;
-      } catch (fbErr: any) {
-        const resp = await fetch("/api/auth/demo-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: regName.trim(),
-            email: regEmail.trim(),
-            role: regRole,
-            organizationId: (regCompany.trim() || companyName || "sovereign_enterprise")
-          })
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          token = data.token;
-          uid = data.user.id;
-        } else {
-          setRegError(fbErr?.message || "Registration failed. Please check your details.");
-          return;
-        }
-      }
+      const user = await signUpWithEmail(regEmail.trim(), regPassword);
+      const token = await user.getIdToken();
+      const uid = user.uid;
 
       setRegSuccess(true);
 
@@ -275,11 +220,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         id: uid,
         name: regName.trim(),
         email: regEmail.trim(),
-        role: regRole,
+        role: "Executive", // Safe baseline unprivileged role upon self-registration
         department: regDepartment.trim() || "General Operations",
         companyName: regCompany.trim() || companyName,
         organizationId: orgId,
-        token: token || undefined,
+        token: token,
         isSandbox: false,
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
@@ -287,50 +232,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       await saveUserToFirestore(userSession);
       localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
       onLoginSuccess(userSession);
-    } catch (err: any) {
-      setRegError(err?.message || "Failed to create account.");
-    }
-  };
-
-  const handleQuickDemoLogin = async (preset: typeof PRESET_OPERATOR_PROFILES[number]) => {
-    try {
-      setLoginEmail(preset.email);
-      setLoginPassword("");
-      
-      const resp = await fetch("/api/auth/demo-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: preset.name,
-          email: preset.email,
-          role: preset.role,
-          organizationId: (companyName || "sovereign_enterprise")
-        })
-      });
-
-      if (!resp.ok) {
-        throw new Error("Failed to initialize verified operator session");
-      }
-
-      const data = await resp.json();
-      const userSession: UserSession = {
-        id: data.user.id,
-        name: preset.name,
-        email: preset.email,
-        role: preset.role,
-        department: preset.department,
-        companyName,
-        organizationId: data.user.organizationId,
-        token: data.token,
-        isSandbox: true,
-        loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
-      };
-
-      await saveUserToFirestore(userSession);
-      localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
-      onLoginSuccess(userSession);
-    } catch (err: any) {
-      setLoginError("Failed to initiate operator session: " + (err?.message || err));
+    } catch (fbErr: any) {
+      console.error("Firebase registration error:", fbErr);
+      setRegError(fbErr?.message || "Registration failed. Please check your email and password.");
     }
   };
 
@@ -344,18 +248,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       const idToken = await googleUser.getIdToken();
       const userEmail = (googleUser.email || "").toLowerCase().trim();
       const isAdminEmail = ADMIN_EMAILS.includes(userEmail);
-      const assignedRole: UserSession["role"] = isAdminEmail ? "Admin" : "CEO";
-      const orgId = (companyName || "sovereign_enterprise")
+      
+      // Server-side role resolution: Never trust client-side role claims
+      let assignedRole: UserSession["role"] = "Executive";
+      let orgId = (companyName || "sovereign_enterprise")
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9_-]/g, "_");
+
+      try {
+        const roleRes = await fetch("/api/auth/resolve-role", {
+          headers: { Authorization: `Bearer ${idToken}` }
+        });
+        if (roleRes.ok) {
+          const roleData = await roleRes.json();
+          assignedRole = roleData.role || "Executive";
+          orgId = roleData.organizationId || orgId;
+        }
+      } catch {
+        if (isAdminEmail) assignedRole = "Admin";
+      }
 
       const session: UserSession = {
         id: googleUser.uid,
         name: googleUser.displayName || userEmail.split("@")[0] || "Google Operator",
         email: userEmail,
         role: assignedRole,
-        department: isAdminEmail ? "System Administration & Security" : "Executive Board",
+        department: assignedRole === "Admin" ? "System Administration & Security" : "Enterprise Operations",
         companyName,
         organizationId: orgId,
         token: idToken,
@@ -631,23 +550,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                             <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-100">Verified</span>
                           </div>
                           <div className="text-[10px] text-slate-500 truncate" title={preset.email}>{preset.email}</div>
-                          <div className="flex items-center gap-1 pt-1 border-t border-slate-150 text-[10px]">
+                          <div className="pt-1 border-t border-slate-150 text-[10px]">
                             <button
                               type="button"
                               onClick={() => {
                                 setLoginEmail(preset.email);
                               }}
-                              className="flex-1 py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
+                              className="w-full py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
                             >
                               Fill Email
-                            </button>
-                            <span className="text-slate-300">|</span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuickDemoLogin(preset)}
-                              className="flex-1 py-0.5 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded font-semibold cursor-pointer text-center"
-                            >
-                              Sign In
                             </button>
                           </div>
                         </div>

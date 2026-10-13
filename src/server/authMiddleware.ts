@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
 export interface AuthenticatedUser {
   userId: string;
@@ -12,9 +14,41 @@ export interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-// Secret key for server-issued HMAC-SHA256 session tokens
-const SERVER_SESSION_SECRET = process.env.SBB_AUTH_SECRET || "sbb_enterprise_cryptographic_secret_key_2026_prod";
+// Secure Cryptographic Session Signing Secret Resolver
+// Production mandate: SBB_AUTH_SECRET must be securely provisioned with at least 32 high-entropy characters.
+let ephemeralInstanceSecret: string | null = null;
+
+export function getSessionSigningSecret(): string {
+  const envSecret = process.env.SBB_AUTH_SECRET;
+  if (envSecret && envSecret.trim().length >= 32) {
+    return envSecret.trim();
+  }
+  // Fail closed in production if strong secret is not provisioned
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[CRITICAL SECURITY CONFIGURATION] SBB_AUTH_SECRET is not provisioned or is under 32 characters in production. " +
+      "Production deployment halted. Securely provision a strong secret in environment variables."
+    );
+  }
+  // In development and testing only, use an ephemeral 512-bit per-instance random secret
+  if (!ephemeralInstanceSecret) {
+    ephemeralInstanceSecret = crypto.randomBytes(64).toString("hex");
+  }
+  return ephemeralInstanceSecret;
+}
+
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "gen-lang-client-0577810698";
+
+// Initialize Firebase Admin SDK for cryptographic ID token verification
+try {
+  if (getApps().length === 0) {
+    initializeApp({
+      projectId: FIREBASE_PROJECT_ID
+    });
+  }
+} catch (e: any) {
+  // If running without credentials in local environment, falls through to Google public cert verification
+}
 
 // Google Public Certificates cache for Firebase ID token verification
 let googleCertsCache: { [kid: string]: string } = {};
@@ -33,7 +67,6 @@ export async function getGooglePublicCerts(): Promise<{ [kid: string]: string }>
       return googleCertsCache;
     }
   } catch (e: any) {
-    // Log in non-test mode
     if (process.env.NODE_ENV !== "test") {
       console.warn("Could not fetch Google public certs:", e?.message);
     }
@@ -45,7 +78,7 @@ export async function getGooglePublicCerts(): Promise<{ [kid: string]: string }>
  * Creates a cryptographically signed HMAC-SHA256 session token.
  * Prevents client-side tampering with roles, user IDs, or organization IDs.
  */
-export function createSignedSessionToken(user: AuthenticatedUser, expiresInSec = 86400): string {
+export function createSignedSessionToken(user: AuthenticatedUser, expiresInSec = 86400, secretOverride?: string): string {
   const payload = {
     userId: user.userId,
     email: user.email,
@@ -54,8 +87,9 @@ export function createSignedSessionToken(user: AuthenticatedUser, expiresInSec =
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + expiresInSec
   };
+  const secret = secretOverride || getSessionSigningSecret();
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = crypto.createHmac("sha256", SERVER_SESSION_SECRET)
+  const signature = crypto.createHmac("sha256", secret)
     .update(`sbb_v1.${payloadB64}`)
     .digest("base64url");
   return `sbb_v1.${payloadB64}.${signature}`;
@@ -65,14 +99,15 @@ export function createSignedSessionToken(user: AuthenticatedUser, expiresInSec =
  * Cryptographically verifies a signed SBB session token using constant-time comparison.
  * Returns decoded AuthenticatedUser if signature and expiry are valid; otherwise null.
  */
-export function verifySignedSessionToken(token: string): AuthenticatedUser | null {
+export function verifySignedSessionToken(token: string, secretOverride?: string): AuthenticatedUser | null {
   if (!token || !token.startsWith("sbb_v1.")) return null;
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [prefix, payloadB64, signature] = parts;
   if (prefix !== "sbb_v1") return null;
 
-  const expectedSig = crypto.createHmac("sha256", SERVER_SESSION_SECRET)
+  const secret = secretOverride || getSessionSigningSecret();
+  const expectedSig = crypto.createHmac("sha256", secret)
     .update(`sbb_v1.${payloadB64}`)
     .digest("base64url");
 
@@ -113,6 +148,33 @@ export async function verifyFirebaseIdToken(token: string, expectedProjectId = F
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 
+  // 1. Prefer Firebase Admin SDK verification
+  if (getApps().length > 0) {
+    try {
+      const decodedToken = await getAuth().verifyIdToken(token);
+      if (decodedToken && decodedToken.uid) {
+        const orgId = (decodedToken.organizationId || decodedToken.org || "default_org")
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]/g, "_");
+        return {
+          userId: decodedToken.uid,
+          email: decodedToken.email || "user@sovereignbusiness.ca",
+          role: decodedToken.role || "Executive",
+          organizationId: orgId
+        };
+      }
+    } catch (adminErr: any) {
+      // If token is invalid, expired, revoked, or signature failed according to Firebase Admin, reject immediately
+      if (adminErr?.code?.startsWith("auth/argument-") || 
+          adminErr?.code?.startsWith("auth/id-token-") || 
+          adminErr?.code === "auth/invalid-id-token") {
+        return null;
+      }
+      // If Admin SDK failed due to missing network/credentials in isolated test environments, fall through to in-process RS256 cert check
+    }
+  }
+
+  // 2. Cryptographic RS256 verification using Google public certificates
   try {
     const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf-8"));
     const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
@@ -195,13 +257,14 @@ export async function verifyAuthAndTenant(req: AuthenticatedRequest, res: Respon
     const authHeader = req.headers.authorization || (req.headers["x-sbb-session-token"] as string);
 
     if (!authHeader) {
-      // Only permit dev identity if explicitly configured in non-production environments
+      // Only permit sandbox dev identity if explicitly configured in non-production environments.
+      // Strictly assign unprivileged synthetic role; never trust client-supplied headers for roles or tenants.
       if (process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_AUTH === "true") {
         const testUser: AuthenticatedUser = {
-          userId: (req.headers["x-test-user-id"] as string) || "dev_operator_01",
-          email: (req.headers["x-test-user-email"] as string) || "operator@sovereignbusiness.ca",
-          role: (req.headers["x-test-user-role"] as string) || "CEO",
-          organizationId: (req.headers["x-test-tenant-id"] as string) || "sovereign_enterprise"
+          userId: "dev_sandbox_viewer_01",
+          email: "dev.viewer@synthetic.sandbox.local",
+          role: "Executive",
+          organizationId: "synthetic_sandbox"
         };
         req.user = testUser;
         return next();

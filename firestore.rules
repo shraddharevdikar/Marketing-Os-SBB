@@ -11,16 +11,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
     // Tenant / Organization Membership Verification
+    // CRITICAL: Self-assignment prevention.
+    // Membership is ONLY granted if verified by trusted token custom claims
+    // OR if an established record exists in organizations/{orgId}/members/{uid} provisioned by an Org Admin.
+    // A user document's unverified organizationId field is NEVER trusted for membership.
     function isOrgMember(orgId) {
       return isSignedIn() && (
         (request.auth.token != null && request.auth.token.organizationId == orgId) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         getUserData().organizationId == orgId) ||
         exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
       );
     }
@@ -28,32 +26,34 @@ service cloud.firestore {
     function isOrgAdmin(orgId) {
       return isSignedIn() && (
         (request.auth.token != null && request.auth.token.role == 'Admin') ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         getUserData().organizationId == orgId &&
-         getUserData().role == 'Admin') ||
         (exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'Admin')
       );
     }
 
-    // 1. User Profiles: Isolated to owner or fellow organization members.
-    // Prevents self-membership escalation (only Admins can grant Admin role).
+    // 1. User Profiles: Isolated to owner or verified organization administrators.
+    // Prevents self-assigned organisation membership and role escalation.
     match /users/{userId} {
       allow read: if isOwner(userId) || (
         isSignedIn() && 
         resource.data.organizationId != null && 
-        isOrgMember(resource.data.organizationId)
+        isOrgAdmin(resource.data.organizationId)
       );
       
+      // On creation: callers can only assign unprivileged baseline role ('Executive')
+      // and cannot attach arbitrary production organizationIds without verified token claim.
       allow create: if isOwner(userId) && (
-        !('role' in request.resource.data) ||
-        request.resource.data.role in ['Marketing Manager', 'Team Lead', 'Executive']
+        (!('role' in request.resource.data) || request.resource.data.role == 'Executive') &&
+        (!('organizationId' in request.resource.data) || 
+         request.resource.data.organizationId == 'synthetic_sandbox' || 
+         (request.auth.token != null && request.auth.token.organizationId == request.resource.data.organizationId))
       );
 
+      // On update: callers cannot modify their role or their organizationId.
+      // Role changes and tenant migrations require trusted admin provisioning.
       allow update: if isOwner(userId) && (
-        (request.resource.data.role == resource.data.role && 
-         request.resource.data.organizationId == resource.data.organizationId) ||
-        isOrgAdmin(resource.data.organizationId)
+        request.resource.data.role == resource.data.role && 
+        request.resource.data.organizationId == resource.data.organizationId
       );
 
       allow delete: if isOwner(userId) || (
@@ -63,20 +63,17 @@ service cloud.firestore {
     }
 
     // 2. Organizations & Tenant Hierarchy
+    // Disallows unconstrained self-creation of organizations.
     match /organizations/{orgId} {
       allow read: if isOrgMember(orgId);
-      allow create: if isSignedIn();
+      allow create: if isOrgAdmin(orgId);
       allow update, delete: if isOrgAdmin(orgId);
 
-      // Members subcollection with least-privilege enforcement
+      // Members subcollection: ONLY verified Org Admins can add members or alter roles.
+      // Self-membership creation is strictly prohibited.
       match /members/{memberId} {
         allow read: if isOrgMember(orgId);
-        allow create: if isOrgMember(orgId) && (
-          !('role' in request.resource.data) ||
-          request.resource.data.role in ['Marketing Manager', 'Team Lead', 'Executive'] ||
-          isOrgAdmin(orgId)
-        );
-        allow update, delete: if isOrgAdmin(orgId);
+        allow create, update, delete: if isOrgAdmin(orgId);
       }
 
       // Tenant-scoped Company Profile
@@ -112,6 +109,14 @@ service cloud.firestore {
           isOrgAdmin(orgId)
         );
       }
+
+      // Tenant-scoped Approval Gates
+      match /approval_gates/{gateId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update: if isOrgAdmin(orgId) || isOrgMember(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
     }
 
     // 3. Top-Level Collections: STRICTLY REQUIRE valid organizationId.
@@ -139,7 +144,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && 
         request.resource.data.organizationId != null && 
         isOrgMember(request.resource.data.organizationId);
-      allow update, delete: if isSignedIn() && 
+      allow update: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId) &&
+        request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isSignedIn() && 
         resource.data.organizationId != null && 
         isOrgMember(resource.data.organizationId);
     }
@@ -151,7 +160,11 @@ service cloud.firestore {
       allow create: if isSignedIn() && 
         request.resource.data.organizationId != null && 
         isOrgMember(request.resource.data.organizationId);
-      allow update, delete: if isSignedIn() && 
+      allow update: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId) &&
+        request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isSignedIn() && 
         resource.data.organizationId != null && 
         isOrgMember(resource.data.organizationId);
     }
@@ -174,7 +187,13 @@ service cloud.firestore {
         request.resource.data.organizationId != null && 
         request.resource.data.userId == request.auth.uid &&
         isOrgMember(request.resource.data.organizationId);
-      allow update, delete: if isSignedIn() && 
+      allow update: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        resource.data.userId == request.auth.uid &&
+        isOrgMember(resource.data.organizationId) &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.userId == resource.data.userId;
+      allow delete: if isSignedIn() && 
         resource.data.organizationId != null && 
         resource.data.userId == request.auth.uid &&
         isOrgMember(resource.data.organizationId);

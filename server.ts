@@ -41,8 +41,12 @@ const mediaRateLimiter = rateLimiter(10, 60000);
 
 // Global API Security & Tenant Isolation Gate
 app.use("/api", (req, res, next) => {
-  // Allow health check, external inbound lead capture, and auth session initialization
-  if (req.path === "/health" || req.path === "/lead/capture" || req.path === "/auth/demo-session") {
+  // Allow health check and external inbound lead capture
+  if (req.path === "/health" || req.path === "/lead/capture") {
+    return next();
+  }
+  // Demo session route is ONLY accessible unauthenticated in non-production when ALLOW_DEV_AUTH === "true"
+  if (req.path === "/auth/demo-session" && process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_AUTH === "true") {
     return next();
   }
   return verifyAuthAndTenant(req, res, () => {
@@ -50,19 +54,45 @@ app.use("/api", (req, res, next) => {
   });
 });
 
-// Route: Auth Demo Session (Server-signed cryptographic tokens for testing & sandbox operators)
+// Mount Rate Limiters on Expensive AI and Media Routes
+app.use("/api/ai", aiRateLimiter);
+app.use("/api/gemini", aiRateLimiter);
+app.use("/api/strategist", aiRateLimiter);
+app.use("/api/presales", aiRateLimiter);
+app.use("/api/generate-campaign-ideas", aiRateLimiter);
+app.use("/api/ai/image", mediaRateLimiter);
+app.use("/api/ai/video", mediaRateLimiter);
+app.use("/api/ai/music", mediaRateLimiter);
+
+// Route: Auth Demo Session (Strictly disabled in production; unprivileged synthetic sandbox in dev)
 app.post("/api/auth/demo-session", (req, res) => {
-  const { role = "Marketing Manager", organizationId = "sovereign_enterprise", email = "operator@sovereignbusiness.ca", name = "Operator" } = req.body;
-  const allowedRoles = ["Admin", "CEO", "Vice President", "AGM", "Marketing Manager", "Team Lead", "Executive"];
-  const sanitizedRole = allowedRoles.includes(role) ? role : "Executive";
-  const sanitizedOrg = String(organizationId).toLowerCase().replace(/[^a-z0-9_-]/g, "_");
-  const userId = "USR-" + crypto.createHash("sha256").update(email).digest("hex").slice(0, 8).toUpperCase();
+  if (process.env.NODE_ENV === "production" || process.env.ALLOW_DEV_AUTH !== "true") {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Public demo session issuance is strictly disabled in production. Authenticate via verified Firebase identity."
+    });
+  }
+
+  // Prevent unauthenticated escalation: callers cannot request Admin, CEO, or Vice President roles
+  const requestedRole = req.body.role;
+  if (requestedRole && ["Admin", "CEO", "Vice President", "AGM"].includes(requestedRole)) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Unauthenticated callers cannot be issued privileged executive roles (Admin, CEO, VP)."
+    });
+  }
+
+  const email = (req.body.email || "demo.operator@synthetic.sandbox.local").toLowerCase().trim();
+  const name = req.body.name || "Sandbox Operator";
+  const assignedRole = "Executive"; // Unprivileged baseline role
+  const assignedOrg = "synthetic_sandbox";
+  const userId = "USR-SANDBOX-" + crypto.createHash("sha256").update(email + ":sandbox").digest("hex").slice(0, 8).toUpperCase();
 
   const token = createSignedSessionToken({
     userId,
     email,
-    role: sanitizedRole,
-    organizationId: sanitizedOrg
+    role: assignedRole,
+    organizationId: assignedOrg
   });
 
   res.json({
@@ -71,8 +101,9 @@ app.post("/api/auth/demo-session", (req, res) => {
       id: userId,
       name,
       email,
-      role: sanitizedRole,
-      organizationId: sanitizedOrg,
+      role: assignedRole,
+      organizationId: assignedOrg,
+      isSandbox: true,
       loggedInAt: new Date().toISOString()
     }
   });
@@ -2583,6 +2614,9 @@ app.post("/api/ai/live/converse", async (req, res) => {
     res.status(500).json({ error: err.message || "Failed to process Live conversation" });
   }
 });
+
+// Centralized Safe Error Handling Middleware
+app.use(safeErrorHandler);
 
 // Serve static React files and Vite middleware
 async function startServer() {
