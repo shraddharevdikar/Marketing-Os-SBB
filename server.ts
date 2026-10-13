@@ -6,6 +6,7 @@ import { GoogleGenAI, GenerateVideosOperation, LiveServerMessage, Modality } fro
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { sanitizeAndTokenizePII, rehydratePII } from "./src/lib/piiSanitizer";
+import { sbbEnterpriseRouter } from "./src/server/sbbEnterpriseRoutes";
 
 dotenv.config();
 
@@ -14,6 +15,9 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Mount SBB Enterprise 5-Pillars Router
+app.use("/api/sbb", sbbEnterpriseRouter);
 
 // Initialize Gemini API client lazily to prevent crash if key is initially absent
 let aiClient: GoogleGenAI | null = null;

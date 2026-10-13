@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import { 
   Bot, Globe, ShieldAlert, Sparkles, Sliders, LayoutDashboard, BarChart3, 
   Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle, ShieldCheck, Globe2,
-  Megaphone, Target, LogOut, UserCheck, Lock, SlidersHorizontal, KeyRound, AlertTriangle, ArrowRight, CreditCard, Building2
+  Megaphone, Target, LogOut, UserCheck, Lock, SlidersHorizontal, KeyRound, AlertTriangle, ArrowRight, CreditCard, Building2, Cpu
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ALL_TABS, getAllowedTabsForUser, ActiveTabType, VALID_TABS } from "./lib/rbac";
 
 // Import all workspace sub-modules
+import { SbbEnterpriseCore } from "./components/SbbEnterpriseCore";
 import { RoleSelector } from "./components/RoleSelector";
 import { AiMarketplace } from "./components/AiMarketplace";
 import { SeoBrain } from "./components/SeoBrain";
@@ -625,6 +626,29 @@ export default function App() {
               </span>
             </button>
 
+            {/* Quick Action: SBB 5-Pillar Enterprise Core */}
+            <button
+              id="top-sbb-enterprise-core-btn"
+              type="button"
+              onClick={() => setActiveTab("enterprise-core")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                activeTab === "enterprise-core"
+                  ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white border-indigo-500 shadow-sm ring-1 ring-indigo-400"
+                  : "bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 border-slate-200"
+              }`}
+              title="SBB 5-Pillar Core: Business-Wide Intelligence, Real Agent DAG Orchestration, Audited Memory, Secure Gates & Proven Outcomes"
+            >
+              <Cpu className={`w-4 h-4 ${activeTab === "enterprise-core" ? "text-white" : "text-indigo-600"}`} />
+              <div className="text-left font-sans leading-none hidden sm:block">
+                <span className={`text-[9px] font-mono font-bold block uppercase tracking-wider ${activeTab === "enterprise-core" ? "text-indigo-200" : "text-indigo-600"}`}>
+                  5 Pillars Core
+                </span>
+                <span className="text-xs font-bold block mt-0.5">
+                  SBB Intelligence
+                </span>
+              </div>
+            </button>
+
             {/* Quick Action: Voice Conversations (Gemini 3.8 Live) */}
             <button
               id="top-voice-conversations-btn"
@@ -742,7 +766,7 @@ export default function App() {
         <nav id="workspace-tabs" className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar pb-1 gap-1 bg-white px-2">
           {ALL_TABS.filter((tab) => allowedTabs.includes(tab.id)).map((tab) => {
             const IconComponent = {
-              ShieldCheck, CreditCard, Bot, Globe, ShieldAlert, Target, Megaphone, Sparkles, Sliders, LayoutDashboard, BarChart3, Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle,
+              ShieldCheck, CreditCard, Bot, Globe, ShieldAlert, Target, Megaphone, Sparkles, Sliders, LayoutDashboard, BarChart3, Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle, Cpu,
               ImageEditAuto: ImageEditAutoIcon,
               AudioSpark: AudioSparkIcon
             }[tab.iconName] || Activity;
@@ -818,6 +842,19 @@ export default function App() {
                     logAction("User Session Changed", `Switched active user session to ${name} (${role}) - Organization: ${companyName || companyProfile.companyName}.`);
                   }}
                   onLogAction={logAction}
+                />
+              </motion.div>
+            )}
+
+            {activeTab === "enterprise-core" && (
+              <motion.div key="enterprise-core-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                <SbbEnterpriseCore
+                  companyProfile={companyProfile}
+                  currentRole={currentRole}
+                  userName={userName}
+                  userDepartment={userSession?.department || "Enterprise Operations"}
+                  onLogAction={logAction}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
                 />
               </motion.div>
             )}
@@ -948,6 +985,7 @@ export default function App() {
                   onLogAction={logAction}
                   currentRole={currentRole}
                   userName={userName}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
                 />
               </motion.div>
             )}

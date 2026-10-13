@@ -1,4 +1,5 @@
 export type ActiveTabType =
+  | "enterprise-core"
   | "user-management"
   | "voice-conversations"
   | "create-edit-images"
@@ -21,6 +22,7 @@ export type ActiveTabType =
   | "troubleshoot";
 
 export const VALID_TABS: ActiveTabType[] = [
+  "enterprise-core",
   "user-management",
   "voice-conversations",
   "create-edit-images",
@@ -55,6 +57,16 @@ export interface TabConfig {
 }
 
 export const ALL_TABS: TabConfig[] = [
+  {
+    id: "enterprise-core",
+    labelEN: "SBB Enterprise Core (5 Pillars)",
+    labelFR: "Cœur Entreprise SBB (5 Piliers)",
+    badgeText: "5 DIFFERENTIATED PILLARS",
+    badgeColor: "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white",
+    iconName: "Cpu",
+    description: "The 5 core differentiation pillars: Business-Wide Intelligence Decision Engine, Real Agent Orchestration Layer, Reliable Business Memory, Secure Execution & Approval Gates, and Proven Business Outcomes.",
+    minRole: "Executive"
+  },
   {
     id: "voice-conversations",
     labelEN: "Voice Conversations",
@@ -259,31 +271,31 @@ export const ALL_TABS: TabConfig[] = [
 
 export const DEFAULT_ROLE_TABS: Record<string, ActiveTabType[]> = {
   Admin: [
-    "user-management", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "marketplace", "seo", "campaign-commander", "ads-tracker",
+    "enterprise-core", "user-management", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "marketplace", "seo", "campaign-commander", "ads-tracker",
     "campaign-generator", "marketing-strategist", "discovery", "dashboard",
     "analytics", "execution", "social", "crm", "advisor", "research", "troubleshoot"
   ],
   CEO: [
-    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
+    "enterprise-core", "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
     "ads-tracker", "crm", "marketplace"
   ],
   "Vice President": [
-    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
+    "enterprise-core", "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
     "ads-tracker", "crm", "marketplace", "seo"
   ],
   AGM: [
-    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "ads-tracker", "crm", "seo",
+    "enterprise-core", "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "ads-tracker", "crm", "seo",
     "campaign-generator", "marketing-strategist"
   ],
   "Marketing Manager": [
-    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "campaign-generator", "seo", "ads-tracker",
+    "enterprise-core", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "campaign-generator", "seo", "ads-tracker",
     "social", "crm", "marketing-strategist", "advisor", "research"
   ],
   "Team Lead": [
-    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "seo", "crm", "troubleshoot", "research"
+    "enterprise-core", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "seo", "crm", "troubleshoot", "research"
   ],
   Executive: [
-    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "crm", "troubleshoot"
+    "enterprise-core", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "crm", "troubleshoot"
   ]
 };
 

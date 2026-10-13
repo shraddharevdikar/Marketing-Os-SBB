@@ -71,6 +71,7 @@ interface BusinessMemoryState {
 
 interface BusinessMemoryProps {
   onLogAction: (actionType: string, details: string) => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const defaultMemory: BusinessMemoryState = {
@@ -174,7 +175,7 @@ export const defaultMemory: BusinessMemoryState = {
   ]
 };
 
-export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) => {
+export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction, onNavigateToTab }) => {
   const [memory, setMemory] = useState<BusinessMemoryState>(() => {
     const saved = localStorage.getItem("sbb_business_memory");
     return saved ? JSON.parse(saved) : defaultMemory;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Activity, Play, Pause, RefreshCw, Zap, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Activity, Play, Pause, RefreshCw, Zap, CheckCircle2, ShieldAlert, Share2, ShieldCheck, ArrowRight, Cpu } from "lucide-react";
 
 interface ExecutionBrainProps {
   companyProfile: any;
@@ -7,6 +7,7 @@ interface ExecutionBrainProps {
   onLogAction: (action: string, details: string) => void;
   currentRole: string;
   userName: string;
+  onNavigateToTab?: (tab: string) => void;
 }
 
 export const ExecutionBrain: React.FC<ExecutionBrainProps> = ({
@@ -14,7 +15,8 @@ export const ExecutionBrain: React.FC<ExecutionBrainProps> = ({
   campaigns,
   onLogAction,
   currentRole,
-  userName
+  userName,
+  onNavigateToTab
 }) => {
   const [executionState, setExecutionState] = useState<"IDLE" | "EXECUTING" | "PAUSED">("EXECUTING");
   const [logs, setLogs] = useState<string[]>([
@@ -33,6 +35,36 @@ export const ExecutionBrain: React.FC<ExecutionBrainProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* 5-Pillar Enterprise Banner */}
+      <div className="bg-gradient-to-r from-blue-900/60 via-indigo-950 to-purple-900/60 border border-indigo-500/40 rounded-2xl p-4 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-600/40 rounded-xl border border-indigo-400/40">
+            <Cpu className="w-5 h-5 text-indigo-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-300">
+                SBB Enterprise Differentiation Core
+              </span>
+              <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded">
+                PILLARS 2 & 4
+              </span>
+            </div>
+            <h4 className="text-xs font-bold text-white mt-0.5">
+              Multi-Agent DAG Orchestration & Consequential Approval Gates
+            </h4>
+          </div>
+        </div>
+
+        <button
+          onClick={() => onNavigateToTab && onNavigateToTab("enterprise-core")}
+          className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-md cursor-pointer self-start sm:self-center whitespace-nowrap"
+        >
+          Open 5-Pillar Core Architecture
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border border-indigo-800/40 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
