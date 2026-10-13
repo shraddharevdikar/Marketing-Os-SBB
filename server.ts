@@ -14,6 +14,12 @@ import {
   rateLimiter,
   safeErrorHandler
 } from "./src/server/authMiddleware";
+import {
+  validateAiPromptInput,
+  validateLeadCaptureInput,
+  validateCampaignInput,
+  sanitizeInputString
+} from "./src/server/validatorMiddleware";
 
 dotenv.config();
 
@@ -118,7 +124,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // Route 1: Query the AI marketing strategist
-app.post("/api/strategist/query", async (req, res) => {
+app.post("/api/strategist/query", validateAiPromptInput, async (req, res) => {
   try {
     const { prompt, businessState } = req.body;
     const client = getAiClient();
@@ -126,36 +132,35 @@ app.post("/api/strategist/query", async (req, res) => {
     const formattedContext = `
       You are the Sovereign Business Brain (MarketingOS v2.4), an elite, highly intelligent AI marketing growth strategist.
       Current Business State:
-      - Marketing Attributed Revenue: $${businessState?.revenue?.toLocaleString() || "482,910"}
-      - ROAS Target: ${businessState?.roasTarget || "4.2"}x
-      - Daily Burn Rate: $${businessState?.burnRate?.toLocaleString() || "1,200"}/day
-      - Lead Quality Score: ${businessState?.leadScore || "88"}/100
+      - Marketing Attributed Revenue: $${businessState?.revenue?.toLocaleString() || "Not Connected"}
+      - ROAS Target: ${businessState?.roasTarget || "4.0"}x
+      - Daily Burn Rate: $${businessState?.burnRate?.toLocaleString() || "Not Connected"}/day
+      - Lead Quality Score: ${businessState?.leadScore || "Pending Scoring"}/100
       - Active Channels: ${JSON.stringify(businessState?.channels || [])}
       - Target Demographics: ${JSON.stringify(businessState?.demographics || [])}
     `;
 
     if (!client) {
-      // Return a highly intelligent mock rule-based expert recommendation when API key is missing.
-      // We will include a helpful note showing how to connect their actual key
+      // Deterministic rule-based expert recommendation when Gemini API key is not configured
       const lowerPrompt = prompt.toLowerCase();
-      let responseText = `### 🧠 Sovereign Business Brain Intelligence (Local Fallback Mode)\n\n`;
-      responseText += `*Note: To enable custom live AI-powered strategic deep dives, please add your **GEMINI_API_KEY** in the **Settings > Secrets** panel in the AI Studio UI.*\n\n`;
+      let responseText = `### 🧠 Sovereign Business Brain Intelligence (Rule Engine Active)\n\n`;
+      responseText += `*Data Provenance: Live ad platform metrics are unobserved until API keys are configured. Guidance below represents verified industry benchmark models.*\n\n`;
 
       if (lowerPrompt.includes("cpa") || lowerPrompt.includes("facebook") || lowerPrompt.includes("fb")) {
-        responseText += `#### 📊 Facebook Ads Performance Diagnostics:\n`;
-        responseText += `1. **CPA Optimization**: Your Meta Brand Awareness CPA is currently running at approximately $18.40. We recommend shifting 15% of the static awareness budget to mid-funnel lookalike campaigns targeting **${businessState?.demographics?.[0]?.name || "Enterprise"}** verticals.\n`;
-        responseText += `2. **Creative Ad fatigue**: Average click-through-rate (CTR) has seen a minor decline of 4% over the past 14 days. Rotate ad creatives using short-form narrative videos.\n`;
-        responseText += `3. **Action Plan**: Re-allocate $400/day from Facebook General to Google Search high-intent keywords to secure immediate high-scoring leads.`;
+        responseText += `#### 📊 Meta / Facebook Ads Performance Diagnostics:\n`;
+        responseText += `1. **CPA Optimization Framework**: Live Ad Platform Status: Not Connected (connect OAuth in Credentials Vault). Calculation: CPA = Advertising Spend / Attributed Conversions. Prioritize lookalike and custom audience segments targeting **${businessState?.demographics?.[0]?.name || "Enterprise"}** verticals.\n`;
+        responseText += `2. **Creative Ad Fatigue**: Regularly rotate visual hooks using short-form narrative video to sustain click-through rates.\n`;
+        responseText += `3. **Action Plan**: Focus budget on validated high-intent search terms to secure verified pipeline opportunities.`;
       } else if (lowerPrompt.includes("burn") || lowerPrompt.includes("budget") || lowerPrompt.includes("spend")) {
         responseText += `#### 💸 Capital Efficiency & Burn Diagnostics:\n`;
-        responseText += `1. **Current Spend**: Your total Daily Burn Rate is **$${businessState?.burnRate || "1,200"}/day** against an active attribution of **$${businessState?.revenue ? (businessState.revenue / 30).toFixed(2) : "16,097"}/day** in pipeline value.\n`;
-        responseText += `2. **ROAS Target Efficiency**: You are operating at an dynamic ROAS target of **${businessState?.roasTarget || "4.2"}x**. Reducing channels with conversion rates under 1.5% (e.g., experimental awareness campaigns) will cut your burn by 25% while lifting average ROAS to 4.5x.\n`;
-        responseText += `3. **Immediate Directives**: Temporarily scale down YouTube retargeting by 10% and focus resources on Google Core Search high-quality segments.`;
+        responseText += `1. **Budget Management**: Active daily spend parameters should align with verified customer lifetime value (LTV). Evaluate burn against attributable pipeline.\n`;
+        responseText += `2. **ROAS Target Efficiency**: Dynamic ROAS threshold target: **${businessState?.roasTarget || "4.0"}x**. Reallocate spend away from channels with conversion rates under 1.5% to preserve runway.\n`;
+        responseText += `3. **Immediate Directives**: Consolidate experimental ad budgets into proven search and retargeting segments.`;
       } else {
         responseText += `#### 🎯 Sovereign Growth Optimization Recommendations:\n`;
-        responseText += `1. **Audience Refinement**: Double-down on **SaaS Founders** and **E-commerce Enterprise** segments which are showing a lead conversion index of 92/100 and a high average contract value.\n`;
-        responseText += `2. **Lead Routing System**: Since your Lead Quality Score is **${businessState?.leadScore || "88"}/100**, implement an automated lead scoring filter. Only route MQLs scored above 85 directly to your sales pipeline.\n`;
-        responseText += `3. **Channel Recommendation**: Increase budget for search intent keywords and write standard contextual landing pages optimized for mobile users.`;
+        responseText += `1. **Audience Refinement**: Focus customer acquisition on high-contract-value segments showing the highest retention rates.\n`;
+        responseText += `2. **Lead Routing System**: Implement qualification gates to route verified marketing-qualified leads directly to sales executives.\n`;
+        responseText += `3. **Channel Recommendation**: Maximize high-intent search keywords and deploy dedicated contextual landing pages optimized for conversions.`;
       }
       return res.json({ text: responseText, isFallback: true });
     }
@@ -1229,22 +1234,24 @@ app.post("/api/gemini/crm-consultant", async (req, res) => {
 });
 
 // Route 11: Lead Capture Ingestion
-app.post("/api/lead/capture", (req, res) => {
-  const { name, email, source, territory, product } = req.body;
+app.post("/api/lead/capture", validateLeadCaptureInput, (req, res) => {
+  const { name, email, source, territory, product, phone, organizationId } = req.body;
   const newLead = {
     id: "lead-" + Date.now(),
-    name: name || "Captured Lead",
-    email: email || "contact@example.com",
-    phone: "+1 (416) 555-0192",
-    source: source || "Ad Hook Ingestion",
-    territory: territory || "Ontario (ON)",
-    product: product || "Enterprise Growth Suite",
-    score: 85,
+    name: name,
+    email: email,
+    phone: phone ? sanitizeInputString(phone, 30) : undefined,
+    source: source || "Inbound Webhook",
+    territory: territory || "General Market",
+    product: product || "MarketingOS Service",
+    score: null, // Untrusted incoming leads are initially unscored until AI triage
     status: "New Lead",
-    value: 12500,
-    aiCallStatus: "Awaiting Call"
+    value: null, // Deal value is estimated post-discovery rather than fabricated
+    organizationId: organizationId || "default_org",
+    aiCallStatus: "Pending Qualification",
+    createdAt: new Date().toISOString()
   };
-  res.json(newLead);
+  res.status(201).json(newLead);
 });
 
 // Route 12: Pre-sales Call Simulation

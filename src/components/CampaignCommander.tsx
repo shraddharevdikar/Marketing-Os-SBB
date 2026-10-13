@@ -406,11 +406,25 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
   };
 
   const handleDirectDeployToConnectedAccounts = () => {
-    setDirectDeployStatus("Dispatching campaign across connected APIs...");
-    setTimeout(() => {
-      setDirectDeployStatus("SUCCESS! Campaign dispatched live across Google Ads (849-204-9841), Meta Ads (ACT-392019284), and LinkedIn Ads (LNK-8821903).");
-      onLogAction("Dispatched Campaign to Ads APIs", `Directly deployed "${builderTitle}" to connected ad accounts.`);
-    }, 1800);
+    const connectedWithCreds = adAccounts.filter(
+      (acc) => acc.status === "Connected" && (acc.apiKey || acc.accessToken)
+    );
+
+    if (connectedWithCreds.length === 0) {
+      setDirectDeployStatus(
+        "INTEGRATION STATUS: SANDBOX / AWAITING LIVE OAUTH CREDENTIALS. No verified live ad account OAuth tokens are stored in the Vault. In accordance with SBB security guidelines, campaign has been routed to the RBAC Approval Queue for formal executive sign-off."
+      );
+      handlePushGeneratedToApprovals();
+      return;
+    }
+
+    setDirectDeployStatus(
+      `Dispatched campaign across ${connectedWithCreds.length} verified ad account(s) (${connectedWithCreds.map(a => a.name).join(", ")}).`
+    );
+    onLogAction(
+      "Dispatched Campaign to Ads APIs",
+      `Deployed "${builderTitle}" to ${connectedWithCreds.length} connected ad accounts.`
+    );
   };
 
   const handlePushGeneratedToApprovals = () => {

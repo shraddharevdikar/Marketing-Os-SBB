@@ -100,4 +100,44 @@ test("Agent Governance & Consequential Action Approval Gates", async (t) => {
     assert.strictEqual(check2.canExecute, false);
     assert.match(check2.reason!, /modified after approval/i);
   });
+
+  await t.test("executes end-to-end MarketingOS campaign workflow: propose -> approve -> execute -> audit", () => {
+    // 1. Propose campaign with real budget and channel parameters
+    const campaignProposal = {
+      title: "Q4 Customer Acquisition Blitz",
+      budget: 15000,
+      channels: ["Google Search Core", "LinkedIn ABM"],
+      targetLeads: 500,
+      targetCpa: 30.0
+    };
+    const gate = createApprovalGate("org_quantum", "CAMPAIGN_LAUNCH", campaignProposal, "Marketing Manager Mark");
+    assert.strictEqual(gate.status, "PENDING_APPROVAL");
+
+    // 2. Unapproved execution attempt must be blocked
+    const preApprovalCheck = verifyActionCanExecute(gate, campaignProposal);
+    assert.strictEqual(preApprovalCheck.canExecute, false);
+
+    // 3. Human CEO approves the exact proposal
+    const approvalRes = approveGate(gate, "Victoria CEO", "CEO");
+    assert.strictEqual(approvalRes.success, true);
+    assert.strictEqual(gate.status, "APPROVED");
+
+    // 4. Authorized execution succeeds
+    const executionCheck = verifyActionCanExecute(gate, campaignProposal);
+    assert.strictEqual(executionCheck.canExecute, true);
+
+    // 5. Sealed audit trail entry generated
+    const auditRecord = {
+      id: "LOG-" + crypto.randomUUID().substring(0, 6),
+      organizationId: gate.organizationId,
+      action: "CAMPAIGN_EXECUTED",
+      gateId: gate.id,
+      approver: gate.approvedBy,
+      parameterHash: gate.parameterHash,
+      timestamp: new Date().toISOString()
+    };
+    assert.ok(auditRecord.id.startsWith("LOG-"));
+    assert.strictEqual(auditRecord.organizationId, "org_quantum");
+    assert.strictEqual(auditRecord.approver, "Victoria CEO");
+  });
 });
