@@ -87,9 +87,11 @@ service cloud.firestore {
       match /campaigns/{campaignId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId) &&
+          (!('organizationId' in request.resource.data) || request.resource.data.organizationId == orgId) &&
           (!('status' in request.resource.data) || request.resource.data.status != 'EXECUTED') &&
           (!('approved' in request.resource.data) || request.resource.data.approved == false);
         allow update: if isOrgMember(orgId) &&
+          (!('organizationId' in request.resource.data) || request.resource.data.organizationId == resource.data.organizationId) &&
           (!('approved' in request.resource.data) || request.resource.data.approved == resource.data.approved) &&
           (!('approvalGateId' in request.resource.data) || request.resource.data.approvalGateId == resource.data.approvalGateId) &&
           (!('status' in request.resource.data) || resource.data.status != 'EXECUTED' || request.resource.data.status == resource.data.status);

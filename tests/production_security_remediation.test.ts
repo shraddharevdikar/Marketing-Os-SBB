@@ -17,7 +17,7 @@ import {
   ApprovalGate,
   _resetApprovalGates
 } from "../src/server/sbbEnterpriseRoutes";
-import { registerUser, authenticateUser, findUserByEmail, revokeToken, isTokenRevoked, revokeUser, isUserRevoked } from "../src/server/userStore";
+import { registerUser, authenticateUser, findUserByEmail, provisionAdministrator, revokeToken, isTokenRevoked, revokeUser, isUserRevoked } from "../src/server/userStore";
 
 test("P0 & P1 Production Security Remediation Suite", async (t) => {
   const originalEnv = { ...process.env };
@@ -415,15 +415,24 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
     assert.strictEqual(authFail.success, false);
     assert.ok(authFail.error?.includes("Invalid password"));
 
-    // Case 6: Admin email automatically assigned Admin role
-    const adminEmail = "shraddha.revdikar@gmail.com";
-    const adminReg = registerUser({
-      email: adminEmail,
+    // Case 6: Public registration does NOT automatically assign Admin role
+    const adminCandidateEmail = "shraddha.revdikar@gmail.com";
+    const regResult = registerUser({
+      email: adminCandidateEmail,
       password: "AdminSuperSecretPassword!",
       name: "Shraddha Revdikar"
     });
-    if (adminReg.success && adminReg.user) {
-      assert.strictEqual(adminReg.user.role, "Admin", "Admin email must be resolved to Admin role");
+    if (regResult.success && regResult.user) {
+      assert.strictEqual(regResult.user.role, "Executive", "Public registration must NOT automatically grant Admin role");
+      // Provision via trusted, auditable administrator provisioning workflow
+      const provisionResult = provisionAdministrator({
+        targetEmailOrId: adminCandidateEmail,
+        authorizedByActor: "bootstrap_system",
+        authorizedByRole: "Admin",
+        justification: "Verified corporate lead administrator onboarding"
+      });
+      assert.strictEqual(provisionResult.success, true);
+      assert.strictEqual(provisionResult.user?.role, "Admin", "Admin role granted via trusted provisioning");
     }
   });
 

@@ -8,6 +8,7 @@ import {
   createSignedSessionToken,
   verifySignedSessionToken
 } from "../src/server/authMiddleware";
+import { registerUser, findUserByEmail } from "../src/server/userStore";
 
 test("Backend Authentication & Cryptographic Verification Middleware", async (t) => {
   await t.test("rejects missing Authorization header with 401 Unauthorized in production", async () => {
@@ -142,8 +143,19 @@ test("Backend Authentication & Cryptographic Verification Middleware", async (t)
   });
 
   await t.test("authenticates valid cryptographically signed session token and extracts user and tenant", async () => {
+    const regResult = registerUser({
+      email: "m.mercer@acme.ca",
+      password: "SecurePassword123!",
+      name: "M Mercer",
+      organizationId: "acme_holdings"
+    });
+    const stored = findUserByEmail("m.mercer@acme.ca");
+    if (stored) {
+      stored.role = "Marketing Manager";
+    }
+
     const validToken = createSignedSessionToken({
-      userId: "USR-A1B2C3",
+      userId: stored?.id || "USR-A1B2C3",
       email: "m.mercer@acme.ca",
       role: "Marketing Manager",
       organizationId: "acme_holdings"
@@ -155,18 +167,61 @@ test("Backend Authentication & Cryptographic Verification Middleware", async (t)
         authorization: `Bearer ${validToken}`
       }
     };
-    const res: any = {};
+    let statusCode = 0;
+    const res: any = {
+      status: (code: number) => {
+        statusCode = code;
+        return res;
+      },
+      json: () => res
+    };
     let nextCalled = false;
 
     await verifyAuthAndTenant(req, res, () => {
       nextCalled = true;
       assert.ok(req.user);
-      assert.strictEqual(req.user.userId, "USR-A1B2C3");
       assert.strictEqual(req.user.organizationId, "acme_holdings");
       assert.strictEqual(req.user.role, "Marketing Manager");
       assert.strictEqual(req.user.email, "m.mercer@acme.ca");
     });
     assert.strictEqual(nextCalled, true);
+  });
+
+  await t.test("strictly REJECTS custom session token when authoritative user does not exist", async () => {
+    const phantomToken = createSignedSessionToken({
+      userId: "USR-PHANTOM",
+      email: "phantom@nonexistent-corp.ca",
+      role: "Executive",
+      organizationId: "nonexistent_corp"
+    });
+
+    const req: any = {
+      path: "/api/campaigns",
+      headers: {
+        authorization: `Bearer ${phantomToken}`
+      }
+    };
+    let statusCode = 0;
+    let jsonResponse: any = null;
+    const res: any = {
+      status: (code: number) => {
+        statusCode = code;
+        return res;
+      },
+      json: (data: any) => {
+        jsonResponse = data;
+        return res;
+      }
+    };
+    let nextCalled = false;
+
+    await verifyAuthAndTenant(req, res, () => {
+      nextCalled = true;
+    });
+
+    assert.strictEqual(nextCalled, false, "Must reject token without authoritative user record");
+    assert.strictEqual(statusCode, 401, "Must return 401 Unauthorized");
+    assert.ok(jsonResponse?.message?.includes("Authoritative user or organization membership record cannot be verified"));
   });
 
   await t.test("allows public /api/health endpoint without authentication", async () => {

@@ -4,10 +4,10 @@ import {
   findStoredUserByEmail,
   findStoredUserById,
   appendAuthoritativeAuditBlock,
-  StoredUser
+  type StoredUser
 } from "./managedStore";
 
-export { StoredUser };
+export type { StoredUser };
 
 // In-memory active lookup cache
 const usersCache: Record<string, StoredUser> = {};

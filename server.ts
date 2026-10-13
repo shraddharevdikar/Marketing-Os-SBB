@@ -18,7 +18,7 @@ import {
   safeErrorHandler
 } from "./src/server/authMiddleware";
 import { executeLegacyMigration } from "./src/server/migrateLegacyRecords";
-import { registerUser, authenticateUser, findUserByEmail, ADMIN_EMAILS } from "./src/server/userStore";
+import { registerUser, authenticateUser, findUserByEmail, provisionAdministrator } from "./src/server/userStore";
 import {
   validateAiPromptInput,
   validateLeadCaptureInput,
@@ -170,16 +170,15 @@ app.post("/api/auth/login", authRateLimiter, (req, res) => {
 
   let authResult = authenticateUser(email, password);
 
-  // If user does not exist yet but is an Admin email or recognized operator logging in,
-  // auto-register them securely with the provided password
+  // If user does not exist yet logging in, auto-register them securely with the provided password
+  // (strictly assigns non-privileged Executive role; Admin role requires trusted provisioning)
   if (!authResult.success && !findUserByEmail(email)) {
-    const isAdmin = ADMIN_EMAILS.includes(email.trim().toLowerCase());
     const regResult = registerUser({
       email,
       password,
       name: email.split("@")[0],
       companyName: companyName || "Sovereign Enterprise",
-      department: isAdmin ? "System Administration & Security" : "Enterprise Operations"
+      department: "Enterprise Operations"
     });
     if (regResult.success && regResult.user) {
       authResult = { success: true, user: regResult.user };
@@ -213,19 +212,36 @@ app.post("/api/auth/login", authRateLimiter, (req, res) => {
   });
 });
 
-// Route: Server-side Role Resolution
+// Route: Server-side Role Resolution (Authoritative server-side role from verified token/session)
 app.get("/api/auth/resolve-role", (req: any, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const resolvedRole = ADMIN_EMAILS.includes(req.user.email?.toLowerCase()) ? "Admin" : req.user.role;
-
   res.json({
     userId: req.user.userId,
     email: req.user.email,
-    role: resolvedRole,
+    role: req.user.role,
     organizationId: req.user.organizationId
   });
+});
+
+// Route: Trusted, Auditable Administrator Provisioning Workflow
+app.post("/api/admin/provision", requireRole(["Admin"]), (req: any, res) => {
+  const { targetEmailOrId, justification, bootstrapSecret } = req.body;
+  if (!targetEmailOrId || !justification) {
+    return res.status(400).json({ error: "targetEmailOrId and justification are required." });
+  }
+  const result = provisionAdministrator({
+    targetEmailOrId,
+    authorizedByActor: req.user.userId || req.user.email,
+    authorizedByRole: req.user.role,
+    justification,
+    bootstrapSecret
+  });
+  if (!result.success) {
+    return res.status(400).json({ error: result.error });
+  }
+  res.json({ success: true, user: result.user });
 });
 
 // Route: Legacy Unisolated Records Migration

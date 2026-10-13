@@ -14,12 +14,14 @@ test("Live Firebase Emulator Suite: Direct evaluation of deployed firestore.rule
 
   try {
     const rulesContent = fs.readFileSync("firestore.rules", "utf-8");
+    const hostEnv = process.env.FIRESTORE_EMULATOR_HOST;
+    const [envHost, envPort] = hostEnv ? hostEnv.split(":") : ["127.0.0.1", "8085"];
     testEnv = await initializeTestEnvironment({
       projectId: "gen-lang-client-0577810698",
       firestore: {
         rules: rulesContent,
-        host: "127.0.0.1",
-        port: 8080
+        host: envHost || "127.0.0.1",
+        port: Number(envPort) || 8085
       }
     });
   } catch (err: any) {
