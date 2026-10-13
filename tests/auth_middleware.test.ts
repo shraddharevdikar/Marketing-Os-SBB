@@ -4,17 +4,19 @@ import {
   verifyAuthAndTenant,
   requireRole,
   rateLimiter,
-  applySecurityHeaders
+  applySecurityHeaders,
+  createSignedSessionToken,
+  verifySignedSessionToken
 } from "../src/server/authMiddleware";
 
-test("Backend Authentication & Authorization Middleware", async (t) => {
-  await t.test("rejects missing Authorization header with 401 Unauthorized", () => {
+test("Backend Authentication & Cryptographic Verification Middleware", async (t) => {
+  await t.test("rejects missing Authorization header with 401 Unauthorized in production", async () => {
     const prevEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
     process.env.ALLOW_DEV_AUTH = "false";
 
     const req: any = {
-      path: "/api/strategist/query",
+      path: "/api/campaigns",
       headers: {}
     };
 
@@ -32,7 +34,7 @@ test("Backend Authentication & Authorization Middleware", async (t) => {
     };
 
     let nextCalled = false;
-    verifyAuthAndTenant(req, res, () => { nextCalled = true; });
+    await verifyAuthAndTenant(req, res, () => { nextCalled = true; });
 
     assert.strictEqual(nextCalled, false);
     assert.strictEqual(statusCode, 401);
@@ -41,7 +43,133 @@ test("Backend Authentication & Authorization Middleware", async (t) => {
     process.env.NODE_ENV = prevEnv;
   });
 
-  await t.test("allows public /api/health endpoint without authentication", (t) => {
+  await t.test("strictly REJECTS fabricated raw string tokens (USR-XXX:tenant:role:email)", async () => {
+    const req: any = {
+      path: "/api/campaigns",
+      headers: {
+        authorization: "Bearer USR-A1B2C3:acme_holdings:Marketing Manager:m.mercer@acme.ca"
+      }
+    };
+
+    let statusCode = 0;
+    let jsonBody: any = null;
+    const res: any = {
+      status: (code: number) => {
+        statusCode = code;
+        return res;
+      },
+      json: (data: any) => {
+        jsonBody = data;
+        return res;
+      }
+    };
+
+    let nextCalled = false;
+    await verifyAuthAndTenant(req, res, () => { nextCalled = true; });
+
+    assert.strictEqual(nextCalled, false, "Fabricated raw token must NOT be accepted");
+    assert.strictEqual(statusCode, 401, "Must return 401 Unauthorized");
+    assert.strictEqual(jsonBody?.error, "Unauthorized");
+    assert.ok(jsonBody?.message.includes("Cryptographic token verification failed"));
+  });
+
+  await t.test("strictly REJECTS forged or tampered session tokens (invalid HMAC signature)", async () => {
+    // Generate valid token, then forge the payload to escalate role to CEO
+    const validUser = {
+      userId: "USR-LEGIT",
+      email: "intern@acme.ca",
+      role: "Executive",
+      organizationId: "acme_corp"
+    };
+    const validToken = createSignedSessionToken(validUser);
+    const parts = validToken.split(".");
+
+    // Attacker modifies the payload chunk to claim "CEO" and competitor org
+    const forgedPayload = {
+      userId: "USR-LEGIT",
+      email: "intern@acme.ca",
+      role: "CEO",
+      organizationId: "competitor_corp",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600
+    };
+    const forgedPayloadB64 = Buffer.from(JSON.stringify(forgedPayload)).toString("base64url");
+    const tamperedToken = `${parts[0]}.${forgedPayloadB64}.${parts[2]}`; // Old signature with forged payload
+
+    const req: any = {
+      path: "/api/sbb/decision-engine",
+      headers: { authorization: `Bearer ${tamperedToken}` }
+    };
+
+    let statusCode = 0;
+    const res: any = {
+      status: (code: number) => { statusCode = code; return res; },
+      json: () => res
+    };
+
+    let nextCalled = false;
+    await verifyAuthAndTenant(req, res, () => { nextCalled = true; });
+
+    assert.strictEqual(nextCalled, false, "Tampered cryptographic token must be rejected");
+    assert.strictEqual(statusCode, 401, "Must fail closed with 401 Unauthorized");
+  });
+
+  await t.test("strictly REJECTS expired session tokens", async () => {
+    // Token that expired 100 seconds ago
+    const expiredToken = createSignedSessionToken({
+      userId: "USR-EXPIRED",
+      email: "old@corp.ca",
+      role: "CEO",
+      organizationId: "corp"
+    }, -100);
+
+    const verified = verifySignedSessionToken(expiredToken);
+    assert.strictEqual(verified, null, "Expired token must resolve to null");
+
+    const req: any = {
+      path: "/api/campaigns",
+      headers: { authorization: `Bearer ${expiredToken}` }
+    };
+    let statusCode = 0;
+    const res: any = {
+      status: (code: number) => { statusCode = code; return res; },
+      json: () => res
+    };
+    let nextCalled = false;
+    await verifyAuthAndTenant(req, res, () => { nextCalled = true; });
+    assert.strictEqual(nextCalled, false);
+    assert.strictEqual(statusCode, 401);
+  });
+
+  await t.test("authenticates valid cryptographically signed session token and extracts user and tenant", async () => {
+    const validToken = createSignedSessionToken({
+      userId: "USR-A1B2C3",
+      email: "m.mercer@acme.ca",
+      role: "Marketing Manager",
+      organizationId: "acme_holdings"
+    });
+
+    const req: any = {
+      path: "/api/campaigns",
+      headers: {
+        authorization: `Bearer ${validToken}`
+      }
+    };
+    const res: any = {};
+    let nextCalled = false;
+
+    await verifyAuthAndTenant(req, res, () => {
+      nextCalled = true;
+      assert.ok(req.user);
+      assert.strictEqual(req.user.userId, "USR-A1B2C3");
+      assert.strictEqual(req.user.organizationId, "acme_holdings");
+      assert.strictEqual(req.user.role, "Marketing Manager");
+      assert.strictEqual(req.user.email, "m.mercer@acme.ca");
+    });
+    assert.strictEqual(nextCalled, true);
+  });
+
+  await t.test("allows public /api/health endpoint without authentication", async () => {
     const req: any = {
       path: "/api/health",
       headers: {}
@@ -49,29 +177,8 @@ test("Backend Authentication & Authorization Middleware", async (t) => {
     const res: any = {};
     let nextCalled = false;
 
-    verifyAuthAndTenant(req, res, () => {
+    await verifyAuthAndTenant(req, res, () => {
       nextCalled = true;
-    });
-    assert.strictEqual(nextCalled, true);
-  });
-
-  await t.test("authenticates valid structured session token and extracts user and tenant", (t) => {
-    const req: any = {
-      path: "/api/campaigns",
-      headers: {
-        authorization: "Bearer USR-A1B2C3:acme_holdings:Marketing Manager:m.mercer@acme.ca"
-      }
-    };
-    const res: any = {};
-    let nextCalled = false;
-
-    verifyAuthAndTenant(req, res, () => {
-      nextCalled = true;
-      assert.ok(req.user);
-      assert.strictEqual(req.user.userId, "USR-A1B2C3");
-      assert.strictEqual(req.user.organizationId, "acme_holdings");
-      assert.strictEqual(req.user.role, "Marketing Manager");
-      assert.strictEqual(req.user.email, "m.mercer@acme.ca");
     });
     assert.strictEqual(nextCalled, true);
   });

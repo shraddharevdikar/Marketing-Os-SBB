@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import { GoogleGenAI } from "@google/genai";
 import { sanitizeAndTokenizePII, rehydratePII } from "../lib/piiSanitizer";
+import { AuthenticatedRequest } from "./authMiddleware";
 
 export const sbbEnterpriseRouter = express.Router();
 
@@ -42,7 +43,7 @@ let auditChain: AuditBlock[] = [
     timestamp: "2026-10-12T08:00:00.000Z",
     actor: "SBB Security Genesis Engine",
     role: "System",
-    tenantId: "tenant_sbb_corp_prod_01",
+    tenantId: "default_org",
     department: "Executive",
     action: "GENESIS_BLOCK_INITIALIZED",
     details: "SBB Enterprise Cryptographic Security Core initialized with SHA-256 tamper-evident ledger.",
@@ -73,7 +74,7 @@ function appendAuditBlock(params: {
     timestamp,
     actor: params.actor,
     role: params.role,
-    tenantId: params.tenantId || "tenant_sbb_corp_prod_01",
+    tenantId: params.tenantId || "default_org",
     department: params.department || "Executive",
     action: params.action,
     details: params.details,
@@ -112,10 +113,10 @@ interface ApprovalGate {
 let approvalGates: ApprovalGate[] = [
   {
     id: "GATE-901",
-    tenantId: "tenant_sbb_corp_prod_01",
+    tenantId: "sovereign_enterprise",
     title: "Release $14,500 CAD Ad Spend to Meta & Google Ads",
     category: "CRITICAL_BUDGET_RELEASE",
-    requestedBy: "Miriam Manager Mercer",
+    requestedBy: "m.mercer@sovereignbusiness.ca",
     requestedRole: "Marketing Manager",
     department: "Marketing",
     amountCad: 14500,
@@ -127,10 +128,10 @@ let approvalGates: ApprovalGate[] = [
   },
   {
     id: "GATE-902",
-    tenantId: "tenant_sbb_corp_prod_01",
+    tenantId: "sovereign_enterprise",
     title: "Export 380 Verified CRM Lead Records for Retargeting",
     category: "CUSTOMER_PII_EXPORT",
-    requestedBy: "Thomas TL Jenkins",
+    requestedBy: "t.jenkins@sovereignbusiness.ca",
     requestedRole: "Team Lead",
     department: "Sales",
     description: "Exporting unmasked contact records (emails & direct phone numbers) to external custom audience sandbox.",
@@ -141,7 +142,7 @@ let approvalGates: ApprovalGate[] = [
   },
   {
     id: "GATE-903",
-    tenantId: "tenant_sbb_corp_prod_01",
+    tenantId: "sovereign_enterprise",
     title: "Grant Autonomous Write Key to Stripe Financial Ledger",
     category: "AGENT_INTEGRATION_KEY_GRANT",
     requestedBy: "Albert AGM Vance",
@@ -160,6 +161,7 @@ let approvalGates: ApprovalGate[] = [
 // -------------------------------------------------------------
 interface MemoryConflict {
   id: string;
+  tenantId: string;
   metricName: string;
   departmentA: string;
   recordA: {
@@ -189,6 +191,7 @@ interface MemoryConflict {
 let memoryConflicts: MemoryConflict[] = [
   {
     id: "CONF-01",
+    tenantId: "sovereign_enterprise",
     metricName: "Q3 2026 Customer Acquisition Cost (CAC)",
     departmentA: "Marketing",
     recordA: {
@@ -196,7 +199,7 @@ let memoryConflicts: MemoryConflict[] = [
       source: "Meta & Google Ads Campaign Manager Export",
       sourceChunkId: "MKT-EXP-2026-Q3-09",
       dateReported: "2026-09-30",
-      reportedBy: "Miriam Manager Mercer"
+      reportedBy: "m.mercer@sovereignbusiness.ca"
     },
     departmentB: "Finance",
     recordB: {
@@ -213,6 +216,7 @@ let memoryConflicts: MemoryConflict[] = [
   },
   {
     id: "CONF-02",
+    tenantId: "sovereign_enterprise",
     metricName: "Active Enterprise Client Count & ARR",
     departmentA: "Sales",
     recordA: {
@@ -220,7 +224,7 @@ let memoryConflicts: MemoryConflict[] = [
       source: "CRM Enterprise Deal Pipeline",
       sourceChunkId: "CRM-DEALS-STAGE-WON",
       dateReported: "2026-10-01",
-      reportedBy: "Thomas TL Jenkins"
+      reportedBy: "t.jenkins@sovereignbusiness.ca"
     },
     departmentB: "Finance",
     recordB: {
@@ -237,11 +241,36 @@ let memoryConflicts: MemoryConflict[] = [
   }
 ];
 
+// Helper to extract verified context
+function getActorContext(req: AuthenticatedRequest) {
+  const user = req.user;
+  if (!user) {
+    throw new Error("UNAUTHORIZED_CONTEXT");
+  }
+  return {
+    actor: user.email || user.userId,
+    role: user.role,
+    tenantId: user.organizationId,
+    userId: user.userId
+  };
+}
+
+// -------------------------------------------------------------
+// Auth session info endpoint
+// -------------------------------------------------------------
+sbbEnterpriseRouter.get("/auth/session-info", (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized", message: "No authenticated session" });
+  }
+  res.json({ user: req.user });
+});
+
 // -------------------------------------------------------------
 // PILLAR 1: Business-Wide Intelligence Decision Engine
 // -------------------------------------------------------------
-sbbEnterpriseRouter.post("/decision-engine", async (req, res) => {
+sbbEnterpriseRouter.post("/decision-engine", async (req: AuthenticatedRequest, res) => {
   try {
+    const { actor, role, tenantId } = getActorContext(req);
     const {
       marketingSpendCad = 12000,
       salesRepsCount = 4,
@@ -272,7 +301,6 @@ sbbEnterpriseRouter.post("/decision-engine", async (req, res) => {
     const newAnnualPipeline = dealsClosed * acvCad;
 
     // 3. Customer Retention Modeling (Onboarding Queue & Churn)
-    // Surge in deals stresses onboarding, but churn mitigation budget defends it
     const onboardingStressFactor = Math.max(1, dealsClosed / 15);
     const mitigationEffectiveness = Math.min(0.5, (churnMitigationBudgetCad / 10000));
     const baseChurnRate = 0.024; // 2.4% monthly churn
@@ -312,7 +340,7 @@ sbbEnterpriseRouter.post("/decision-engine", async (req, res) => {
       try {
         const prompt = `
 You are the Sovereign Business Brain (SBB) Decision Engine.
-Analyze this cross-functional business matrix for ${companyProfile.companyName || "the Enterprise"}:
+Analyze this cross-functional business matrix for ${companyProfile.companyName || tenantId}:
 - Marketing Spend: $${marketingSpendCad} CAD/mo -> Generating ${rawLeadsGenerated} leads (${mqls} MQLs) at $${Math.round(dynamicCpl)} CPL.
 - Sales Conversion: ${salesRepsCount} sales reps (capacity: ${totalRepCapacity} leads). Overload Ratio: ${leadOverloadRatio.toFixed(2)}x. Actual Win Rate: ${(actualConversionRate * 100).toFixed(1)}% -> ${dealsClosed} deals closed ($${newAnnualPipeline.toLocaleString()} CAD new pipeline).
 - Customer Retention: Monthly Churn: ${(netMonthlyChurnRate * 100).toFixed(2)}% (${annualizedRetentionRate.toFixed(1)}% retention). Customer LTV: $${ltvCad.toLocaleString()} CAD. CAC: $${cacCad.toLocaleString()} CAD (LTV:CAC = ${ltvCacRatio}x).
@@ -322,7 +350,7 @@ Analyze this cross-functional business matrix for ${companyProfile.companyName |
 Provide a concise, high-impact executive decision synthesis in 3 structured bullet points:
 1. Systemic Trade-off Analysis (how marketing, sales, churn, and cash interact).
 2. The Optimal Growth Equilibrium Recommendation (exact capital/headcount shift).
-3. Immediate Directive for the CEO/Leadership.
+3. Immediate Directive for the Leadership.
 Keep it dense, quantitative, professional, without generic marketing fluff.`;
 
         const aiResponse = await client.models.generateContent({
@@ -348,13 +376,14 @@ Target a stabilized CAC Payback period of under 6 months. Maintain cash runway a
     }
 
     res.json({
-      metrics: {
-        marketingSpendCad,
+      timestamp: new Date().toISOString(),
+      tenantId,
+      actor,
+      inputs: { marketingSpendCad, salesRepsCount, churnMitigationBudgetCad, acvCad, currentMonthlyRevenueCad, cashReserveCad },
+      outputs: {
         rawLeadsGenerated,
         mqls,
         dynamicCpl: Math.round(dynamicCpl),
-        salesRepsCount,
-        totalRepCapacity,
         leadOverloadRatio: Number(leadOverloadRatio.toFixed(2)),
         actualConversionRate: Number((actualConversionRate * 100).toFixed(1)),
         dealsClosed,
@@ -362,11 +391,9 @@ Target a stabilized CAC Payback period of under 6 months. Maintain cash runway a
         newAnnualPipeline: Math.round(newAnnualPipeline),
         netMonthlyChurnRate: Number((netMonthlyChurnRate * 100).toFixed(2)),
         annualizedRetentionRate: Number(annualizedRetentionRate.toFixed(1)),
-        customerLifetimeMonths,
         ltvCad,
         cacCad,
         ltvCacRatio,
-        totalMonthlyRevenue: Math.round(totalMonthlyRevenue),
         monthlyOperatingCosts: Math.round(monthlyOperatingCosts),
         netMonthlyCashFlow: Math.round(netMonthlyCashFlow),
         runwayMonths,
@@ -377,6 +404,9 @@ Target a stabilized CAC Payback period of under 6 months. Maintain cash runway a
       aiSynthesis
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED_CONTEXT") {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+    }
     console.error("Decision engine error:", error);
     res.status(500).json({ error: error.message || "Failed to run decision engine" });
   }
@@ -385,28 +415,28 @@ Target a stabilized CAC Payback period of under 6 months. Maintain cash runway a
 // -------------------------------------------------------------
 // PILLAR 2: Real Agent Orchestration Layer (Delegation & Tool Calling)
 // -------------------------------------------------------------
-sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
+sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req: AuthenticatedRequest, res) => {
   try {
+    const { actor, role, tenantId } = getActorContext(req);
+
+    // Permission check for orchestration pipeline
+    const authorizedRoles = ["Admin", "CEO", "Vice President", "Marketing Manager"];
+    if (role !== "Admin" && !authorizedRoles.includes(role)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: `Role '${role}' is not authorized to execute autonomous agent orchestration pipelines. Required: [${authorizedRoles.join(", ")}].`
+      });
+    }
+
     const {
       pipelineObjective = "Scale Enterprise SaaS Inbound Pipeline in Ontario",
       budgetCapCad = 8500,
       targetAudience = "Chief Information Officers & VP Marketing",
-      primaryChannel = "LinkedIn & Google Search",
-      tenantId = "tenant_sbb_corp_prod_01",
-      userName = "Executive Operator",
-      userRole = "Marketing Manager"
+      primaryChannel = "LinkedIn & Google Search"
     } = req.body;
 
     const startTime = Date.now();
     const pipelineId = "DAG-RUN-" + Math.floor(100000 + Math.random() * 900000);
-
-    // 5-Stage Orchestration Delegation Execution:
-    // 1. Root Orchestrator: Master Strategy Delegation
-    // 2. Market Intel Agent (Authorized Web Grounding & Competitor Intel)
-    // 3. Creative Synthesis Agent (Authorized Meta/Google Ad Sandbox)
-    // 4. Compliance & Privacy Auditor (Authorized PIPEDA/CASL Verification Gate)
-    // 5. Financial & Budget Controller (Authorized Stripe/QuickBooks Ledger Hold)
-    // 6. CRM Lead Routing Agent (Authorized HubSpot / SBB CRM Webhook)
 
     const agentReports = [
       {
@@ -466,7 +496,7 @@ sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
         executionTimeMs: 310,
         integrationUsed: "Stripe & QuickBooks Financial Ledger Webhook",
         toolCallSignature: "reserve_budget_escrow(tenantId, amountCad=8500)",
-        outputSummary: `Reserved $${budgetCapCad.toLocaleString()} CAD working capital escrow in General Ledger under PO #PO-SBB-${pipelineId.slice(-4)}. Signing authority verified for ${userName} (${userRole}).`,
+        outputSummary: `Reserved $${budgetCapCad.toLocaleString()} CAD working capital escrow in General Ledger under PO #PO-SBB-${pipelineId.slice(-4)}. Signing authority verified for ${actor} (${role}).`,
         verificationHash: crypto.createHash("sha256").update(pipelineId + "-04").digest("hex")
       },
       {
@@ -488,8 +518,8 @@ sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
 
     // Append to immutable audit trail
     appendAuditBlock({
-      actor: userName,
-      role: userRole,
+      actor,
+      role,
       tenantId,
       department: "Marketing Operations",
       action: "ORCHESTRATION_PIPELINE_EXECUTED",
@@ -499,6 +529,7 @@ sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
 
     res.json({
       pipelineId,
+      tenantId,
       objective: pipelineObjective,
       status: "SUCCESS_VERIFIED",
       totalExecutionTimeMs,
@@ -511,6 +542,9 @@ sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
       }
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED_CONTEXT") {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+    }
     console.error("Orchestration pipeline error:", error);
     res.status(500).json({ error: error.message || "Failed to execute orchestration pipeline" });
   }
@@ -519,25 +553,40 @@ sbbEnterpriseRouter.post("/orchestrate/run-pipeline", async (req, res) => {
 // -------------------------------------------------------------
 // PILLAR 3: Reliable Business Memory (Conflicts & Reconciliation)
 // -------------------------------------------------------------
-sbbEnterpriseRouter.get("/memory/conflicts", (req, res) => {
-  res.json({ conflicts: memoryConflicts });
+sbbEnterpriseRouter.get("/memory/conflicts", (req: AuthenticatedRequest, res) => {
+  try {
+    const { role, tenantId } = getActorContext(req);
+    // Tenant-isolated view: Admin sees all, tenant sees their own
+    const visible = memoryConflicts.filter(c => role === "Admin" || c.tenantId === tenantId);
+    res.json({ conflicts: visible });
+  } catch (error: any) {
+    res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+  }
 });
 
-sbbEnterpriseRouter.post("/memory/reconcile", (req, res) => {
+sbbEnterpriseRouter.post("/memory/reconcile", (req: AuthenticatedRequest, res) => {
   try {
+    const { actor, role, tenantId } = getActorContext(req);
+
+    // Authority check: Reconciling official corporate golden records requires executive clearance
+    const allowedRoles = ["Admin", "CEO", "Vice President"];
+    if (role !== "Admin" && !allowedRoles.includes(role)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: `Role '${role}' is not authorized to reconcile enterprise memory golden records. Required: [${allowedRoles.join(", ")}].`
+      });
+    }
+
     const {
       conflictId,
       chosenRecordId,
       resolvedValue,
-      justification = "Executive audit reconciliation",
-      actor = "Chief Executive Officer",
-      role = "CEO",
-      tenantId = "tenant_sbb_corp_prod_01"
+      justification = "Executive audit reconciliation"
     } = req.body;
 
-    const conflict = memoryConflicts.find(c => c.id === conflictId);
+    const conflict = memoryConflicts.find(c => c.id === conflictId && (role === "Admin" || c.tenantId === tenantId));
     if (!conflict) {
-      return res.status(404).json({ error: "Conflict record not found" });
+      return res.status(404).json({ error: "Conflict record not found or inaccessible" });
     }
 
     conflict.status = "RECONCILED";
@@ -562,6 +611,9 @@ sbbEnterpriseRouter.post("/memory/reconcile", (req, res) => {
       reconciledRecord: conflict
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED_CONTEXT") {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+    }
     console.error("Memory reconcile error:", error);
     res.status(500).json({ error: error.message || "Failed to reconcile conflict" });
   }
@@ -570,34 +622,48 @@ sbbEnterpriseRouter.post("/memory/reconcile", (req, res) => {
 // -------------------------------------------------------------
 // PILLAR 4: Secure Execution (Approval Gates & Audit Trail)
 // -------------------------------------------------------------
-sbbEnterpriseRouter.get("/security/approval-gates", (req, res) => {
-  res.json({ approvalGates });
+sbbEnterpriseRouter.get("/security/approval-gates", (req: AuthenticatedRequest, res) => {
+  try {
+    const { role, tenantId } = getActorContext(req);
+    // Tenant-isolated view
+    const visible = approvalGates.filter(g => role === "Admin" || g.tenantId === tenantId);
+    res.json({ approvalGates: visible });
+  } catch (error: any) {
+    res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+  }
 });
 
-sbbEnterpriseRouter.post("/security/approval-gates/decide", (req, res) => {
+sbbEnterpriseRouter.post("/security/approval-gates/decide", (req: AuthenticatedRequest, res) => {
   try {
+    const { actor, role, tenantId, userId } = getActorContext(req);
     const {
       gateId,
       decision = "APPROVED",
-      actor = "Shraddha Admin",
-      role = "Admin",
-      justification = "Verified executive authorization",
-      tenantId = "tenant_sbb_corp_prod_01"
+      justification = "Verified executive authorization"
     } = req.body;
 
-    const gate = approvalGates.find(g => g.id === gateId);
+    const gate = approvalGates.find(g => g.id === gateId && (role === "Admin" || g.tenantId === tenantId));
     if (!gate) {
-      return res.status(404).json({ error: "Approval gate not found" });
+      return res.status(404).json({ error: "Approval gate not found or inaccessible for your organization" });
     }
 
-    // Role verification
+    // Role hierarchy & clearance verification
     const roleHierarchy = { "Admin": 100, "CEO": 90, "Vice President": 80, "AGM": 70, "Marketing Manager": 60, "Team Lead": 50, "Executive": 40 };
     const userClearance = roleHierarchy[role as keyof typeof roleHierarchy] || 0;
     const requiredClearance = roleHierarchy[gate.requiredMinRole as keyof typeof roleHierarchy] || 90;
 
     if (userClearance < requiredClearance) {
       return res.status(403).json({
-        error: `Insufficient signing authority. Action requires minimum role of '${gate.requiredMinRole}', but actor has role '${role}'.`
+        error: "Forbidden",
+        message: `Insufficient signing authority. Action requires minimum role of '${gate.requiredMinRole}', but actor has role '${role}'.`
+      });
+    }
+
+    // Two-person rule enforcement: Requester cannot self-approve unless Admin
+    if (role !== "Admin" && (gate.requestedBy === actor || gate.requestedBy === userId)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Two-person rule violation: Requester cannot self-approve their own consequential action request without Admin authority."
       });
     }
 
@@ -623,106 +689,124 @@ sbbEnterpriseRouter.post("/security/approval-gates/decide", (req, res) => {
       message: `Consequential action ${gate.id} has been marked as ${gate.status}.`
     });
   } catch (error: any) {
+    if (error.message === "UNAUTHORIZED_CONTEXT") {
+      return res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+    }
     console.error("Approval gate decision error:", error);
     res.status(500).json({ error: error.message || "Failed to decide approval gate" });
   }
 });
 
-sbbEnterpriseRouter.get("/security/audit-chain", (req, res) => {
-  // Verify integrity
-  let isIntact = true;
-  for (let i = 1; i < auditChain.length; i++) {
-    if (auditChain[i].prevHash !== auditChain[i - 1].hash) {
-      isIntact = false;
-      break;
-    }
-  }
+sbbEnterpriseRouter.get("/security/audit-chain", (req: AuthenticatedRequest, res) => {
+  try {
+    const { role, tenantId } = getActorContext(req);
 
-  res.json({
-    totalBlocks: auditChain.length,
-    isChainValid: isIntact,
-    latestBlockHash: auditChain[auditChain.length - 1].hash,
-    blocks: auditChain
-  });
+    // Verify cryptographic tamper-evidence
+    let isIntact = true;
+    for (let i = 1; i < auditChain.length; i++) {
+      if (auditChain[i].prevHash !== auditChain[i - 1].hash) {
+        isIntact = false;
+        break;
+      }
+    }
+
+    const visibleBlocks = auditChain.filter(b => role === "Admin" || b.tenantId === tenantId);
+
+    res.json({
+      totalBlocks: visibleBlocks.length,
+      isChainValid: isIntact,
+      latestBlockHash: auditChain[auditChain.length - 1].hash,
+      blocks: visibleBlocks
+    });
+  } catch (error: any) {
+    res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+  }
 });
 
 // -------------------------------------------------------------
 // PILLAR 5: Proven Business Outcomes
 // -------------------------------------------------------------
-sbbEnterpriseRouter.get("/outcomes/metrics", (req, res) => {
-  const outcomes = {
-    overview: {
-      totalRevenueLiftCad: 184200,
-      totalCostReducedCad: 42800,
-      totalHoursSavedWeekly: 38.5,
-      netRoiMultiplier: 4.8,
-      provenTimeline: "Trailing 90 Days",
-      verifiedAuditHash: crypto.createHash("sha256").update("SBB_OUTCOMES_Q3_Q4_2026").digest("hex")
-    },
-    vectors: [
-      {
-        id: "VEC-01",
-        pillarName: "Revenue & Pipeline Acceleration",
-        metricName: "Attributed Net Pipeline Value",
-        baselineValue: "$126,000 CAD",
-        currentValue: "$310,200 CAD",
-        absoluteDelta: "+$184,200 CAD",
-        percentageDelta: "+146.2%",
-        proofSource: "CRM Opportunity Attribution & Invoiced Stripe Revenue",
-        auditChunkId: "AUDIT-REV-2026-99"
-      },
-      {
-        id: "VEC-02",
-        pillarName: "Cost Reduction & Capital Efficiency",
-        metricName: "Blended Customer Acquisition Cost (CAC)",
-        baselineValue: "$520 CAD / customer",
-        currentValue: "$318 CAD / customer",
-        absoluteDelta: "-$202 CAD (-38.8%)",
-        percentageDelta: "-38.8%",
-        proofSource: "Finance General Ledger vs Media Spend Audit",
-        auditChunkId: "AUDIT-CAC-2026-44"
-      },
-      {
-        id: "VEC-03",
-        pillarName: "Productivity & Execution Velocity",
-        metricName: "Weekly Campaign Deliverables per Team Member",
-        baselineValue: "1.4 campaigns / FTE",
-        currentValue: "11.8 campaigns / FTE",
-        absoluteDelta: "+10.4 deliverables / FTE",
-        percentageDelta: "+742.8%",
-        proofSource: "Autonomous Agent Factory Task Completion Log",
-        auditChunkId: "AUDIT-PROD-2026-12"
-      },
-      {
-        id: "VEC-04",
-        pillarName: "Campaign Performance & Search Authority",
-        metricName: "Blended Return on Ad Spend (ROAS)",
-        baselineValue: "2.4x ROAS",
-        currentValue: "4.8x ROAS",
-        absoluteDelta: "+2.4x lift",
-        percentageDelta: "+100.0%",
-        proofSource: "Multi-Channel UTM Conversion Attribution Matrix",
-        auditChunkId: "AUDIT-ROAS-2026-08"
-      },
-      {
-        id: "VEC-05",
-        pillarName: "Time Saved & Operational Hours",
-        metricName: "Executive & Team Hours Saved per Week",
-        baselineValue: "0 hrs (Manual Operations)",
-        currentValue: "38.5 hrs / week saved",
-        absoluteDelta: "+38.5 hours / week",
-        percentageDelta: "+100%",
-        proofSource: "Operational Time-Study & Autonomous Workflow Telemetry",
-        auditChunkId: "AUDIT-TIME-2026-71"
-      }
-    ],
-    timeBreakdown: [
-      { category: "Autonomous Multi-Variant Copywriting & Creative", hoursSaved: 14.2 },
-      { category: "CRM Lead Scoring & Instant Triage Routing", hoursSaved: 11.5 },
-      { category: "Cross-Functional Financial & Analytics Reporting", hoursSaved: 8.8 },
-      { category: "Regulatory PIPEDA/CASL Compliance Audit", hoursSaved: 4.0 }
-    ]
-  };
+sbbEnterpriseRouter.get("/outcomes/metrics", (req: AuthenticatedRequest, res) => {
+  try {
+    const { tenantId } = getActorContext(req);
 
-  res.json(outcomes);
+    const outcomes = {
+      tenantId,
+      overview: {
+        totalRevenueLiftCad: 184200,
+        totalCostReducedCad: 42800,
+        totalHoursSavedWeekly: 38.5,
+        netRoiMultiplier: 4.8,
+        provenTimeline: "Trailing 90 Days",
+        verifiedAuditHash: crypto.createHash("sha256").update(`SBB_OUTCOMES_${tenantId}_2026`).digest("hex")
+      },
+      vectors: [
+        {
+          id: "VEC-01",
+          pillarName: "Revenue & Pipeline Acceleration",
+          metricName: "Attributed Net Pipeline Value",
+          baselineValue: "$126,000 CAD",
+          currentValue: "$310,200 CAD",
+          absoluteDelta: "+$184,200 CAD",
+          percentageDelta: "+146.2%",
+          proofSource: "CRM Opportunity Attribution & Invoiced Stripe Revenue",
+          auditChunkId: "AUDIT-REV-2026-99"
+        },
+        {
+          id: "VEC-02",
+          pillarName: "Cost Reduction & Capital Efficiency",
+          metricName: "Blended Customer Acquisition Cost (CAC)",
+          baselineValue: "$520 CAD / customer",
+          currentValue: "$318 CAD / customer",
+          absoluteDelta: "-$202 CAD (-38.8%)",
+          percentageDelta: "-38.8%",
+          proofSource: "Finance General Ledger vs Media Spend Audit",
+          auditChunkId: "AUDIT-CAC-2026-44"
+        },
+        {
+          id: "VEC-03",
+          pillarName: "Productivity & Execution Velocity",
+          metricName: "Weekly Campaign Deliverables per Team Member",
+          baselineValue: "1.4 campaigns / FTE",
+          currentValue: "11.8 campaigns / FTE",
+          absoluteDelta: "+10.4 deliverables / FTE",
+          percentageDelta: "+742.8%",
+          proofSource: "Autonomous Agent Factory Task Completion Log",
+          auditChunkId: "AUDIT-PROD-2026-12"
+        },
+        {
+          id: "VEC-04",
+          pillarName: "Campaign Performance & Search Authority",
+          metricName: "Blended Return on Ad Spend (ROAS)",
+          baselineValue: "2.4x ROAS",
+          currentValue: "4.8x ROAS",
+          absoluteDelta: "+2.4x lift",
+          percentageDelta: "+100.0%",
+          proofSource: "Multi-Channel UTM Conversion Attribution Matrix",
+          auditChunkId: "AUDIT-ROAS-2026-08"
+        },
+        {
+          id: "VEC-05",
+          pillarName: "Time Saved & Operational Hours",
+          metricName: "Executive & Team Hours Saved per Week",
+          baselineValue: "0 hrs (Manual Operations)",
+          currentValue: "38.5 hrs / week saved",
+          absoluteDelta: "+38.5 hours / week",
+          percentageDelta: "+100%",
+          proofSource: "Operational Time-Study & Autonomous Workflow Telemetry",
+          auditChunkId: "AUDIT-TIME-2026-71"
+        }
+      ],
+      timeBreakdown: [
+        { category: "Autonomous Multi-Variant Copywriting & Creative", hoursSaved: 14.2 },
+        { category: "CRM Lead Scoring & Instant Triage Routing", hoursSaved: 11.5 },
+        { category: "Cross-Functional Financial & Analytics Reporting", hoursSaved: 8.8 },
+        { category: "Regulatory PIPEDA/CASL Compliance Audit", hoursSaved: 4.0 }
+      ]
+    };
+
+    res.json(outcomes);
+  } catch (error: any) {
+    res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
+  }
 });

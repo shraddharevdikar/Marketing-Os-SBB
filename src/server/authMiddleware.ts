@@ -12,6 +12,155 @@ export interface AuthenticatedRequest extends Request {
   user?: AuthenticatedUser;
 }
 
+// Secret key for server-issued HMAC-SHA256 session tokens
+const SERVER_SESSION_SECRET = process.env.SBB_AUTH_SECRET || "sbb_enterprise_cryptographic_secret_key_2026_prod";
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "gen-lang-client-0577810698";
+
+// Google Public Certificates cache for Firebase ID token verification
+let googleCertsCache: { [kid: string]: string } = {};
+let googleCertsExpiry = 0;
+
+export async function getGooglePublicCerts(): Promise<{ [kid: string]: string }> {
+  if (Date.now() < googleCertsExpiry && Object.keys(googleCertsCache).length > 0) {
+    return googleCertsCache;
+  }
+  try {
+    const res = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
+    if (res.ok) {
+      const data = await res.json();
+      googleCertsCache = data;
+      googleCertsExpiry = Date.now() + 3600000; // Cache 1 hour
+      return googleCertsCache;
+    }
+  } catch (e: any) {
+    // Log in non-test mode
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("Could not fetch Google public certs:", e?.message);
+    }
+  }
+  return googleCertsCache;
+}
+
+/**
+ * Creates a cryptographically signed HMAC-SHA256 session token.
+ * Prevents client-side tampering with roles, user IDs, or organization IDs.
+ */
+export function createSignedSessionToken(user: AuthenticatedUser, expiresInSec = 86400): string {
+  const payload = {
+    userId: user.userId,
+    email: user.email,
+    role: user.role,
+    organizationId: user.organizationId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + expiresInSec
+  };
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", SERVER_SESSION_SECRET)
+    .update(`sbb_v1.${payloadB64}`)
+    .digest("base64url");
+  return `sbb_v1.${payloadB64}.${signature}`;
+}
+
+/**
+ * Cryptographically verifies a signed SBB session token using constant-time comparison.
+ * Returns decoded AuthenticatedUser if signature and expiry are valid; otherwise null.
+ */
+export function verifySignedSessionToken(token: string): AuthenticatedUser | null {
+  if (!token || !token.startsWith("sbb_v1.")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [prefix, payloadB64, signature] = parts;
+  if (prefix !== "sbb_v1") return null;
+
+  const expectedSig = crypto.createHmac("sha256", SERVER_SESSION_SECRET)
+    .update(`sbb_v1.${payloadB64}`)
+    .digest("base64url");
+
+  // Constant-time comparison to prevent timing attacks
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length) return null;
+  if (!crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null; // Cryptographic signature verification failed! Forged or tampered token.
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf-8"));
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && typeof payload.exp === "number" && payload.exp < now) {
+      return null; // Expired token
+    }
+    if (!payload.userId || !payload.organizationId || !payload.role) {
+      return null;
+    }
+    return {
+      userId: String(payload.userId),
+      email: String(payload.email || "user@sovereignbusiness.ca"),
+      role: String(payload.role),
+      organizationId: String(payload.organizationId).toLowerCase().replace(/[^a-z0-9_-]/g, "_")
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cryptographically verifies a Firebase ID Token.
+ * Validates issuer, audience, subject, expiry, and signature against Google's public certificates.
+ */
+export async function verifyFirebaseIdToken(token: string, expectedProjectId = FIREBASE_PROJECT_ID): Promise<AuthenticatedUser | null> {
+  if (!token || !token.includes(".")) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  try {
+    const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf-8"));
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
+
+    const now = Math.floor(Date.now() / 1000);
+
+    // Verify audience and issuer match Firebase project
+    if (payload.aud !== expectedProjectId) return null;
+    if (payload.iss !== `https://securetoken.google.com/${expectedProjectId}`) return null;
+    if (!payload.sub || typeof payload.sub !== "string") return null;
+    if (payload.exp && payload.exp < now) return null;
+    if (payload.iat && payload.iat > now + 300) return null;
+
+    // Cryptographic signature verification
+    if (header.alg === "RS256" && header.kid) {
+      const certs = await getGooglePublicCerts();
+      const cert = certs[header.kid];
+      if (cert) {
+        const verifier = crypto.createVerify("RSA-SHA256");
+        verifier.update(`${parts[0]}.${parts[1]}`);
+        const isValid = verifier.verify(cert, Buffer.from(parts[2], "base64url"));
+        if (!isValid) return null;
+      } else {
+        // If Google certs cannot be resolved, fail closed in production
+        if (process.env.NODE_ENV === "production") {
+          return null;
+        }
+      }
+    } else {
+      // Any unsupported algorithm is strictly rejected
+      return null;
+    }
+
+    const orgId = (payload.organizationId || payload.org || "default_org")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "_");
+
+    return {
+      userId: payload.sub,
+      email: payload.email || "user@sovereignbusiness.ca",
+      role: payload.role || "Executive",
+      organizationId: orgId
+    };
+  } catch {
+    return null;
+  }
+}
+
 // In-memory sliding-window rate limiter
 interface RateLimitBucket {
   count: number;
@@ -33,20 +182,21 @@ if (cleanupInterval && typeof cleanupInterval.unref === "function") {
 }
 
 /**
- * Extract and verify authentication and resolve tenant context
+ * Extract and cryptographically verify authentication, resolving tenant context.
+ * Rejects unverified strings, forged tokens, and expired sessions.
  */
-export function verifyAuthAndTenant(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function verifyAuthAndTenant(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const authHeader = req.headers.authorization || (req.headers["x-sbb-session-token"] as string);
-
     // Allow public health checks and webhooks
-    if (req.path === "/api/health" || req.path === "/health") {
+    if (req.path === "/api/health" || req.path === "/health" || req.path === "/api/lead/capture") {
       return next();
     }
 
+    const authHeader = req.headers.authorization || (req.headers["x-sbb-session-token"] as string);
+
     if (!authHeader) {
-      // In development/test mode, resolve fallback sandbox identity
-      if (process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_AUTH === "true") {
+      // Only permit dev identity if explicitly configured in non-production environments
+      if (process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_AUTH === "true") {
         const testUser: AuthenticatedUser = {
           userId: (req.headers["x-test-user-id"] as string) || "dev_operator_01",
           email: (req.headers["x-test-user-email"] as string) || "operator@sovereignbusiness.ca",
@@ -69,76 +219,26 @@ export function verifyAuthAndTenant(req: AuthenticatedRequest, res: Response, ne
       return res.status(401).json({ error: "Unauthorized", message: "Empty authentication token provided." });
     }
 
-    let decodedPayload: any = null;
+    let verifiedUser: AuthenticatedUser | null = null;
 
-    // Check if token is a standard JWT (e.g. Firebase ID token or Sovereign signed token)
-    if (token.includes(".")) {
-      const parts = token.split(".");
-      if (parts.length === 3) {
-        try {
-          const payloadJson = Buffer.from(parts[1], "base64url").toString("utf-8");
-          decodedPayload = JSON.parse(payloadJson);
-        } catch {
-          try {
-            const payloadJson = Buffer.from(parts[1], "base64").toString("utf-8");
-            decodedPayload = JSON.parse(payloadJson);
-          } catch {
-            decodedPayload = null;
-          }
-        }
-      }
+    // 1. Try SBB Cryptographic HMAC Session Token
+    if (token.startsWith("sbb_v1.")) {
+      verifiedUser = verifySignedSessionToken(token);
+    } 
+    // 2. Try Firebase ID Token (RS256 JWT)
+    else if (token.includes(".")) {
+      verifiedUser = await verifyFirebaseIdToken(token);
     }
 
-    // If token is a JSON-encoded or base64 token
-    if (!decodedPayload) {
-      try {
-        const decoded = Buffer.from(token, "base64").toString("utf-8");
-        decodedPayload = JSON.parse(decoded);
-      } catch {
-        // Plain test token format: "USR-XXX:tenant:role:email"
-        if (token.startsWith("USR-") || token.startsWith("DEMO-") || token.startsWith("TEST-")) {
-          const segments = token.split(":");
-          decodedPayload = {
-            sub: segments[0],
-            org: segments[1] || "default_org",
-            role: segments[2] || "CEO",
-            email: segments[3] || "operator@sovereignbusiness.ca"
-          };
-        }
-      }
+    // Fail closed: reject any unverified, fabricated, or tampered token
+    if (!verifiedUser) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Cryptographic token verification failed. Forged, expired, or invalid session token."
+      });
     }
 
-    if (!decodedPayload) {
-      return res.status(401).json({ error: "Unauthorized", message: "Invalid token structure." });
-    }
-
-    // Verify expiration if exp is present
-    if (decodedPayload.exp && typeof decodedPayload.exp === "number") {
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (decodedPayload.exp < nowSec) {
-        return res.status(401).json({ error: "Unauthorized", message: "Authentication token has expired. Please log in again." });
-      }
-    }
-
-    // Resolve tenant ID
-    const requestedTenantHeader = (req.headers["x-organization-id"] as string) || (req.headers["x-tenant-id"] as string);
-    const tokenTenant = decodedPayload.organizationId || decodedPayload.org || decodedPayload.tenant_id;
-    const resolvedTenant = (requestedTenantHeader || tokenTenant || "default_org")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]/g, "_");
-
-    const userId = decodedPayload.sub || decodedPayload.uid || decodedPayload.user_id || "anon_user";
-    const email = decodedPayload.email || "user@sovereignbusiness.ca";
-    const role = decodedPayload.role || "CEO";
-
-    req.user = {
-      userId,
-      email,
-      role,
-      organizationId: resolvedTenant
-    };
-
+    req.user = verifiedUser;
     next();
   } catch (error: any) {
     console.error("Authentication middleware error:", error?.message || error);
@@ -241,7 +341,6 @@ export function applySecurityHeaders(req: Request, res: Response, next: NextFunc
  * Safe Error Handler Middleware (Prevents Stack Trace & Credential Disclosures)
  */
 export function safeErrorHandler(err: any, req: Request, res: Response, next: NextFunction) {
-  // Redact internal error specifics in production
   const isProd = process.env.NODE_ENV === "production";
   console.error(`[SERVER ERROR] ${req.method} ${req.path}:`, err?.message || err);
 

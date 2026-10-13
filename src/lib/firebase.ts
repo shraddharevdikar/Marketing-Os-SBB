@@ -120,6 +120,28 @@ export async function signInWithGoogle() {
   }
 }
 
+export async function signInWithEmail(email: string, pass: string) {
+  try {
+    const { signInWithEmailAndPassword } = await import("firebase/auth");
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    return cred.user;
+  } catch (error) {
+    console.error("Email sign-in error:", error);
+    throw error;
+  }
+}
+
+export async function signUpWithEmail(email: string, pass: string) {
+  try {
+    const { createUserWithEmailAndPassword } = await import("firebase/auth");
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    return cred.user;
+  } catch (error) {
+    console.error("Email sign-up error:", error);
+    throw error;
+  }
+}
+
 export async function logOutFirebase() {
   try {
     await firebaseSignOut(auth);
@@ -139,3 +161,4 @@ export async function getCurrentUserToken(): Promise<string | null> {
     return null;
   }
 }
+

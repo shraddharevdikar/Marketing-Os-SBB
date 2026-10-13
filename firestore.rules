@@ -11,41 +11,71 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     // Tenant / Organization Membership Verification
     function isOrgMember(orgId) {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) ||
         (request.auth.token != null && request.auth.token.organizationId == orgId) ||
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId)
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().organizationId == orgId) ||
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid))
       );
     }
 
     function isOrgAdmin(orgId) {
       return isSignedIn() && (
+        (request.auth.token != null && request.auth.token.role == 'Admin') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         getUserData().organizationId == orgId &&
+         getUserData().role == 'Admin') ||
         (exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'Admin') ||
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
+         get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'Admin')
       );
     }
 
-    // 1. User Profiles: Isolated to owner or members of the same organization
+    // 1. User Profiles: Isolated to owner or fellow organization members.
+    // Prevents self-membership escalation (only Admins can grant Admin role).
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow read: if isOwner(userId) || (
+        isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId)
+      );
+      
+      allow create: if isOwner(userId) && (
+        !('role' in request.resource.data) ||
+        request.resource.data.role in ['Marketing Manager', 'Team Lead', 'Executive']
+      );
+
+      allow update: if isOwner(userId) && (
+        (request.resource.data.role == resource.data.role && 
+         request.resource.data.organizationId == resource.data.organizationId) ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+
+      allow delete: if isOwner(userId) || (
+        resource.data.organizationId != null && 
+        isOrgAdmin(resource.data.organizationId)
+      );
     }
 
     // 2. Organizations & Tenant Hierarchy
     match /organizations/{orgId} {
       allow read: if isOrgMember(orgId);
       allow create: if isSignedIn();
-      allow update: if isOrgAdmin(orgId);
-      allow delete: if isOrgAdmin(orgId);
+      allow update, delete: if isOrgAdmin(orgId);
 
-      // Members subcollection
+      // Members subcollection with least-privilege enforcement
       match /members/{memberId} {
         allow read: if isOrgMember(orgId);
-        allow create: if isOrgMember(orgId) || isOwner(memberId);
+        allow create: if isOrgMember(orgId) && (
+          !('role' in request.resource.data) ||
+          request.resource.data.role in ['Marketing Manager', 'Team Lead', 'Executive'] ||
+          isOrgAdmin(orgId)
+        );
         allow update, delete: if isOrgAdmin(orgId);
       }
 
@@ -58,103 +88,96 @@ service cloud.firestore {
 
       // Tenant-scoped Campaigns
       match /campaigns/{campaignId} {
-        allow read: if isOrgMember(orgId);
-        allow create, update: if isOrgMember(orgId);
-        allow delete: if isOrgMember(orgId);
+        allow read, create, update, delete: if isOrgMember(orgId);
       }
 
       // Tenant-scoped Leads
       match /leads/{leadId} {
-        allow read: if isOrgMember(orgId);
-        allow create, update: if isOrgMember(orgId);
-        allow delete: if isOrgMember(orgId);
+        allow read, create, update, delete: if isOrgMember(orgId);
       }
 
       // Tenant-scoped Immutable Audit Logs
       match /audit_logs/{logId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
-        allow update, delete: if false; // Compliance: audit logs are immutable
+        allow update, delete: if false; // Compliance: audit logs are strictly immutable
       }
 
       // Tenant-scoped AI Creatives & Assets
       match /ai_creatives/{assetId} {
         allow read: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId);
-        allow update, delete: if isOrgMember(orgId) && (resource.data.userId == request.auth.uid || isOrgAdmin(orgId));
+        allow update, delete: if isOrgMember(orgId) && (
+          resource.data.userId == request.auth.uid || 
+          isOrgAdmin(orgId)
+        );
       }
     }
 
-    // 3. Top-Level Collections (Strictly Enforcing organizationId field check for tenant isolation)
+    // 3. Top-Level Collections: STRICTLY REQUIRE valid organizationId.
+    // Records without organizationId are disallowed to eliminate cross-tenant leakage.
     match /company_profiles/{profileId} {
-      allow read: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow create, update: if isSignedIn() && (
-        request.resource.data.organizationId == null ||
-        isOrgMember(request.resource.data.organizationId)
-      );
-      allow delete: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgAdmin(resource.data.organizationId)
-      );
+      allow read: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
+      allow create: if isSignedIn() && 
+        request.resource.data.organizationId != null && 
+        isOrgMember(request.resource.data.organizationId);
+      allow update: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId) &&
+        request.resource.data.organizationId == resource.data.organizationId;
+      allow delete: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgAdmin(resource.data.organizationId);
     }
 
     match /campaigns/{campaignId} {
-      allow read: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow create: if isSignedIn() && (
-        request.resource.data.organizationId == null ||
-        isOrgMember(request.resource.data.organizationId)
-      );
-      allow update: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow delete: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
+      allow read: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
+      allow create: if isSignedIn() && 
+        request.resource.data.organizationId != null && 
+        isOrgMember(request.resource.data.organizationId);
+      allow update, delete: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
     }
 
     match /leads/{leadId} {
-      allow read: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow create: if isSignedIn() && (
-        request.resource.data.organizationId == null ||
-        isOrgMember(request.resource.data.organizationId)
-      );
-      allow update: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow delete: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
+      allow read: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
+      allow create: if isSignedIn() && 
+        request.resource.data.organizationId != null && 
+        isOrgMember(request.resource.data.organizationId);
+      allow update, delete: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
     }
 
     match /audit_logs/{logId} {
-      allow read: if isSignedIn() && (
-        resource.data.organizationId == null ||
-        isOrgMember(resource.data.organizationId)
-      );
-      allow create: if isSignedIn();
+      allow read: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
+      allow create: if isSignedIn() && 
+        request.resource.data.organizationId != null && 
+        isOrgMember(request.resource.data.organizationId);
       allow update, delete: if false; // Compliance: audit logs are strictly immutable
     }
 
     match /ai_creatives/{assetId} {
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        (resource.data.organizationId != null && isOrgMember(resource.data.organizationId))
-      );
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        isOrgMember(resource.data.organizationId);
+      allow create: if isSignedIn() && 
+        request.resource.data.organizationId != null && 
+        request.resource.data.userId == request.auth.uid &&
+        isOrgMember(request.resource.data.organizationId);
+      allow update, delete: if isSignedIn() && 
+        resource.data.organizationId != null && 
+        resource.data.userId == request.auth.uid &&
+        isOrgMember(resource.data.organizationId);
     }
   }
 }

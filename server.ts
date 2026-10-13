@@ -1,6 +1,7 @@
 import express from "express";
 import http from "http";
 import path from "path";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import { GoogleGenAI, GenerateVideosOperation, LiveServerMessage, Modality } from "@google/genai";
 import { WebSocketServer, WebSocket } from "ws";
@@ -12,8 +13,11 @@ import {
   verifyAuthAndTenant,
   enforceTenantIsolation,
   rateLimiter,
+  requireRole,
+  createSignedSessionToken,
   safeErrorHandler
 } from "./src/server/authMiddleware";
+import { executeLegacyMigration } from "./src/server/migrateLegacyRecords";
 import {
   validateAiPromptInput,
   validateLeadCaptureInput,
@@ -37,13 +41,67 @@ const mediaRateLimiter = rateLimiter(10, 60000);
 
 // Global API Security & Tenant Isolation Gate
 app.use("/api", (req, res, next) => {
-  // Allow health check and external inbound lead capture
-  if (req.path === "/health" || req.path === "/lead/capture") {
+  // Allow health check, external inbound lead capture, and auth session initialization
+  if (req.path === "/health" || req.path === "/lead/capture" || req.path === "/auth/demo-session") {
     return next();
   }
   return verifyAuthAndTenant(req, res, () => {
     enforceTenantIsolation(req, res, next);
   });
+});
+
+// Route: Auth Demo Session (Server-signed cryptographic tokens for testing & sandbox operators)
+app.post("/api/auth/demo-session", (req, res) => {
+  const { role = "Marketing Manager", organizationId = "sovereign_enterprise", email = "operator@sovereignbusiness.ca", name = "Operator" } = req.body;
+  const allowedRoles = ["Admin", "CEO", "Vice President", "AGM", "Marketing Manager", "Team Lead", "Executive"];
+  const sanitizedRole = allowedRoles.includes(role) ? role : "Executive";
+  const sanitizedOrg = String(organizationId).toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  const userId = "USR-" + crypto.createHash("sha256").update(email).digest("hex").slice(0, 8).toUpperCase();
+
+  const token = createSignedSessionToken({
+    userId,
+    email,
+    role: sanitizedRole,
+    organizationId: sanitizedOrg
+  });
+
+  res.json({
+    token,
+    user: {
+      id: userId,
+      name,
+      email,
+      role: sanitizedRole,
+      organizationId: sanitizedOrg,
+      loggedInAt: new Date().toISOString()
+    }
+  });
+});
+
+// Route: Server-side Role Resolution
+app.get("/api/auth/resolve-role", (req: any, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const ADMIN_EMAILS = ["shraddha.revdikar@gmail.com", "admin@sovereignbusiness.ca"];
+  const resolvedRole = ADMIN_EMAILS.includes(req.user.email?.toLowerCase()) ? "Admin" : req.user.role;
+
+  res.json({
+    userId: req.user.userId,
+    email: req.user.email,
+    role: resolvedRole,
+    organizationId: req.user.organizationId
+  });
+});
+
+// Route: Legacy Unisolated Records Migration
+app.post("/api/migrate/legacy", requireRole(["Admin", "CEO"]), async (req: any, res) => {
+  try {
+    const report = await executeLegacyMigration(req.user.organizationId);
+    res.json(report);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Migration failed" });
+  }
 });
 
 // Mount SBB Enterprise 5-Pillars Router

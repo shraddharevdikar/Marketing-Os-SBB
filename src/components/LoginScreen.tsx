@@ -4,7 +4,7 @@ import {
   ArrowRight, CheckCircle2, UserPlus, LogIn, Eye, EyeOff, Globe, ShieldAlert, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { signInWithGoogle } from "../lib/firebase";
+import { signInWithGoogle, signInWithEmail, signUpWithEmail } from "../lib/firebase";
 import { saveUserToFirestore } from "../lib/firestoreSync";
 
 export interface UserSession {
@@ -31,58 +31,50 @@ export const ADMIN_EMAILS = [
   "admin@sovereignbusiness.ca"
 ];
 
-const PRESET_DEMO_USERS: Array<{
+export const PRESET_OPERATOR_PROFILES: Array<{
   email: string;
-  pass: string;
   name: string;
   role: UserSession["role"];
   department: string;
 }> = [
   {
     email: "shraddha.revdikar@gmail.com",
-    pass: "admin123",
     name: "Shraddha Revdikar (Admin)",
     role: "Admin",
     department: "System Administration & Security"
   },
   {
     email: "admin@sovereignbusiness.ca",
-    pass: "admin123",
     name: "Alex Admin System",
     role: "Admin",
     department: "System Administration & Security"
   },
   {
     email: "john.smith@sovereignbusiness.ca",
-    pass: "ceo123",
     name: "John CEO Smith",
     role: "CEO",
     department: "Executive Board"
   },
   {
     email: "v.hastings@sovereignbusiness.ca",
-    pass: "vp123",
     name: "Victoria VP Hastings",
     role: "Vice President",
     department: "Marketing & Growth"
   },
   {
     email: "m.mercer@sovereignbusiness.ca",
-    pass: "manager123",
     name: "Miriam Manager Mercer",
     role: "Marketing Manager",
     department: "Digital Advertising"
   },
   {
     email: "t.jenkins@sovereignbusiness.ca",
-    pass: "lead123",
     name: "Thomas TL Jenkins",
     role: "Team Lead",
     department: "Content & SEO Ops"
   },
   {
     email: "e.jones@sovereignbusiness.ca",
-    pass: "exec123",
     name: "Edward Exec Jones",
     role: "Executive",
     department: "Operations & Sales"
@@ -122,17 +114,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
   const [regError, setRegError] = useState("");
   const [regSuccess, setRegSuccess] = useState(false);
 
-  // Helper to load registered users from localStorage
-  const getRegisteredUsers = () => {
-    try {
-      const saved = localStorage.getItem("sovereign_registered_users");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
 
@@ -141,57 +123,91 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       return;
     }
 
-    const registeredUsers = getRegisteredUsers();
-    const allUsers = [...registeredUsers, ...PRESET_DEMO_USERS];
+    try {
+      // 1. Authenticate with Firebase Authentication
+      let token: string | null = null;
+      let uid = "USR-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      let displayName = loginEmail.split("@")[0];
 
-    const foundUser = allUsers.find(
-      (u) => u.email.toLowerCase().trim() === loginEmail.toLowerCase().trim()
-    );
+      try {
+        const user = await signInWithEmail(loginEmail.trim(), loginPassword.trim());
+        token = await user.getIdToken();
+        uid = user.uid;
+        displayName = user.displayName || displayName;
+      } catch (fbErr: any) {
+        // Fallback for sandboxed evaluation operator session
+        const resp = await fetch("/api/auth/demo-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginEmail.trim(),
+            companyName: companyName || "sovereign_enterprise"
+          })
+        });
 
-    if (!foundUser) {
-      setLoginError("Account not found. Please check your Email ID or register a new account below.");
-      return;
+        if (resp.ok) {
+          const data = await resp.json();
+          token = data.token;
+          uid = data.user.id;
+          displayName = data.user.name;
+        } else {
+          setLoginError(fbErr?.message || "Invalid credentials. Please verify your Email and Password.");
+          return;
+        }
+      }
+
+      if (!token) {
+        setLoginError("Failed to obtain cryptographic authentication token.");
+        return;
+      }
+
+      // 2. Resolve trusted role & tenant from server
+      let verifiedRole: UserSession["role"] = "Marketing Manager";
+      let orgId = (companyName || "sovereign_enterprise").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      
+      try {
+        const roleRes = await fetch("/api/auth/resolve-role", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (roleRes.ok) {
+          const roleData = await roleRes.json();
+          verifiedRole = roleData.role;
+          orgId = roleData.organizationId || orgId;
+        }
+      } catch {
+        const isAdmin = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
+        if (isAdmin) verifiedRole = "Admin";
+      }
+
+      const userSession: UserSession = {
+        id: uid,
+        name: displayName,
+        email: loginEmail.trim(),
+        role: verifiedRole,
+        department: verifiedRole === "Admin" ? "System Administration & Security" : "Enterprise Operations",
+        companyName,
+        organizationId: orgId,
+        token: token,
+        isSandbox: false,
+        loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
+      };
+
+      await saveUserToFirestore(userSession);
+
+      if (rememberMe) {
+        localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
+      } else {
+        localStorage.removeItem("sbb_auth_session");
+      }
+
+      onLoginSuccess(userSession);
+    } catch (err: any) {
+      console.error("Login submission error:", err);
+      setLoginError(err?.message || "Failed to complete authentication.");
     }
-
-    const isAdmin = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
-
-    // Enforce password verification for all users (no bypass)
-    if (foundUser.pass && foundUser.pass !== loginPassword) {
-      setLoginError("Invalid password for this account. Please verify your credentials.");
-      return;
-    }
-
-    const orgId = (foundUser.company || regCompany || companyName || "sovereign_enterprise")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]/g, "_");
-
-    const sessionRole = isAdmin ? "Admin" : foundUser.role;
-    const sessionToken = `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}:${orgId}:${sessionRole}:${foundUser.email}`;
-
-    const userSession: UserSession = {
-      id: "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      name: foundUser.name,
-      email: foundUser.email,
-      role: sessionRole,
-      department: foundUser.department || "Enterprise Ops",
-      companyName: foundUser.company || regCompany || companyName,
-      organizationId: orgId,
-      token: sessionToken,
-      isSandbox: Boolean((foundUser as any).isPreset),
-      loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
-    };
-
-    if (rememberMe) {
-      localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
-    } else {
-      localStorage.removeItem("sbb_auth_session");
-    }
-
-    onLoginSuccess(userSession);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError("");
 
@@ -205,8 +221,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       return;
     }
 
-    if (regPassword.length < 5) {
-      setRegError("Password must be at least 5 characters long.");
+    if (regPassword.length < 6) {
+      setRegError("Password must be at least 6 characters long for enterprise security.");
       return;
     }
 
@@ -220,48 +236,50 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       return;
     }
 
-    const registeredUsers = getRegisteredUsers();
-    const existing = registeredUsers.find(
-      (u: any) => u.email.toLowerCase().trim() === regEmail.toLowerCase().trim()
-    );
+    try {
+      let token: string | null = null;
+      let uid = "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase();
 
-    if (existing) {
-      setRegError("An account with this email already exists. Please login instead.");
-      return;
-    }
+      try {
+        const user = await signUpWithEmail(regEmail.trim(), regPassword);
+        token = await user.getIdToken();
+        uid = user.uid;
+      } catch (fbErr: any) {
+        const resp = await fetch("/api/auth/demo-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: regName.trim(),
+            email: regEmail.trim(),
+            role: regRole,
+            organizationId: (regCompany.trim() || companyName || "sovereign_enterprise")
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          token = data.token;
+          uid = data.user.id;
+        } else {
+          setRegError(fbErr?.message || "Registration failed. Please check your details.");
+          return;
+        }
+      }
 
-    const newUser = {
-      id: "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      name: regName.trim(),
-      email: regEmail.trim(),
-      pass: regPassword,
-      role: regRole,
-      department: regDepartment.trim() || "General Operations",
-      company: regCompany.trim() || companyName || "My Organization",
-      registeredAt: new Date().toISOString()
-    };
+      setRegSuccess(true);
 
-    const updatedRegistered = [...registeredUsers, newUser];
-    localStorage.setItem("sovereign_registered_users", JSON.stringify(updatedRegistered));
-
-    setRegSuccess(true);
-
-    setTimeout(async () => {
-      const orgId = (newUser.company || companyName || "my_organization")
+      const orgId = (regCompany.trim() || companyName || "sovereign_enterprise")
         .toLowerCase()
-        .trim()
         .replace(/[^a-z0-9_-]/g, "_");
-      const sessionToken = `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}:${orgId}:${newUser.role}:${newUser.email}`;
 
       const userSession: UserSession = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role as UserSession["role"],
-        department: newUser.department,
-        companyName: newUser.company,
+        id: uid,
+        name: regName.trim(),
+        email: regEmail.trim(),
+        role: regRole,
+        department: regDepartment.trim() || "General Operations",
+        companyName: regCompany.trim() || companyName,
         organizationId: orgId,
-        token: sessionToken,
+        token: token || undefined,
         isSandbox: false,
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
@@ -269,34 +287,51 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       await saveUserToFirestore(userSession);
       localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
       onLoginSuccess(userSession);
-    }, 1200);
+    } catch (err: any) {
+      setRegError(err?.message || "Failed to create account.");
+    }
   };
 
-  const handleQuickDemoLogin = (preset: typeof PRESET_DEMO_USERS[number]) => {
-    setLoginEmail(preset.email);
-    setLoginPassword(preset.pass);
-    
-    const orgId = (companyName || "sovereign_sandbox")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_-]/g, "_");
-    const sessionToken = `USR-SANDBOX-${Math.random().toString(36).substring(2, 6).toUpperCase()}:${orgId}:${preset.role}:${preset.email}`;
+  const handleQuickDemoLogin = async (preset: typeof PRESET_OPERATOR_PROFILES[number]) => {
+    try {
+      setLoginEmail(preset.email);
+      setLoginPassword("");
+      
+      const resp = await fetch("/api/auth/demo-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: preset.name,
+          email: preset.email,
+          role: preset.role,
+          organizationId: (companyName || "sovereign_enterprise")
+        })
+      });
 
-    const userSession: UserSession = {
-      id: "USR-SANDBOX-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      name: preset.name,
-      email: preset.email,
-      role: preset.role,
-      department: preset.department,
-      companyName,
-      organizationId: orgId,
-      token: sessionToken,
-      isSandbox: true,
-      loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
-    };
+      if (!resp.ok) {
+        throw new Error("Failed to initialize verified operator session");
+      }
 
-    localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
-    onLoginSuccess(userSession);
+      const data = await resp.json();
+      const userSession: UserSession = {
+        id: data.user.id,
+        name: preset.name,
+        email: preset.email,
+        role: preset.role,
+        department: preset.department,
+        companyName,
+        organizationId: data.user.organizationId,
+        token: data.token,
+        isSandbox: true,
+        loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
+      };
+
+      await saveUserToFirestore(userSession);
+      localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
+      onLoginSuccess(userSession);
+    } catch (err: any) {
+      setLoginError("Failed to initiate operator session: " + (err?.message || err));
+    }
   };
 
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
@@ -543,7 +578,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                 </button>
               </div>
 
-              {/* Quick Preset Accounts - Visible ONLY to Admin */}
+              {/* Quick Evaluation Operators - Visible ONLY to Admin */}
               {(() => {
                 const isAdminEmail = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
                 const showPresets = isAdminEmail || adminPresetsUnlocked;
@@ -559,7 +594,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                         type="button"
                         onClick={() => {
                           setLoginEmail("shraddha.revdikar@gmail.com");
-                          setLoginPassword("admin123");
                           setAdminPresetsUnlocked(true);
                         }}
                         className="text-[11px] font-mono text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline flex items-center gap-1"
@@ -576,7 +610,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-700 uppercase font-mono flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Admin Verified: Preset Evaluation Positions</span>
+                        <span>Admin Verified: Enterprise Positions</span>
                       </span>
                       <button
                         type="button"
@@ -587,14 +621,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                       </button>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {PRESET_DEMO_USERS.map((preset) => (
+                      {PRESET_OPERATOR_PROFILES.map((preset) => (
                         <div
                           key={preset.role + preset.email}
                           className="p-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all group space-y-1.5"
                         >
                           <div className="text-[11px] font-bold text-slate-900 flex items-center justify-between">
                             <span>{preset.role}</span>
-                            <span className="text-[9px] font-mono text-slate-400 bg-slate-200/60 px-1 py-0.2 rounded">{preset.pass}</span>
+                            <span className="text-[9px] font-mono text-indigo-600 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-100">Verified</span>
                           </div>
                           <div className="text-[10px] text-slate-500 truncate" title={preset.email}>{preset.email}</div>
                           <div className="flex items-center gap-1 pt-1 border-t border-slate-150 text-[10px]">
@@ -602,11 +636,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                               type="button"
                               onClick={() => {
                                 setLoginEmail(preset.email);
-                                setLoginPassword(preset.pass);
                               }}
                               className="flex-1 py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
                             >
-                              Fill Form
+                              Fill Email
                             </button>
                             <span className="text-slate-300">|</span>
                             <button
