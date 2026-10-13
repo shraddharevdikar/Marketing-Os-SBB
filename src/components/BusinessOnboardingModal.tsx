@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { 
-  Building2, Sparkles, Target, DollarSign, Globe, CheckCircle2, ArrowRight, 
+  Building2, Sparkles, Target, DollarSign, Globe, CheckCircle2, ArrowRight, ArrowLeft,
   HelpCircle, ShieldCheck, Zap, Lightbulb, Users, Phone, MessageSquare, Briefcase, 
-  Layers, Bot, BookOpen, X
+  Layers, Bot, BookOpen, X, ShoppingBag, HeartPulse, Factory, Utensils, Cpu
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { INDUSTRY_PRESETS, IndustryTemplate } from "../data/industryPresets";
 
 export interface CompanyBusinessProfile {
   companyName: string;
@@ -46,37 +47,89 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
 }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Form states initialized with current profile
-  const [companyName, setCompanyName] = useState(companyProfile?.companyName || "Sovereign Enterprise Solutions");
-  const [websiteUrl, setWebsiteUrl] = useState(companyProfile?.websiteUrl || "https://sovereignbusiness.com");
-  const [sector, setSector] = useState(companyProfile?.sector || "Real Estate & Enterprise Tech");
-  const [description, setDescription] = useState(companyProfile?.description || "Providing high-value enterprise consulting, automation, and global advisory.");
-  const [headquarters, setHeadquarters] = useState(companyProfile?.headquarters || "Global Headquarters");
-  const [targetAudience, setTargetAudience] = useState(companyProfile?.targetAudience || "High-net-worth homebuyers, business owners, and global decision makers");
+  // Check if profile was already saved by user
+  const isProfileConfigured = typeof window !== "undefined" && localStorage.getItem("sbb_onboarding_completed") === "true";
+
+  // Form states initialized with current profile or clean inputs for Brand Identity
+  const [selectedIndustryId, setSelectedIndustryId] = useState<string>("b2b-saas");
+  const [companyName, setCompanyName] = useState(
+    companyProfile?.companyName && (isProfileConfigured || companyProfile.companyName !== "Nexus Cloud AI Platform")
+      ? companyProfile.companyName
+      : ""
+  );
+  const [websiteUrl, setWebsiteUrl] = useState(
+    companyProfile?.websiteUrl && (isProfileConfigured || companyProfile.websiteUrl !== "https://nexuscloud.ai")
+      ? companyProfile.websiteUrl
+      : ""
+  );
+  const [sector, setSector] = useState(
+    companyProfile?.sector && (isProfileConfigured || companyProfile.sector !== "B2B SaaS & Cloud Software")
+      ? companyProfile.sector
+      : ""
+  );
+  const [description, setDescription] = useState(
+    companyProfile?.description && (isProfileConfigured || !companyProfile.description.includes("autonomous cloud orchestration"))
+      ? companyProfile.description
+      : ""
+  );
+  const [headquarters, setHeadquarters] = useState(
+    companyProfile?.headquarters && (isProfileConfigured || companyProfile.headquarters !== "San Francisco, CA & Toronto, ON")
+      ? companyProfile.headquarters
+      : ""
+  );
+  const [targetAudience, setTargetAudience] = useState(companyProfile?.targetAudience || "CTOs, VPs of Growth, Marketing Directors & Enterprise Decision Makers");
   
-  const [productsServices, setProductsServices] = useState(companyProfile?.productsServices || "Luxury Residential Listings, Autonomous AI Ad Management, Enterprise Consulting");
-  const [usp, setUsp] = useState(companyProfile?.usp || "Guaranteed 24/7 AI-driven lead response, high-ROAS UTM tracking, and multi-region privacy compliance");
+  const [productsServices, setProductsServices] = useState(companyProfile?.productsServices || "Enterprise Cloud AI Suite, Automated ROAS Telemetry, API Integration Gateway");
+  const [usp, setUsp] = useState(companyProfile?.usp || "Real-time multi-channel attribution, automated 15-minute budget reallocation, and 100% regulatory compliance");
   const [phone, setPhone] = useState(companyProfile?.phone || "+1 (437) 997-6707");
-  const [adBudget, setAdBudget] = useState<number>(companyProfile?.adBudget || 5000);
+  const [adBudget, setAdBudget] = useState<number>(companyProfile?.adBudget || 6000);
   
   const [selectedGoals, setSelectedGoals] = useState<string[]>(
-    companyProfile?.goals?.length ? companyProfile.goals : ["Generate High-Quality Leads", "Maximize Ad ROAS", "Increase Brand Authority"]
+    companyProfile?.goals?.length ? companyProfile.goals : ["Generate High-Quality Leads", "Maximize Ad ROAS & Lower CAC", "Increase Brand Authority & Organic SEO"]
   );
   
   const [brandVoice, setBrandVoice] = useState(companyProfile?.brandVoice || "Professional & Authoritative");
-  const [instagram, setInstagram] = useState(companyProfile?.instagram || "@sovereignbusiness");
-  const [linkedin, setLinkedin] = useState(companyProfile?.linkedin || "linkedin.com/company/sovereign-business");
-  const [teamSize, setTeamSize] = useState(companyProfile?.teamSize || "10-50 employees");
+  const [instagram, setInstagram] = useState(companyProfile?.instagram || "@nexuscloud_ai");
+  const [linkedin, setLinkedin] = useState(companyProfile?.linkedin || "linkedin.com/company/nexus-cloud-ai");
+  const [teamSize, setTeamSize] = useState(companyProfile?.teamSize || "20-100 employees");
 
   const [isSaved, setIsSaved] = useState(false);
 
+  const handleSelectIndustryPreset = (template: IndustryTemplate) => {
+    setSelectedIndustryId(template.id);
+    
+    // CRITICAL: DO NOT auto-fill or overwrite Brand Identity data!
+    // As explicitly requested: every user fills their own data in Brand Identity (Step 1).
+    // Preserving user's custom inputs for: companyName, websiteUrl, sector, headquarters, description.
+    
+    // Calibrate only downstream strategic benchmarks & audience parameters (Steps 2, 3, 4):
+    setTargetAudience(template.companyProfile.targetAudience);
+    setProductsServices(template.companyProfile.productsServices);
+    setUsp(template.companyProfile.usp);
+    setBrandVoice(template.companyProfile.brandVoice);
+    setTeamSize(template.companyProfile.teamSize);
+    setAdBudget(template.companyProfile.adBudget);
+    setSelectedGoals(template.companyProfile.goals);
+  };
+
   useEffect(() => {
     if (companyProfile) {
-      if (companyProfile.companyName) setCompanyName(companyProfile.companyName);
-      if (companyProfile.websiteUrl) setWebsiteUrl(companyProfile.websiteUrl);
-      if (companyProfile.sector) setSector(companyProfile.sector);
-      if (companyProfile.description) setDescription(companyProfile.description);
-      if (companyProfile.headquarters) setHeadquarters(companyProfile.headquarters);
+      const isConfigured = localStorage.getItem("sbb_onboarding_completed") === "true";
+      if (companyProfile.companyName && (isConfigured || companyProfile.companyName !== "Nexus Cloud AI Platform")) {
+        setCompanyName(companyProfile.companyName);
+      }
+      if (companyProfile.websiteUrl && (isConfigured || companyProfile.websiteUrl !== "https://nexuscloud.ai")) {
+        setWebsiteUrl(companyProfile.websiteUrl);
+      }
+      if (companyProfile.sector && (isConfigured || companyProfile.sector !== "B2B SaaS & Cloud Software")) {
+        setSector(companyProfile.sector);
+      }
+      if (companyProfile.description && (isConfigured || !companyProfile.description.includes("autonomous cloud orchestration"))) {
+        setDescription(companyProfile.description);
+      }
+      if (companyProfile.headquarters && (isConfigured || companyProfile.headquarters !== "San Francisco, CA & Toronto, ON")) {
+        setHeadquarters(companyProfile.headquarters);
+      }
       if (companyProfile.targetAudience) setTargetAudience(companyProfile.targetAudience);
       if (companyProfile.productsServices) setProductsServices(companyProfile.productsServices);
       if (companyProfile.usp) setUsp(companyProfile.usp);
@@ -167,14 +220,25 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
               </div>
             </div>
 
-            {!isFirstTime && (
+            <div className="flex items-center gap-2">
               <button 
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-950/80 hover:bg-purple-900 text-purple-200 hover:text-white rounded-lg border border-purple-700/60 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Back / Close"
               >
-                <X className="w-5 h-5" />
+                <ArrowLeft className="w-3.5 h-3.5 text-purple-300" />
+                <span>Back</span>
               </button>
-            )}
+              {!isFirstTime && (
+                <button 
+                  onClick={onClose}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
 
           <p className="text-xs text-purple-200/90 mt-2 leading-relaxed">
@@ -225,7 +289,40 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-purple-300 text-xs font-bold font-mono">
                     <Building2 className="w-4 h-4 text-purple-400" />
-                    <span>STEP 1: COMPANY & BRAND IDENTITY</span>
+                    <span>STEP 1: COMPANY & BRAND IDENTITY (ALL INDUSTRIES SUPPORTED)</span>
+                  </div>
+
+                  {/* Universal Multi-Industry Template Selector */}
+                  <div className="bg-slate-950/80 border border-purple-500/30 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        Choose Your Industry Template (Supports Any Sector):
+                      </span>
+                      <span className="text-[10px] text-purple-300 font-mono font-bold bg-purple-950/90 px-2 py-0.5 rounded border border-purple-800/80">
+                        Strategic Presets
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Select your industry vertical to configure AI audience personas, ad objectives, and budget benchmarks (Steps 2–4). <strong className="text-purple-300">Your Brand Identity below is preserved—every user fills their own data here.</strong>
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+                      {INDUSTRY_PRESETS.map((tmpl) => (
+                        <button
+                          key={tmpl.id}
+                          type="button"
+                          onClick={() => handleSelectIndustryPreset(tmpl)}
+                          className={`text-left p-2 rounded-lg border text-[11px] font-medium transition-all cursor-pointer flex flex-col gap-0.5 ${
+                            selectedIndustryId === tmpl.id
+                              ? "bg-purple-600/30 border-purple-400 text-white shadow-xs"
+                              : "bg-slate-900 border-slate-700/80 text-slate-300 hover:border-purple-500/60 hover:text-white"
+                          }`}
+                        >
+                          <span className="font-bold truncate text-white">{tmpl.name}</span>
+                          <span className="text-[9px] text-purple-300/80 font-mono truncate">{tmpl.badge}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -235,7 +332,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                         type="text"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="e.g. Sovereign Business Corp"
+                        placeholder="e.g. Nexus Cloud, Lumina Organics, Stratum Consulting..."
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
@@ -259,7 +356,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                         type="text"
                         value={sector}
                         onChange={(e) => setSector(e.target.value)}
-                        placeholder="e.g. Real Estate, SaaS, E-commerce, Legal"
+                        placeholder="e.g. B2B SaaS, E-Commerce, Healthcare, FinTech, Legal, Real Estate..."
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
@@ -270,7 +367,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                         type="text"
                         value={headquarters}
                         onChange={(e) => setHeadquarters(e.target.value)}
-                        placeholder="e.g. New York, London, Tokyo, Toronto, Sydney"
+                        placeholder="e.g. New York, London, Tokyo, Toronto, San Francisco, Vancouver"
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
@@ -314,7 +411,7 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                       rows={2}
                       value={productsServices}
                       onChange={(e) => setProductsServices(e.target.value)}
-                      placeholder="List key offerings, e.g. Luxury Condo Sales, AI Marketing Management, Consulting Packages..."
+                      placeholder="List key offerings, e.g. Enterprise Cloud Subscriptions, Organic Skincare Bundles, Diagnostic Health Imaging, M&A Advisory, Precision Machining..."
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                     />
                   </div>
@@ -364,92 +461,93 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Ad Budget ($ USD / Local Currency) *</label>
-                      <input
-                        type="number"
-                        min="500"
-                        step="500"
-                        value={adBudget}
-                        onChange={(e) => setAdBudget(Number(e.target.value))}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Monthly Ad Budget ($ USD / Local Currency) *</label>
+                        <input
+                          type="number"
+                          min="500"
+                          step="500"
+                          placeholder="5000"
+                          value={adBudget}
+                          onChange={(e) => setAdBudget(Number(e.target.value))}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono font-bold"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Business WhatsApp Contact Phone *</label>
-                      <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+1 (437) 997-6707"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 4: Brand Voice & Sync */}
-              {step === 4 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-purple-300 text-xs font-bold font-mono">
-                    <Sparkles className="w-4 h-4 text-purple-400" />
-                    <span>STEP 4: BRAND VOICE & SBB MEMORY SYNC</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Brand Voice & Copywriting Tone</label>
-                      <select
-                        value={brandVoice}
-                        onChange={(e) => setBrandVoice(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      >
-                        <option value="Professional & Authoritative">Professional & Authoritative</option>
-                        <option value="Energetic & High-Converting">Energetic & High-Converting</option>
-                        <option value="Friendly & Approachable">Friendly & Approachable</option>
-                        <option value="Luxury, Modern & Refined">Luxury, Modern & Refined</option>
-                        <option value="Bold & Disrupted">Bold & Disrupted</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Company Size / Team</label>
-                      <input
-                        type="text"
-                        value={teamSize}
-                        onChange={(e) => setTeamSize(e.target.value)}
-                        placeholder="e.g. 1-10, 10-50, 50+"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Business WhatsApp Contact Phone *</label>
+                        <input
+                          type="text"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+1 (555) 019-2834"
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">Instagram Handle</label>
-                      <input
-                        type="text"
-                        value={instagram}
-                        onChange={(e) => setInstagram(e.target.value)}
-                        placeholder="@sovereignbusiness"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                {/* STEP 4: Brand Voice & Sync */}
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-purple-300 text-xs font-bold font-mono">
+                      <Sparkles className="w-4 h-4 text-purple-400" />
+                      <span>STEP 4: BRAND VOICE & SBB MEMORY SYNC</span>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">LinkedIn Profile/Page</label>
-                      <input
-                        type="text"
-                        value={linkedin}
-                        onChange={(e) => setLinkedin(e.target.value)}
-                        placeholder="linkedin.com/company/sovereign"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Brand Voice & Copywriting Tone</label>
+                        <select
+                          value={brandVoice}
+                          onChange={(e) => setBrandVoice(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="Professional & Authoritative">Professional & Authoritative</option>
+                          <option value="Energetic & High-Converting">Energetic & High-Converting</option>
+                          <option value="Friendly & Approachable">Friendly & Approachable</option>
+                          <option value="Luxury, Modern & Refined">Luxury, Modern & Refined</option>
+                          <option value="Bold & Disrupted">Bold & Disrupted</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Company Size / Team</label>
+                        <input
+                          type="text"
+                          value={teamSize}
+                          onChange={(e) => setTeamSize(e.target.value)}
+                          placeholder="e.g. 1-10, 10-50, 50+"
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">Instagram Handle</label>
+                        <input
+                          type="text"
+                          value={instagram}
+                          onChange={(e) => setInstagram(e.target.value)}
+                          placeholder="@yourbrand"
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-300 mb-1">LinkedIn Profile/Page</label>
+                        <input
+                          type="text"
+                          value={linkedin}
+                          onChange={(e) => setLinkedin(e.target.value)}
+                          placeholder="linkedin.com/company/yourcompany"
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    </div>
 
                   <div className="bg-purple-950/40 border border-purple-800/50 p-3.5 rounded-xl text-xs space-y-1.5">
                     <span className="font-bold text-purple-200 flex items-center gap-1.5">
@@ -469,13 +567,17 @@ export const BusinessOnboardingModal: React.FC<BusinessOnboardingModalProps> = (
         {!isSaved && (
           <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
             <button
-              disabled={step === 1}
-              onClick={() => setStep(step - 1 as any)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                step === 1 ? "opacity-30 cursor-not-allowed text-slate-500" : "bg-slate-800 hover:bg-slate-700 text-slate-200"
-              }`}
+              onClick={() => {
+                if (step > 1) {
+                  setStep((step - 1) as any);
+                } else {
+                  onClose();
+                }
+              }}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
             >
-              Back
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{step === 1 ? "Back (Exit)" : "Back"}</span>
             </button>
 
             <div className="flex items-center gap-2">

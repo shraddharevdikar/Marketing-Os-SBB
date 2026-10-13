@@ -35,6 +35,7 @@ import {
   ArrowUpRight,
   MousePointer
 } from "lucide-react";
+import { INDUSTRY_PRESETS, IndustryTemplate } from "../data/industryPresets";
 
 interface CampaignCreatorProps {
   userName?: string;
@@ -53,7 +54,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   onLogAction,
   companyProfile = {}
 }) => {
-  const companyName = (companyProfile as any)?.companyName || "John & Jan Real Estate";
+  const companyName = (companyProfile as any)?.companyName || "Nexus Enterprise OS";
   const [activeSubTab, setActiveSubTab] = useState<TabType>("composer");
 
   // Toast Notification State
@@ -76,21 +77,21 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     }, 6000);
   };
 
-  // State: AI Content Composer
-  const [composerPlatform, setComposerPlatform] = useState("Instagram Reels");
-  const [tone, setTone] = useState("Luxury Real Estate");
+  // State: AI Content Composer with Multi-Industry Defaults
+  const [composerPlatform, setComposerPlatform] = useState("LinkedIn ABM");
+  const [tone, setTone] = useState("High-Growth Tech B2B");
   const [postCopy, setPostCopy] = useState(
-    `Discover Toronto's finest luxury waterfront penthouses with floor-to-ceiling skyline views. Featuring private elevator access, custom Italian marble, and panoramic Lake Ontario sunsets. Book your exclusive VIP tour with ${companyName} today.`
+    `Transform your customer acquisition pipeline with real-time multi-channel attribution and autonomous ad budget reallocation. Discover how ${companyName} slashes customer acquisition cost by 34% while ensuring complete regulatory compliance. Request your personalized growth audit today.`
   );
-  const [hashtags, setHashtags] = useState("#TorontoRealEstate #LuxuryPenthouse #GTALiving #WaterfrontProperty");
-  const [ctaText, setCtaText] = useState("Book Private VIP Tour");
+  const [hashtags, setHashtags] = useState("#B2BGrowth #EnterpriseSaaS #ROASOptimization #MarketingAutomation");
+  const [ctaText, setCtaText] = useState("Request Live Platform Demo");
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const sampleImages = [
-    { name: "Waterfront Penthouse Skyline", url: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80" },
-    { name: "Modern Architectural Interior", url: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80" },
-    { name: "Executive High-Rise Terrace", url: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80" }
+    { name: "Enterprise Cloud Dashboard & Analytics", url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80" },
+    { name: "Modern Product & Brand Showcase", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80" },
+    { name: "Executive Headquarters & Innovation Lab", url: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80" }
   ];
 
   // State: Sovereign Vault (3-Stage Reports)
@@ -99,8 +100,8 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [vaultItems, setVaultItems] = useState([
     {
       id: "VLT-101",
-      title: "Q3 Waterfront Luxury Penthouse Spotlight",
-      platform: "Instagram Reels",
+      title: "Enterprise Cloud AI Platform Q3 Launch",
+      platform: "LinkedIn ABM",
       stage: 3,
       stageLabel: "Stage 3: Sovereign Vaulted",
       complianceScore: "100%",
@@ -111,8 +112,8 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     },
     {
       id: "VLT-102",
-      title: "CASL Opt-In Lead Magnet: GTA Market Report",
-      platform: "LinkedIn ABM",
+      title: "CASL Opt-In Lead Magnet: Omnichannel Growth Report",
+      platform: "Meta Ads",
       stage: 2,
       stageLabel: "Stage 2: Peer Review Pending",
       complianceScore: "98%",
@@ -123,8 +124,8 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     },
     {
       id: "VLT-103",
-      title: "Meta Sponsored Post - Yorkville Penthouse Tour",
-      platform: "Meta Ads",
+      title: "High-ROAS Direct Response Video Showcase",
+      platform: "Instagram Reels",
       stage: 1,
       stageLabel: "Stage 1: Pre-Compliance Draft",
       complianceScore: "95%",
@@ -144,30 +145,30 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [crmLeadRoute, setCrmLeadRoute] = useState(true);
 
   const [autopilotLogs, setAutopilotLogs] = useState([
-    { id: 1, time: "10:14 AM", action: "Auto-published Instagram Reel", detail: "Scored 98.4% engagement index on Toronto Luxury segment", status: "Success" },
+    { id: 1, time: "10:14 AM", action: "Auto-published LinkedIn ABM Spotlight", detail: "Scored 98.4% engagement index on Enterprise Growth segment", status: "Success" },
     { id: 2, time: "08:30 AM", action: "Optimized Meta Ads Budget", detail: "Scaled daily spend +15% based on 5.2% CTR outlier", status: "Optimized" },
-    { id: 3, time: "07:00 AM", action: "CASL & PIPEDA Compliance Audit", detail: "Verified double opt-in footer links across 4 active streams", status: "Verified" }
+    { id: 3, time: "07:00 AM", action: "CASL & PIPEDA Compliance Audit", detail: "Verified double opt-in footer links across active streams", status: "Verified" }
   ]);
 
   // State: Editorial Planner
   const [scheduledPosts, setScheduledPosts] = useState([
     {
       id: "SCH-01",
-      title: "Yorkville Luxury Penthouse Reel",
+      title: "Enterprise Cloud AI Platform Keynote Reel",
       platform: "Instagram Reels",
       date: "2026-07-25",
       time: "10:00 AM EST",
       status: "Scheduled",
-      hashtags: "#Yorkville #TorontoLuxury"
+      hashtags: "#TechInnovation #EnterpriseGrowth"
     },
     {
       id: "SCH-02",
-      title: "GTA Commercial Property ABM Pulse",
+      title: "Omnichannel Acquisition & ROAS ABM Pulse",
       platform: "LinkedIn ABM",
       date: "2026-07-28",
       time: "02:00 PM EST",
       status: "Scheduled",
-      hashtags: "#GTACommercial #B2BRealEstate"
+      hashtags: "#B2BStrategy #MarketingOS"
     }
   ]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -181,7 +182,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       id: "MSG-01",
       user: "Michael Vance (Managing Partner)",
       platform: "LinkedIn DM",
-      message: "Saw your Yorkville penthouse listing. Can you send over the CAD $3.8M disclosure package and floor plan?",
+      message: "Reviewed your enterprise platform capabilities. Can you share the implementation roadmap and schedule a live architecture walkthrough?",
       time: "12 mins ago",
       sentiment: "High Intent Lead",
       unread: true,
@@ -191,9 +192,9 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     },
     {
       id: "MSG-02",
-      user: "Sarah Jenkins",
+      user: "Sarah Jenkins (Director of Growth)",
       platform: "Instagram Reel Comment",
-      message: "Is this waterfront penthouse still available for private viewings next weekend?",
+      message: "We're looking to scale our digital campaigns while cutting CAC. Do you support automated multi-channel budget reallocations?",
       time: "45 mins ago",
       sentiment: "Inquiry",
       unread: true,
@@ -225,7 +226,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     email: "",
     company: "",
     sourceChannel: "",
-    dealValue: "3,800,000",
+    dealValue: "28,500",
     leadScore: "94/100 (Hot Prospect)",
     lifecycleStage: "Opportunity / High Intent",
     notes: "",
@@ -311,7 +312,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     } catch (err) {
       console.warn("Using fallback social copy generator", err);
       setPostCopy(
-        `🏆 VIP Listing Alert: Step inside Toronto's premier waterfront residence with ${companyName}. Offering 3,200+ sq.ft of floor-to-ceiling luxury, private elevator landing, and bespoke finishes. Click below to secure your private viewing.`
+        `🚀 Accelerate your team's workflow and pipeline with ${companyName}. Unlock automated intelligence, real-time ROI attribution, and seamless team collaboration. Request your personalized platform walkthrough today.`
       );
     } finally {
       setIsGeneratingCopy(false);
@@ -740,7 +741,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       onChange={(e) => setAutoRefineCopy(e.target.checked)}
                       className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-700"
                     />
-                    <span className="text-xs text-slate-300 font-medium">Auto-Refine Ad Copy based on GTA Real Estate market trends</span>
+                    <span className="text-xs text-slate-300 font-medium">Auto-Refine Ad Copy based on {(companyProfile as any)?.sector || "Industry"} market trends</span>
                   </label>
 
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -750,7 +751,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       onChange={(e) => setAutoHashtags(e.target.checked)}
                       className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-700"
                     />
-                    <span className="text-xs text-slate-300 font-medium">Dynamic Hashtag Injector (#TorontoRealEstate, #GTA)</span>
+                    <span className="text-xs text-slate-300 font-medium">Dynamic Hashtag Injector (#GrowthMarketing, #B2B, #Enterprise)</span>
                   </label>
 
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -817,6 +818,37 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
               </span>
             </div>
 
+            {/* Industry Post Preset Quick-Select */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-mono font-bold text-slate-700 flex items-center gap-1 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                  Industry Post Presets (All Sectors):
+                </label>
+                <span className="text-[10px] text-indigo-700 font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-indigo-200">
+                  1-Click Auto-Fill
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {INDUSTRY_PRESETS.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    onClick={() => {
+                      setTone(tmpl.composerPreset.tone);
+                      setPostCopy(tmpl.composerPreset.postCopy.replace(/\${companyName}/g, companyName));
+                      setHashtags(tmpl.composerPreset.hashtags);
+                      setCtaText(tmpl.composerPreset.ctaText);
+                      setComposerPlatform(tmpl.composerPreset.platform.includes("Instagram") ? "Instagram Reels" : "LinkedIn ABM");
+                    }}
+                    className="text-[10px] px-2 py-1 rounded bg-white hover:bg-indigo-600 hover:text-white border border-slate-200 text-slate-700 transition-all font-medium cursor-pointer shadow-2xs"
+                  >
+                    {tmpl.name.split("&")[0].trim()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Target Social Network</label>
               <select
@@ -839,10 +871,14 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 onChange={(e) => setTone(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
-                <option value="Luxury Real Estate">Luxury Real Estate (High-Net-Worth GTA)</option>
                 <option value="High-Growth Tech B2B">High-Growth Tech B2B (SaaS & Enterprise)</option>
-                <option value="Executive Thought Leadership">Executive Thought Leadership (CEO Pitch)</option>
-                <option value="Compliance & Legal">Compliance & Regulatory Audit Focus</option>
+                <option value="Vibrant E-Commerce DTC">Vibrant E-Commerce & DTC Lifestyle</option>
+                <option value="Medical & Patient Care">Healthcare & Medical Authority</option>
+                <option value="Fiduciary Wealth Management">Fiduciary Wealth & FinTech</option>
+                <option value="Executive Management Advisory">Executive Management Consulting</option>
+                <option value="Luxury Real Estate">Luxury Real Estate & Estates</option>
+                <option value="Precision Engineering">Industrial & Precision Engineering</option>
+                <option value="Luxury Travel & Hospitality">Experiential Hospitality & Travel</option>
               </select>
             </div>
 
@@ -862,6 +898,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 rows={4}
                 value={postCopy}
                 onChange={(e) => setPostCopy(e.target.value)}
+                placeholder="Craft or auto-generate compelling ad copy with clear value propositions, proof points, and call to action..."
                 className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans leading-relaxed"
               />
             </div>
@@ -873,6 +910,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   type="text"
                   value={hashtags}
                   onChange={(e) => setHashtags(e.target.value)}
+                  placeholder="#Growth, #Innovation, #Leadership"
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-slate-700"
                 />
               </div>
@@ -883,6 +921,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   type="text"
                   value={ctaText}
                   onChange={(e) => setCtaText(e.target.value)}
+                  placeholder="e.g. Schedule Consultation, Book Demo, Learn More"
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 font-bold"
                 />
               </div>
@@ -959,7 +998,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                         <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400/20" />
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-[10px] text-slate-400 font-mono">Sponsored • Toronto, ON</p>
+                        <p className="text-[10px] text-slate-400 font-mono">Sponsored • {(companyProfile as any)?.headquarters?.split("&")[0]?.trim() || "Global Enterprise"}</p>
                         <span className="text-[9px] bg-purple-950/90 text-purple-300 border border-purple-500/40 px-1.5 py-0.2 rounded font-mono font-bold flex items-center gap-0.5" title="Visible AI Disclosure for Meta/Google Ad Compliance">
                           <Sparkles className="w-2.5 h-2.5 text-purple-400" />
                           AI-Generated
@@ -975,7 +1014,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 <div className="relative rounded-xl overflow-hidden h-48 border border-slate-800 group">
                   <img
                     src={sampleImages[selectedImageIndex].url}
-                    alt="Property Preview"
+                    alt="SaaS Platform & Campaign Preview"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {/* Visible AI-Info Badge Overlay on Media */}
@@ -1086,7 +1125,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       required
                       value={newPostTitle}
                       onChange={(e) => setNewPostTitle(e.target.value)}
-                      placeholder="e.g. GTA Real Estate Market Update Video"
+                      placeholder="e.g. Q3 Growth Strategy & Executive Keynote Video"
                       className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500"
                     />
                   </div>
@@ -1109,6 +1148,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                         required
                         value={newPostTime}
                         onChange={(e) => setNewPostTime(e.target.value)}
+                        placeholder="e.g. 09:30 AM"
                         className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono"
                       />
                     </div>
@@ -1209,7 +1249,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                           );
                         } else {
                           setReplyText(
-                            `Hi ${selectedMsg.user.split(" ")[0]}, thank you for reaching out to ${companyName}! I'd be delighted to share the exclusive CAD penthouse disclosure package and floor plans with you.`
+                            `Hi ${selectedMsg.user.split(" ")[0]}, thank you for reaching out to ${companyName}! I'd be delighted to share our enterprise product overview deck and schedule a live platform walkthrough with our solutions team.`
                           );
                         }
                       }}
@@ -1415,6 +1455,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                     type="text"
                     value={hubspotForm.contactName}
                     onChange={(e) => setHubspotForm({ ...hubspotForm, contactName: e.target.value })}
+                    placeholder="e.g. Alexander Vance"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                     required
                   />
@@ -1425,6 +1466,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                     type="email"
                     value={hubspotForm.email}
                     onChange={(e) => setHubspotForm({ ...hubspotForm, email: e.target.value })}
+                    placeholder="e.g. alexander@enterprise.com"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
                     required
                   />
@@ -1437,6 +1479,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   <input
                     type="text"
                     value={hubspotForm.sourceChannel}
+                    placeholder="e.g. Inbound Web Form"
                     readOnly
                     className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-mono"
                   />
@@ -1447,6 +1490,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                     type="text"
                     value={hubspotForm.dealValue}
                     onChange={(e) => setHubspotForm({ ...hubspotForm, dealValue: e.target.value })}
+                    placeholder="15000"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
@@ -1471,6 +1515,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   <input
                     type="text"
                     value={hubspotForm.leadScore}
+                    placeholder="92"
                     readOnly
                     className="w-full px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 font-mono font-bold"
                   />
@@ -1483,6 +1528,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   rows={3}
                   value={hubspotForm.notes}
                   onChange={(e) => setHubspotForm({ ...hubspotForm, notes: e.target.value })}
+                  placeholder="Record key conversation notes, customer requirements, timeline, or next steps..."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 font-sans"
                 />
               </div>

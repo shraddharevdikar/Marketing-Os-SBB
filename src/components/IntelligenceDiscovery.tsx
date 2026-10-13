@@ -253,6 +253,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Acme Global or Nexus Solutions"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium"
               />
             </div>
@@ -263,6 +264,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://yourcompany.com"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium"
               />
             </div>
@@ -276,6 +278,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={sector}
                 onChange={(e) => setSector(e.target.value)}
+                placeholder="e.g. B2B SaaS, Healthcare, FinTech, E-Commerce, Consulting"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium"
               />
             </div>
@@ -286,6 +289,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={headquarters}
                 onChange={(e) => setHeadquarters(e.target.value)}
+                placeholder="e.g. Toronto, ON / New York, NY / London, UK"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium"
               />
             </div>
@@ -311,6 +315,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={adBudget}
                 onChange={(e) => setAdBudget(parseInt(e.target.value) || 0)}
+                placeholder="5000"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium font-mono"
               />
             </div>
@@ -321,6 +326,7 @@ export const IntelligenceDiscovery: React.FC<IntelligenceDiscoveryProps> = ({
                 required
                 value={softwareStack}
                 onChange={(e) => setSoftwareStack(e.target.value)}
+                placeholder="e.g. HubSpot, Salesforce, Google Ads, Stripe, PostHog"
                 className="w-full text-xs px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-slate-400 outline-none text-slate-700 font-medium"
               />
             </div>

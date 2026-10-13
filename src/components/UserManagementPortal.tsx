@@ -43,6 +43,17 @@ interface UserManagementPortalProps {
 
 const defaultUsers: UserAccount[] = [
   {
+    id: "USR-000A",
+    name: "Shraddha Revdikar (Admin)",
+    email: "shraddha.revdikar@gmail.com",
+    role: "Admin",
+    department: "System Administration & Security",
+    companyName: "Global System Administration",
+    status: "Active",
+    createdAt: "2026-01-01",
+    createdBy: "Root System"
+  },
+  {
     id: "USR-000",
     name: "Alex Admin System",
     email: "admin@sovereignbusiness.ca",
@@ -56,10 +67,10 @@ const defaultUsers: UserAccount[] = [
   {
     id: "USR-001",
     name: "John CEO Smith",
-    email: "john.smith@sovereignbusiness.ca",
+    email: "john.smith@apexenterprise.com",
     role: "CEO",
     department: "Executive Board",
-    companyName: "John and Jan Real Estate Company",
+    companyName: "Apex Global Enterprises",
     status: "Active",
     createdAt: "2026-01-10",
     createdBy: "System Initializer"
@@ -67,10 +78,10 @@ const defaultUsers: UserAccount[] = [
   {
     id: "USR-002",
     name: "Victoria VP Hastings",
-    email: "v.hastings@sovereignbusiness.ca",
+    email: "v.hastings@apexenterprise.com",
     role: "Vice President",
     department: "Marketing & Growth",
-    companyName: "John and Jan Real Estate Company",
+    companyName: "Apex Global Enterprises",
     status: "Active",
     createdAt: "2026-02-14",
     createdBy: "John CEO Smith"
@@ -78,10 +89,10 @@ const defaultUsers: UserAccount[] = [
   {
     id: "USR-003",
     name: "Miriam Manager Mercer",
-    email: "m.mercer@sovereignbusiness.ca",
+    email: "m.mercer@apexenterprise.com",
     role: "Marketing Manager",
     department: "Digital Advertising",
-    companyName: "John and Jan Real Estate Company",
+    companyName: "Apex Global Enterprises",
     status: "Active",
     createdAt: "2026-03-01",
     createdBy: "Victoria VP Hastings"
@@ -89,10 +100,10 @@ const defaultUsers: UserAccount[] = [
   {
     id: "USR-004",
     name: "Thomas TL Jenkins",
-    email: "t.jenkins@sovereignbusiness.ca",
+    email: "t.jenkins@apexenterprise.com",
     role: "Team Lead",
     department: "Content & SEO Ops",
-    companyName: "John and Jan Real Estate Company",
+    companyName: "Apex Global Enterprises",
     status: "Active",
     createdAt: "2026-04-12",
     createdBy: "Miriam Manager Mercer"
@@ -100,10 +111,10 @@ const defaultUsers: UserAccount[] = [
   {
     id: "USR-005",
     name: "Edward Exec Jones",
-    email: "e.jones@sovereignbusiness.ca",
+    email: "e.jones@apexenterprise.com",
     role: "Executive",
     department: "Operations & Sales",
-    companyName: "John and Jan Real Estate Company",
+    companyName: "Apex Global Enterprises",
     status: "Active",
     createdAt: "2026-05-01",
     createdBy: "Thomas TL Jenkins"
@@ -146,12 +157,12 @@ const defaultUsers: UserAccount[] = [
 const defaultCustomAgents: CustomAgent[] = [
   {
     id: "AGT-101",
-    name: "Toronto Real Estate Luxury Specialist",
+    name: "Enterprise Omnichannel Growth Specialist",
     category: "Marketing",
     model: "gemini-2.5-flash",
     temperature: 0.7,
-    systemPrompt: "You are a specialized Luxury Real Estate Copywriter for the GTA market. Draft ultra-high converting MLS listings, Instagram Reels scripts, and buyer emails highlighting penthouse finishes, waterfront views, and CAD valuations.",
-    capabilities: ["MLS Copywriting", "Neighborhood Demographic Analysis", "CASL Email Nurture"],
+    systemPrompt: "You are an enterprise marketing and growth copywriter. Draft high-converting ad copy, localized search campaigns, email sequences, and market positioning briefs tailored to target audiences.",
+    capabilities: ["Omnichannel Copywriting", "Persona Demographic Analysis", "CASL Email Nurture"],
     createdBy: "John CEO Smith",
     createdAt: "2026-07-01"
   },
@@ -175,7 +186,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
   onSwitchUserSession,
   onLogAction
 }) => {
-  const userCompany = companyProfile?.companyName || "John and Jan Real Estate Company";
+  const userCompany = companyProfile?.companyName || "Apex Global Enterprises";
 
   const [users, setUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem("sbb_user_accounts");
@@ -184,7 +195,9 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
         const parsed: UserAccount[] = JSON.parse(saved);
         return parsed.map(u => ({
           ...u,
-          companyName: u.companyName || (u.role === "Admin" ? "Global System Administration" : "John and Jan Real Estate Company")
+          companyName: (u.companyName === "John and Jan Real Estate Company" || !u.companyName)
+            ? (u.role === "Admin" ? "Global System Administration" : userCompany)
+            : u.companyName
         }));
       } catch (e) {
         return defaultUsers;
@@ -203,22 +216,22 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
   // Multi-Tenant Filter State (For Admin view)
   const [selectedAdminCompanyFilter, setSelectedAdminCompanyFilter] = useState<string>("ALL");
 
-  // User Creation State
+  // User Creation State - Initialized empty with instructive placeholders
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
-  const [newUserCompany, setNewUserCompany] = useState(userCompany);
+  const [newUserCompany, setNewUserCompany] = useState("");
   const [newUserRole, setNewUserRole] = useState<UserAccount["role"]>("Marketing Manager");
-  const [newUserDepartment, setNewUserDepartment] = useState("Marketing & Advertising");
-  const [newUserPassword, setNewUserPassword] = useState("Sovereign2026!");
+  const [newUserDepartment, setNewUserDepartment] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [userCreatedNotice, setUserCreatedNotice] = useState<string | null>(null);
 
-  // Keep newUserCompany synced with active companyProfile
+  // If userCompany exists and current role is not Admin, sync newUserCompany
   React.useEffect(() => {
-    if (userCompany) {
+    if (userCompany && currentRole !== "Admin") {
       setNewUserCompany(userCompany);
     }
-  }, [userCompany]);
+  }, [userCompany, currentRole]);
 
   // List of all unique companies in system
   const availableCompanies = Array.from(
@@ -229,7 +242,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
   // Admin: Sees all users, or filtered by selectedAdminCompanyFilter if set.
   // CEO & Non-Admin: Strictly scoped to their own companyName only.
   const displayedUsers = users.filter(user => {
-    const accountCompany = user.companyName || "John and Jan Real Estate Company";
+    const accountCompany = (user.companyName === "John and Jan Real Estate Company" || !user.companyName) ? userCompany : user.companyName;
 
     if (currentRole === "Admin") {
       if (selectedAdminCompanyFilter === "ALL") return true;
@@ -300,7 +313,11 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
     setUserCreatedNotice(`User login created for ${assignedCompany}! Temp Password: ${newUserPassword}`);
     setNewUserName("");
     setNewUserEmail("");
-    setNewUserPassword("Sovereign2026!");
+    setNewUserDepartment("");
+    setNewUserPassword("");
+    if (currentRole === "Admin") {
+      setNewUserCompany("");
+    }
     setTimeout(() => setUserCreatedNotice(null), 6000);
   };
 
@@ -435,14 +452,14 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
     const defaultPrompt = agent.category === "Compliance" 
       ? "Perform a CASL & PIPEDA compliance check on our marketing opt-in forms and email headers."
       : agent.category === "Marketing"
-      ? "Draft a luxury marketing brief and Instagram Reels script for a high-value Toronto property."
+      ? "Draft a high-converting B2B SaaS product launch campaign brief and social announcement."
       : "Execute your primary objective and provide a status audit for our executive team.";
     setTestMessage(defaultPrompt);
     handleRunAgentTest(defaultPrompt);
   };
 
-  // Strict RBAC Access Guard: User Logins & Agent Factory is exclusively for Admin and CEO
-  if (currentRole !== "Admin" && currentRole !== "CEO") {
+  // Strict RBAC Access Guard: User Logins & Agent Factory is exclusively for Admin
+  if (currentRole !== "Admin") {
     return (
       <div className="bg-white p-8 sm:p-12 rounded-2xl border border-slate-200 shadow-sm text-center max-w-xl mx-auto my-12 space-y-4 font-sans">
         <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto border border-rose-200 shadow-xs">
@@ -451,7 +468,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
           <p className="text-xs text-slate-600 leading-relaxed">
-            The <strong className="text-slate-900">User Logins & Agent Factory</strong> portal is reserved exclusively for <strong className="text-emerald-700">System Admin</strong> and <strong className="text-amber-700">CEO</strong> roles.
+            The <strong className="text-slate-900">User Logins & Agent Factory</strong> portal is reserved exclusively for the <strong className="text-rose-700">System Admin</strong>.
           </p>
           <p className="text-xs text-slate-500">
             Your current security clearance level (<strong className="text-slate-800">{currentRole}</strong>) does not have authorization to view user accounts, create logins, or build custom AI agents.
@@ -459,7 +476,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
         </div>
         <div className="pt-3 border-t border-slate-100 flex items-center justify-center gap-2">
           <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-3 py-1 rounded-full border border-slate-200 font-bold">
-            SECURITY POLICY: ADMIN & CEO CLEARANCE ONLY
+            SECURITY POLICY: SYSTEM ADMIN CLEARANCE ONLY
           </span>
         </div>
       </div>
@@ -599,7 +616,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g., John and Jan Real Estate Company"
+                    placeholder="e.g., Apex Global Corp, Nexus Technologies, or Lumina Brands"
                     value={newUserCompany}
                     onChange={(e) => setNewUserCompany(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
@@ -652,6 +669,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                     required
                     value={newUserPassword}
                     onChange={(e) => setNewUserPassword(e.target.value)}
+                    placeholder="Enter secure initial password (min 8 characters)"
                     className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                   />
                   <button
@@ -784,7 +802,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center gap-1.5 font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-[11px]">
                             <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                            {user.companyName || "John and Jan Real Estate Company"}
+                            {user.companyName || userCompany}
                           </span>
                         </td>
                         <td className="py-3 px-4 font-medium">
@@ -929,7 +947,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                 <textarea
                   rows={3}
                   required
-                  placeholder="e.g., You are a luxury real estate AI agent. Your goal is to draft compelling listing headlines, CASL-compliant email sequences, and high-converting ad copy for Toronto penthouse listings..."
+                  placeholder="e.g., You are an enterprise AI growth copywriter. Your goal is to draft compelling campaign headlines, high-converting ad copy, and localized AEO content for global target markets..."
                   value={agentPrompt}
                   onChange={(e) => setAgentPrompt(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 text-xs p-3 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono leading-relaxed"
@@ -1151,7 +1169,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
               </h4>
               <ul className="space-y-2 text-slate-600 font-sans leading-relaxed list-disc pl-4">
                 <li>
-                  <strong>System Prompt Definition:</strong> Defines the agent's persona, domain expertise (e.g., CASL compliance, luxury real estate), and exact output formatting rules.
+                  <strong>System Prompt Definition:</strong> Defines the agent's persona, domain expertise (e.g., CASL compliance, B2B SaaS, E-Commerce), and exact output formatting rules.
                 </li>
                 <li>
                   <strong>Server-Side Gemini Integration:</strong> Custom agents run server-side via the `@google/genai` SDK (`gemini-2.5-flash` or `gemini-2.5-pro`), keeping API keys secure.
@@ -1327,7 +1345,7 @@ export const UserManagementPortal: React.FC<UserManagementPortalProps> = ({
                     Granted Workspace Navigation Tabs ({selectedUserTabs.length} of {ALL_TABS.length} Enabled)
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Check or uncheck individual workspace tools this user can access in sovereignbusinessbrain.com
+                    Check or uncheck individual workspace tools this user can access in this portal.
                   </p>
                 </div>
 

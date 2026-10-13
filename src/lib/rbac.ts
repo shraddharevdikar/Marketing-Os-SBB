@@ -1,5 +1,8 @@
 export type ActiveTabType =
   | "user-management"
+  | "voice-conversations"
+  | "create-edit-images"
+  | "creative-studio"
   | "digital-card"
   | "marketplace"
   | "seo"
@@ -19,6 +22,9 @@ export type ActiveTabType =
 
 export const VALID_TABS: ActiveTabType[] = [
   "user-management",
+  "voice-conversations",
+  "create-edit-images",
+  "creative-studio",
   "digital-card",
   "marketplace",
   "seo",
@@ -50,14 +56,44 @@ export interface TabConfig {
 
 export const ALL_TABS: TabConfig[] = [
   {
+    id: "voice-conversations",
+    labelEN: "Voice Conversations",
+    labelFR: "Conversations Vocales",
+    badgeText: "GEMINI 3.8 LIVE",
+    badgeColor: "bg-gradient-to-r from-teal-500 to-emerald-600 text-white",
+    iconName: "AudioSpark",
+    description: "Two-way real-time voice conversations using gemini-3.8-live (Live API) with microphone streaming, 24kHz neural audio playback, interruption handling, and gemini-3.8-flash strategy reasoning.",
+    minRole: "Executive"
+  },
+  {
+    id: "create-edit-images",
+    labelEN: "Create & Edit Images",
+    labelFR: "Créer & Modifier des Images",
+    badgeText: "NANO BANANA 2.1",
+    badgeColor: "bg-gradient-to-r from-purple-600 to-pink-600 text-white",
+    iconName: "ImageEditAuto",
+    description: "Use text prompts to create or edit high-impact commercial images using gemini-nano-banana-2.1 with resolution selection, aspect ratio, and iterative editing.",
+    minRole: "Executive"
+  },
+  {
+    id: "creative-studio",
+    labelEN: "AI Multimodal Studio",
+    labelFR: "Studio Multimodal IA",
+    badgeText: "VEO • NANO • LYRIA",
+    badgeColor: "bg-gradient-to-r from-purple-600 to-indigo-600 text-white",
+    iconName: "Sparkles",
+    description: "Multimodal AI production suite: Veo Video generator & animator, Gemini Nano Banana 2.1 image creator, Lyria Music composer, Live voice chat, transcription, grounded search & maps.",
+    minRole: "Executive"
+  },
+  {
     id: "user-management",
     labelEN: "User Logins & Agent Factory",
     labelFR: "Utilisateurs & Usine d'Agents",
-    badgeText: "ADMIN & CEO ONLY",
+    badgeText: "ADMIN ONLY",
     badgeColor: "bg-emerald-600 text-white",
     iconName: "ShieldCheck",
-    description: "Manage system user logins, position role clearances, custom tab permissions, and AI Agent Factory. Accessible exclusively to Admin and CEO roles.",
-    minRole: "CEO"
+    description: "Manage system user logins, position role clearances, custom tab permissions, and AI Agent Factory. Accessible exclusively to Admin role.",
+    minRole: "Admin"
   },
   {
     id: "digital-card",
@@ -223,31 +259,31 @@ export const ALL_TABS: TabConfig[] = [
 
 export const DEFAULT_ROLE_TABS: Record<string, ActiveTabType[]> = {
   Admin: [
-    "user-management", "digital-card", "marketplace", "seo", "campaign-commander", "ads-tracker",
+    "user-management", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "marketplace", "seo", "campaign-commander", "ads-tracker",
     "campaign-generator", "marketing-strategist", "discovery", "dashboard",
     "analytics", "execution", "social", "crm", "advisor", "research", "troubleshoot"
   ],
   CEO: [
-    "dashboard", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
-    "ads-tracker", "crm", "marketplace", "user-management"
+    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
+    "ads-tracker", "crm", "marketplace"
   ],
   "Vice President": [
-    "dashboard", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
+    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "marketing-strategist", "analytics",
     "ads-tracker", "crm", "marketplace", "seo"
   ],
   AGM: [
-    "dashboard", "digital-card", "campaign-commander", "ads-tracker", "crm", "seo",
+    "dashboard", "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "ads-tracker", "crm", "seo",
     "campaign-generator", "marketing-strategist"
   ],
   "Marketing Manager": [
-    "digital-card", "campaign-commander", "campaign-generator", "seo", "ads-tracker",
+    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "campaign-commander", "campaign-generator", "seo", "ads-tracker",
     "social", "crm", "marketing-strategist", "advisor", "research"
   ],
   "Team Lead": [
-    "digital-card", "execution", "social", "seo", "crm", "troubleshoot", "research"
+    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "seo", "crm", "troubleshoot", "research"
   ],
   Executive: [
-    "digital-card", "execution", "social", "crm", "troubleshoot"
+    "voice-conversations", "create-edit-images", "creative-studio", "digital-card", "execution", "social", "crm", "troubleshoot"
   ]
 };
 

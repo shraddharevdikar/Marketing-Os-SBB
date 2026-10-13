@@ -37,7 +37,7 @@ export const ResearchPortal: React.FC<ResearchPortalProps> = ({
   currentProvince,
   companyProfile
 }) => {
-  const [sector, setSector] = useState(companyProfile?.sector || "Real Estate & B2B Growth");
+  const [sector, setSector] = useState(companyProfile?.sector || "Enterprise B2B & Technology");
   const [province, setProvince] = useState(Pb[0]);
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -177,7 +177,7 @@ export const ResearchPortal: React.FC<ResearchPortalProps> = ({
             <label className="block text-xs font-bold text-slate-700 mb-1.5">Business Industry Sector</label>
             <input
               type="text"
-              placeholder="e.g. Real Estate, B2B SaaS, Luxury Retail"
+              placeholder="e.g. B2B SaaS, E-Commerce, Healthcare, FinTech, Consulting, Retail"
               value={sector}
               onChange={(e) => setSector(e.target.value)}
               className="w-full text-xs px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-800"

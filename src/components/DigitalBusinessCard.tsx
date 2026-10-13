@@ -48,8 +48,8 @@ const DEFAULT_TEAM_CARDS: TeamCard[] = [
     avatar: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80",
     tagline: "Empowering AI-Driven Enterprise Marketing & Autonomous Growth Engines.",
     upiId: "johnsmith@okicici",
-    website: "https://sovereignbusinessbrain.com",
-    location: "Financial District, Toronto, ON"
+    website: "https://yourcompany.com",
+    location: "Corporate Headquarters • Tech District"
   },
   {
     id: "CARD-002",
@@ -62,8 +62,8 @@ const DEFAULT_TEAM_CARDS: TeamCard[] = [
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80",
     tagline: "Omnichannel Ads Strategy, High-ROAS UTM Tracking & Conversion Funnels.",
     upiId: "miriammercer@upi",
-    website: "https://sovereignbusinessbrain.com",
-    location: "Tech Hub Quarter, Vancouver, BC"
+    website: "https://yourcompany.com",
+    location: "Global Operations Center"
   },
   {
     id: "CARD-003",
@@ -76,8 +76,8 @@ const DEFAULT_TEAM_CARDS: TeamCard[] = [
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80",
     tagline: "Helping businesses automate leads & close 5-figure enterprise deals faster.",
     upiId: "sarahsales@sbi",
-    website: "https://sovereignbusinessbrain.com",
-    location: "Bay Street Corporate Centre, Toronto, ON"
+    website: "https://yourcompany.com",
+    location: "Enterprise Sales Hub"
   }
 ];
 

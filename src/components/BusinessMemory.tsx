@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Cpu, Search, Sparkles, RefreshCw, Plus, Trash2, ArrowRight, BookOpen, Target, Calendar, User, TrendingUp, DollarSign, HelpCircle } from "lucide-react";
+import { Cpu, Search, Sparkles, RefreshCw, Plus, Trash2, ArrowRight, BookOpen, Target, Calendar, User, TrendingUp, DollarSign, HelpCircle, Building2, Check } from "lucide-react";
+import { INDUSTRY_PRESETS, IndustryTemplate } from "../data/industryPresets";
 
 interface Goal {
   id: string;
@@ -83,14 +84,14 @@ export const defaultMemory: BusinessMemoryState = {
     },
     {
       id: "BG-02",
-      goal: "Establish Brand Authority in British Columbia & Quebec",
-      target: "Top 3 organic ranking",
-      progress: 30,
+      goal: "Establish #1 Category Authority across North America",
+      target: "Top 3 organic & AI citation ranking",
+      progress: 65,
       timeline: "Q2 2026"
     },
     {
       id: "BG-03",
-      goal: "Maintain 100% PIPEDA & CASL Compliance",
+      goal: "Maintain 100% PIPEDA, CASL & GDPR Privacy Compliance",
       target: "0 audit flags",
       progress: 100,
       timeline: "Continuous"
@@ -99,76 +100,76 @@ export const defaultMemory: BusinessMemoryState = {
   pastCampaigns: [
     {
       id: "PC-01",
-      title: "GTA Luxury Real Estate Video Ads",
-      agent: "Social",
+      title: "B2B Enterprise Cloud Platform Search Blitz",
+      agent: "SEO Brain",
       status: "Approved",
-      spend: 4500,
+      spend: 4200,
       outcome: "Success",
-      roi: 3.2,
-      learnings: "Virtual walk-throughs showcasing lifestyle and neighborhood amenities on Instagram Reels convert 2.4x better than standard photo carousels."
+      roi: 3.8,
+      learnings: "Interactive diagnostic sandboxes and 45-word direct answer modules on Google AI Overviews convert 3.1x better than generic whitepaper downloads."
     },
     {
       id: "PC-02",
-      title: "Broad-Targeting Canada PPC Campaign",
+      title: "Broad-Targeting Paid Ad Campaign",
       agent: "PPC",
       status: "Approved",
       spend: 2500,
       outcome: "Failure",
-      roi: 0.4,
-      learnings: "Broad keyword matches resulted in highly unqualified click leaks. Tight negative keyword lists are mandatory for PPC in Canada."
+      roi: 0.6,
+      learnings: "Broad keyword matches resulted in unqualified click leaks. Tight exact-match negative keyword lists and CASL consent filters are mandatory."
     },
     {
       id: "PC-03",
-      title: "Bilingual Montreal Meta Lead Capture",
+      title: "Bilingual Multi-Channel Lead Capture (Montreal & Toronto)",
       agent: "CRM",
       status: "Approved",
       spend: 3200,
       outcome: "Success",
-      roi: 2.1,
-      learnings: "Quebec regulations command native French language triggers. Direct SMS follow-ups within 15 mins reduced CAC by 40%."
+      roi: 2.9,
+      learnings: "Quebec regulations command native French language triggers under Bill 96. Immediate automated SMS follow-up within 15 mins reduced CAC by 40%."
     }
   ],
-  brandVoice: "Premium and highly professional. We speak with deep technical authority, emphasizing CASL compliant privacy guarantees and multi-channel attribution analytics. Avoid fluffy SaaS hype.",
+  brandVoice: "Authoritative, data-grounded, and highly professional. We speak with deep technical clarity, emphasizing verified compliance guarantees, high ROAS attribution, and measurable business growth.",
   winningPersonas: [
     {
       id: "WP-01",
-      name: "Luxury Estate Developers (GTA)",
-      description: "Hedge builders seeking reliable regional leads for multi-million projects without branding diluting.",
-      demographics: "Ages 40-60, located in Southern Ontario, average budget $20K/mo.",
-      painPoints: ["High transaction lead leakages", "Low quality portal look-ups", "Regulatory contract delays"],
-      acquisitionChannel: "LinkedIn Direct Outreach & Localized Google PPC"
+      name: "Enterprise Decision Makers & Growth Leaders",
+      description: "Directors, VPs, and Founders seeking reliable multi-channel customer acquisition pipelines without budget bleed.",
+      demographics: "Ages 30-55, high-growth mid-market to enterprise, average monthly ad budget $15K - $50K.",
+      painPoints: ["Fragmented attribution dashboards", "High customer acquisition costs", "Data privacy & regulatory compliance risks"],
+      acquisitionChannel: "LinkedIn ABM, Google Search Exact Match & High-Authority SEO"
     }
   ],
   revenueRecords: [
     {
       id: "RR-01",
       date: "2026-06-15",
-      revenueCAD: 24500,
-      dealsClosed: 3,
-      topProduct: "Enterprise Consulting Bundle",
-      notes: "Three major developers signed off on luxury CRM integration packages."
+      revenueCAD: 28500,
+      dealsClosed: 4,
+      topProduct: "Enterprise Platform License",
+      notes: "Four major enterprise clients onboarded across software and professional services."
     }
   ],
   channelPerf: [
     {
       id: "CP-01",
       period: "June 2026",
-      channel: "Meta Reels (FB)",
+      channel: "Google Search (Exact)",
       spendCAD: 3500,
-      leadsGenerated: 145,
-      cacCAD: 24,
-      roas: 3.2,
-      summary: "Excellent engagement in Ontario and BC. Audiences reacting strongly to high-end virtual layout clips."
+      leadsGenerated: 168,
+      cacCAD: 20.8,
+      roas: 3.8,
+      summary: "Top performing channel with 14.2% demo conversion rate."
     }
   ],
   competitors: [
     {
       id: "CO-01",
-      competitorName: "National Realty Marketing Corp",
-      marketShareEstimate: "18%",
-      strengths: ["Huge organic brand footprint", "High volume ad budgets"],
-      weaknesses: ["No customized local compliance filters", "Slow follow-up pipelines"],
-      recentMoves: "Acquired a small Vancouver boutique agency to establish Western Canada coverage."
+      competitorName: "Legacy Marketing Platforms",
+      marketShareEstimate: "24%",
+      strengths: ["Broad legacy brand footprint", "High volume ad spend"],
+      weaknesses: ["No real-time ad budget reallocation automation", "Weak Canadian CASL/PIPEDA compliance integration"],
+      recentMoves: "Attempted to bundle basic chatbots without autonomous telemetry."
     }
   ]
 };
@@ -201,6 +202,33 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
     localStorage.setItem("sbb_business_memory", JSON.stringify(updated));
   };
 
+  const handleLoadIndustryMemory = (tmpl: IndustryTemplate) => {
+    const updated: BusinessMemoryState = {
+      ...memory,
+      businessGoals: tmpl.companyProfile.goals.map((g, idx) => ({
+        id: `BG-${idx + 1}`,
+        goal: g,
+        target: idx === 0 ? "Target KPI Benchmark" : "Continuous Growth",
+        progress: 60 + idx * 10,
+        timeline: "Q4 2026"
+      })),
+      brandVoice: tmpl.companyProfile.brandVoice,
+      winningPersonas: [
+        {
+          id: `WP-${tmpl.id}`,
+          name: tmpl.companyProfile.targetAudience.split(",")[0] || "Target Decision Maker",
+          description: `Target persona for ${tmpl.name} with interest in ${tmpl.companyProfile.productsServices.split(",")[0]}.`,
+          demographics: "Mid-market to enterprise leaders, established budgets.",
+          painPoints: ["High customer acquisition cost", "Lack of real-time visibility", "Regulatory compliance friction"],
+          acquisitionChannel: "Google Search Exact, LinkedIn ABM & High-Authority SEO"
+        }
+      ]
+    };
+    saveMemory(updated);
+    setBrandVoiceInput(tmpl.companyProfile.brandVoice);
+    onLogAction("Loaded Industry Memory", `Loaded ${tmpl.name} goals and persona benchmarks into Corporate Knowledge Base.`);
+  };
+
   const handleAskAdvisor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!question.trim()) return;
@@ -228,7 +256,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
       }
     } catch (err) {
       console.error(err);
-      setAdvisorResponse(`### Strategic Advisor Response (${selectedAgent})\n\nBased on your **Business Memory** databases, here is our optimization outline:\n\n1. **CASL Compliance**: Leverage your active double-opt-in filters on campaigns (similar to PC-03 Bilingual Montreal) to guarantee complete compliance. SMS automation is key.\n2. **Past Outcomes**: Your **${memory.pastCampaigns[0]?.title || "GTA Real Estate"}** campaign performed outstandingly (ROI: ${memory.pastCampaigns[0]?.roi || "3.2"}x). We suggest scaling budgets on this specific demographic rather than broad matches (PC-02 which resulted in high click bleed).\n3. **Ideal Personas**: Prioritize acquisitions towards **${memory.winningPersonas[0]?.name || "Luxury Estate Developers"}** using highly specified local SEO clusters.`);
+      setAdvisorResponse(`### Strategic Advisor Response (${selectedAgent})\n\nBased on your **Business Memory** databases, here is our optimization outline:\n\n1. **CASL Compliance**: Leverage your active double-opt-in filters on campaigns (similar to PC-03 Bilingual Montreal) to guarantee complete compliance. SMS automation is key.\n2. **Past Outcomes**: Your **${memory.pastCampaigns[0]?.title || "Omnichannel Growth Sprint"}** campaign performed outstandingly (ROI: ${memory.pastCampaigns[0]?.roi || "3.8"}x). We suggest scaling budgets on this specific demographic rather than broad matches (PC-02 which resulted in high click bleed).\n3. **Ideal Personas**: Prioritize acquisitions towards **${memory.winningPersonas[0]?.name || "Enterprise Decision Makers"}** using highly specified local SEO clusters.`);
     } finally {
       setIsLoading(false);
     }
@@ -288,6 +316,32 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-5">
+      {/* Universal Multi-Industry Memory Template Bar */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+        <div>
+          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Load Industry Memory Template (Supports Any Sector):</span>
+          </span>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Load realistic goals, personas, and past campaign ROI benchmarks tailored to your specific industry.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {INDUSTRY_PRESETS.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              type="button"
+              onClick={() => handleLoadIndustryMemory(tmpl)}
+              className="text-[10px] font-medium px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-indigo-600 hover:text-white hover:border-indigo-600 text-slate-700 transition-all cursor-pointer shadow-2xs"
+            >
+              {tmpl.name.split("&")[0].trim()}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Tab Navigation */}
       <div className="flex border-b border-slate-100 bg-slate-50 p-1 gap-1">
         {[
@@ -343,6 +397,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
                 rows={4}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Ask your AI Copilot anything about previous campaign performance, CAC trends, compliance guardrails, or expansion tactics..."
                 className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
               />
             </div>
@@ -526,6 +581,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
                   required
                   value={newCampaign.spend}
                   onChange={(e) => setNewCampaign({ ...newCampaign, spend: parseInt(e.target.value) || 0 })}
+                  placeholder="5000"
                   className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium font-mono"
                 />
               </div>
@@ -550,6 +606,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
                   required
                   value={newCampaign.roi}
                   onChange={(e) => setNewCampaign({ ...newCampaign, roi: parseFloat(e.target.value) || 0 })}
+                  placeholder="4.2"
                   className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium font-mono"
                 />
               </div>
@@ -629,7 +686,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
               <input
                 type="text"
                 required
-                placeholder="e.g. Ontario Real Estate Developers"
+                placeholder="e.g. Enterprise Operations Leaders or VP of Procurement"
                 value={newPersona.name}
                 onChange={(e) => setNewPersona({ ...newPersona, name: e.target.value })}
                 className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
@@ -639,7 +696,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
               <label className="text-[10px] font-bold text-slate-600 block">Demographics</label>
               <input
                 type="text"
-                placeholder="e.g. Ages 40-60, located in Southern Ontario"
+                placeholder="e.g. B2B Decision Makers, Ages 30-55, Global / North America"
                 value={newPersona.demographics}
                 onChange={(e) => setNewPersona({ ...newPersona, demographics: e.target.value })}
                 className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
@@ -649,7 +706,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
               <label className="text-[10px] font-bold text-slate-600 block">Pain Points (Comma separated)</label>
               <input
                 type="text"
-                placeholder="e.g. Lead leakages, bad audits, delay"
+                placeholder="e.g. High customer acquisition costs, lead leakage, slow sales cycle"
                 value={newPersona.painPoints}
                 onChange={(e) => setNewPersona({ ...newPersona, painPoints: e.target.value })}
                 className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
@@ -659,7 +716,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
               <label className="text-[10px] font-bold text-slate-600 block">Acquisition Channel</label>
               <input
                 type="text"
-                placeholder="e.g. LinkedIn outreach & specialized PPC"
+                placeholder="e.g. LinkedIn ABM, Google Search Intent, Targeted Email Drips"
                 value={newPersona.acquisitionChannel}
                 onChange={(e) => setNewPersona({ ...newPersona, acquisitionChannel: e.target.value })}
                 className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
@@ -671,6 +728,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
                 rows={2}
                 value={newPersona.description}
                 onChange={(e) => setNewPersona({ ...newPersona, description: e.target.value })}
+                placeholder="Provide a brief summary of how this persona interacts with your brand and value props..."
                 className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white outline-none text-slate-700 font-medium"
               />
             </div>
@@ -747,6 +805,7 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction }) =
               rows={4}
               value={brandVoiceInput}
               onChange={(e) => setBrandVoiceInput(e.target.value)}
+              placeholder="e.g. Authoritative, data-driven, customer-centric. Avoid buzzwords, emphasize verified results, clear calls-to-action, and strict compliance standards..."
               className="w-full text-xs p-3.5 border border-slate-200 rounded-xl bg-white outline-none focus:border-indigo-400 text-slate-700 font-medium font-sans leading-relaxed shadow-inner"
             />
           </div>

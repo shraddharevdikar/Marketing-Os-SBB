@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { AeoGeoOptimization } from "./AeoGeoOptimization";
 import { AeoTrajectoryVisualizer } from "./AeoTrajectoryVisualizer";
+import { AeoContentGenerator } from "./AeoContentGenerator";
+import { CompetitiveSeoIntel } from "./CompetitiveSeoIntel";
 
 interface Keyword {
   keyword: string;
@@ -106,7 +108,7 @@ interface SeoBrainProps {
 export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [report, setReport] = useState<SeoReport | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<"aeo-geo-indexing" | "trajectory" | "aeo-geo" | "overview" | "clusters" | "competitors">("aeo-geo-indexing");
+  const [activeSubTab, setActiveSubTab] = useState<"aeo-geo-indexing" | "aeo-generator" | "competitive-intel" | "aeo-geo" | "overview" | "clusters" | "competitors">("aeo-geo-indexing");
   const [customUrl, setCustomUrl] = useState("");
   const [auditedUrl, setAuditedUrl] = useState<string | null>(null);
   const [copiedSchema, setCopiedSchema] = useState(false);
@@ -373,10 +375,12 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
           <div className="flex border-b border-slate-200 overflow-x-auto gap-2 pb-1">
             {[
               { id: "aeo-geo-indexing", label: "🗺️ AEO/GEO Indexing & Local Footprint", badge: "GEO/AEO" },
+              { id: "aeo-generator", label: "✍️ AEO Content Generator", badge: "SGE / Schema" },
+              { id: "competitive-intel", label: "⚔️ Competitive SEO Intel", badge: "Google Search" },
               { id: "aeo-geo", label: "🤖 Google AI Overview Simulator", badge: "Gemini" },
               { id: "overview", label: "🏷️ On-Page & Schema Graph", badge: "JSON-LD" },
               { id: "clusters", label: "📚 Topic Authority Hubs", badge: "Clusters" },
-              { id: "competitors", label: "⚔️ AI Engine Competitor Gap", badge: "Radar" }
+              { id: "competitors", label: "📊 Incumbent Gap Radar", badge: "Incumbents" }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -396,6 +400,20 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
           {activeSubTab === "aeo-geo-indexing" && (
             <div className="animate-fadeIn">
               <AeoGeoOptimization companyProfile={companyProfile} onLogAction={onLogAction} />
+            </div>
+          )}
+
+          {/* TAB 0.5: AEO Content Generator (Structured for Google SGE & Schema.org Markup) */}
+          {activeSubTab === "aeo-generator" && (
+            <div className="animate-fadeIn">
+              <AeoContentGenerator companyProfile={companyProfile} onLogAction={onLogAction} />
+            </div>
+          )}
+
+          {/* TAB 0.6: Competitive SEO Intel (Google Search Grounded Titles, Meta Descriptions & Keyword Density) */}
+          {activeSubTab === "competitive-intel" && (
+            <div className="animate-fadeIn">
+              <CompetitiveSeoIntel companyProfile={companyProfile} onLogAction={onLogAction} />
             </div>
           )}
 
@@ -512,16 +530,18 @@ export const SeoBrain: React.FC<SeoBrainProps> = ({ companyProfile, onLogAction 
                       <div className="mt-3 p-3 bg-slate-950/90 border border-slate-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
-                            SBB
+                            {(companyProfile?.companyName || "HQ").slice(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                              <span>{companyProfile?.companyName || "Sovereign Business Brain"}</span>
+                              <span>{companyProfile?.companyName || "Your Company"}</span>
                               <span className="text-[9px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.2 rounded border border-indigo-800">
                                 Primary Source
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono text-slate-400">sovereignbusinessbrain.com</span>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {companyProfile?.websiteUrl?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "yourcompany.com"}
+                            </span>
                           </div>
                         </div>
 

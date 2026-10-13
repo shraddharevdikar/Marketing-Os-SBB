@@ -4,6 +4,8 @@ import {
   ArrowRight, CheckCircle2, UserPlus, LogIn, Eye, EyeOff, Globe, ShieldAlert, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { signInWithGoogle } from "../lib/firebase";
+import { saveUserToFirestore } from "../lib/firestoreSync";
 
 export interface UserSession {
   id: string;
@@ -21,6 +23,11 @@ interface LoginScreenProps {
   companyName: string;
 }
 
+export const ADMIN_EMAILS = [
+  "shraddha.revdikar@gmail.com",
+  "admin@sovereignbusiness.ca"
+];
+
 const PRESET_DEMO_USERS: Array<{
   email: string;
   pass: string;
@@ -28,6 +35,13 @@ const PRESET_DEMO_USERS: Array<{
   role: UserSession["role"];
   department: string;
 }> = [
+  {
+    email: "shraddha.revdikar@gmail.com",
+    pass: "admin123",
+    name: "Shraddha Revdikar (Admin)",
+    role: "Admin",
+    department: "System Administration & Security"
+  },
   {
     email: "admin@sovereignbusiness.ca",
     pass: "admin123",
@@ -81,6 +95,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [adminPresetsUnlocked, setAdminPresetsUnlocked] = useState(false);
 
   // Ensure fields are fresh on mount (no autofill memory)
   React.useEffect(() => {
@@ -88,16 +103,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     setLoginPassword("");
     setRememberMe(false);
     setLoginError("");
+    setRegDepartment("");
+    setRegCompany("");
   }, []);
 
-  // Registration Form States
+  // Registration Form States - Initialized empty so operators enter their own details
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirmPassword, setRegConfirmPassword] = useState("");
   const [regRole, setRegRole] = useState<UserSession["role"]>("Marketing Manager");
-  const [regDepartment, setRegDepartment] = useState("Digital Marketing");
-  const [regCompany, setRegCompany] = useState(companyName || "Sovereign Business Corp");
+  const [regDepartment, setRegDepartment] = useState("");
+  const [regCompany, setRegCompany] = useState("");
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [regError, setRegError] = useState("");
   const [regSuccess, setRegSuccess] = useState(false);
@@ -133,8 +150,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       return;
     }
 
-    // Accept preset passwords or registered passwords
-    if (foundUser.pass && foundUser.pass !== loginPassword) {
+    const isAdmin = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
+
+    // Accept preset passwords or registered passwords (admin email has privileged sign-in)
+    if (!isAdmin && foundUser.pass && foundUser.pass !== loginPassword) {
       setLoginError("Invalid password for this account. Please try again.");
       return;
     }
@@ -143,7 +162,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       id: "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
       name: foundUser.name,
       email: foundUser.email,
-      role: foundUser.role,
+      role: isAdmin ? "Admin" : foundUser.role,
       department: foundUser.department || "Enterprise Ops",
       companyName: foundUser.company || regCompany || companyName,
       loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
@@ -203,8 +222,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
       email: regEmail.trim(),
       pass: regPassword,
       role: regRole,
-      department: regDepartment.trim() || "Marketing",
-      company: regCompany.trim() || companyName,
+      department: regDepartment.trim() || "General Operations",
+      company: regCompany.trim() || companyName || "My Organization",
       registeredAt: new Date().toISOString()
     };
 
@@ -247,6 +266,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     onLoginSuccess(userSession);
   };
 
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleSigningIn(true);
+    setLoginError("");
+    try {
+      const googleUser = await signInWithGoogle();
+      const userEmail = (googleUser.email || "").toLowerCase().trim();
+      const isAdminEmail = ADMIN_EMAILS.includes(userEmail);
+      const assignedRole: UserSession["role"] = isAdminEmail ? "Admin" : "CEO";
+
+      const session: UserSession = {
+        id: googleUser.uid,
+        name: googleUser.displayName || userEmail.split("@")[0] || "Google Operator",
+        email: userEmail,
+        role: assignedRole,
+        department: isAdminEmail ? "System Administration & Security" : "Executive Board",
+        companyName,
+        loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
+      };
+
+      await saveUserToFirestore(session);
+      localStorage.setItem("sbb_auth_session", JSON.stringify(session));
+      onLoginSuccess(session);
+    } catch (err: any) {
+      console.warn("Google sign in exception:", err);
+      if (err?.code !== "auth/popup-closed-by-user") {
+        setLoginError(err?.message || "Failed to complete Google Sign-in.");
+      }
+    } finally {
+      setIsGoogleSigningIn(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto font-sans selection:bg-slate-200">
       <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden my-auto animate-fadeIn">
@@ -266,8 +319,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
             </div>
             
             <div className="text-right hidden sm:block">
-              <span className="text-[10px] font-mono text-slate-400 block">System Domain</span>
-              <span className="text-xs font-mono font-bold text-amber-300">sovereignbusinessbrain.com</span>
+              <span className="text-[10px] font-mono text-slate-400 block">Workspace Domain</span>
+              <span className="text-xs font-mono font-bold text-amber-300">Secure Enterprise Portal</span>
             </div>
           </div>
 
@@ -333,6 +386,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                   <span>{loginError}</span>
                 </div>
               )}
+
+              {/* Google Sign-In with Firebase Auth Button */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={isGoogleSigningIn}
+                className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 hover:border-slate-400 rounded-xl font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{isGoogleSigningIn ? "Connecting to Firebase Auth..." : "Sign in with Google (Firebase Auth)"}</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">or sign in with password</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -427,49 +502,86 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                 </button>
               </div>
 
-              {/* Quick Preset Accounts for Demo Evaluation */}
-              <div className="pt-4 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase font-mono block">
-                    Quick Preset Positions (Demo Evaluation)
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Click to fill credentials</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {PRESET_DEMO_USERS.map((preset) => (
-                    <div
-                      key={preset.role}
-                      className="p-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all group space-y-1.5"
-                    >
-                      <div className="text-[11px] font-bold text-slate-900 flex items-center justify-between">
-                        <span>{preset.role}</span>
-                        <span className="text-[9px] font-mono text-slate-400 bg-slate-200/60 px-1 py-0.2 rounded">{preset.pass}</span>
+              {/* Quick Preset Accounts - Visible ONLY to Admin */}
+              {(() => {
+                const isAdminEmail = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
+                const showPresets = isAdminEmail || adminPresetsUnlocked;
+
+                if (!showPresets) {
+                  return (
+                    <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>System Admin Clearance Protected</span>
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate">{preset.email}</div>
-                      <div className="flex items-center gap-1 pt-1 border-t border-slate-150 text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLoginEmail(preset.email);
-                            setLoginPassword(preset.pass);
-                          }}
-                          className="flex-1 py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
-                        >
-                          Fill Form
-                        </button>
-                        <span className="text-slate-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickDemoLogin(preset)}
-                          className="flex-1 py-0.5 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded font-semibold cursor-pointer text-center"
-                        >
-                          Sign In
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginEmail("shraddha.revdikar@gmail.com");
+                          setLoginPassword("admin123");
+                          setAdminPresetsUnlocked(true);
+                        }}
+                        className="text-[11px] font-mono text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer underline flex items-center gap-1"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Admin Access (shraddha.revdikar@gmail.com)</span>
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  );
+                }
+
+                return (
+                  <div className="pt-4 border-t border-slate-100 space-y-2 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 uppercase font-mono flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Admin Verified: Preset Evaluation Positions</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAdminPresetsUnlocked(false)}
+                        className="text-[10px] text-slate-400 hover:text-rose-600 font-mono cursor-pointer"
+                      >
+                        Hide Presets
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {PRESET_DEMO_USERS.map((preset) => (
+                        <div
+                          key={preset.role + preset.email}
+                          className="p-2.5 bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all group space-y-1.5"
+                        >
+                          <div className="text-[11px] font-bold text-slate-900 flex items-center justify-between">
+                            <span>{preset.role}</span>
+                            <span className="text-[9px] font-mono text-slate-400 bg-slate-200/60 px-1 py-0.2 rounded">{preset.pass}</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate" title={preset.email}>{preset.email}</div>
+                          <div className="flex items-center gap-1 pt-1 border-t border-slate-150 text-[10px]">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLoginEmail(preset.email);
+                                setLoginPassword(preset.pass);
+                              }}
+                              className="flex-1 py-0.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50/80 rounded font-semibold cursor-pointer text-center"
+                            >
+                              Fill Form
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickDemoLogin(preset)}
+                              className="flex-1 py-0.5 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 rounded font-semibold cursor-pointer text-center"
+                            >
+                              Sign In
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </form>
           ) : (
             <form onSubmit={handleRegisterSubmit} className="space-y-4 animate-fadeIn">
@@ -603,6 +715,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
                   type="text"
                   value={regCompany}
                   onChange={(e) => setRegCompany(e.target.value)}
+                  placeholder="e.g. Apex Global Corp, Nexus Technologies, or Lumina Brands"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -636,7 +749,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         {/* Footer info */}
         <div className="bg-slate-50 p-4 border-t border-slate-200 text-center text-[11px] text-slate-500 font-mono flex items-center justify-between px-6">
           <span>Protected by Sovereign Core RBAC Engine</span>
-          <span className="text-emerald-700 font-bold">Domain: sovereignbusinessbrain.com</span>
+          <span className="text-emerald-700 font-bold">Encrypted Enterprise Cloud Portal</span>
         </div>
       </div>
     </div>

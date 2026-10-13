@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Key, Target, Sliders, Sparkles, CheckCircle2, ShieldCheck, 
-  Plus, AlertCircle, Play, Pause, RefreshCw, XCircle, ArrowRight, Lock,
+  Plus, AlertCircle, Play, Pause, RefreshCw, XCircle, ArrowRight, ArrowLeft, Lock,
   TrendingUp, DollarSign, BarChart2, PieChart, Zap, Filter, Search,
   Layers, Activity, Eye, ArrowUpRight, Check, SlidersHorizontal,
   Globe, Copy, FileText, Megaphone, ExternalLink, ShieldAlert, Server,
   Radio, Tv, Share2, Settings, Link as LinkIcon, Users, Bot
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AdAccountConfig, loadStoredAdAccounts, saveStoredAdAccounts } from "../lib/adAccountsData";
 
 interface CampaignCommanderProps {
   companyProfile: any;
@@ -19,21 +20,7 @@ interface CampaignCommanderProps {
   handleApproveCampaign: (id: string, comments?: string) => void;
   handleRejectCampaign: (id: string, comments?: string) => void;
   handleOverrideCampaign: (id: string, status: string, reason: string) => void;
-}
-
-interface AdAccountConfig {
-  id: string;
-  name: string;
-  platform: string;
-  category: "Ads" | "CRM";
-  status: "Connected" | "Configured" | "Disconnected";
-  accountId: string;
-  apiKey: string;
-  accessToken: string;
-  lastSynced: string;
-  latency: string;
-  activeAccountName: string;
-  iconBg: string;
+  onBack?: () => void;
 }
 
 export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
@@ -45,98 +32,14 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
   handleCreateCampaignRequest,
   handleApproveCampaign,
   handleRejectCampaign,
-  handleOverrideCampaign
+  handleOverrideCampaign,
+  onBack
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<"vault" | "media-plan" | "optimizer" | "builder" | "approvals">("builder");
   const pendingCount = campaigns.filter(c => c.status === "Pending").length;
 
   // Vault / API Connections State
-  const [adAccounts, setAdAccounts] = useState<AdAccountConfig[]>([
-    {
-      id: "googleAds",
-      name: "Google Ads Account",
-      platform: "Google Search, PMax & YouTube",
-      category: "Ads",
-      status: "Connected",
-      accountId: "849-204-9841",
-      apiKey: "●●●●●●●●●●●●9841",
-      accessToken: "ya29.a0ARdaC7mX8...",
-      lastSynced: "Just now",
-      latency: "14ms",
-      activeAccountName: "Sovereign Real Estate - Google Ads Global",
-      iconBg: "bg-blue-600"
-    },
-    {
-      id: "metaAds",
-      name: "Meta Ads Manager",
-      platform: "Instagram, Facebook & Messenger",
-      category: "Ads",
-      status: "Connected",
-      accountId: "ACT-392019284",
-      apiKey: "●●●●●●●●●●●●EAAG",
-      accessToken: "EAAx8201938...",
-      lastSynced: "2 mins ago",
-      latency: "18ms",
-      activeAccountName: "Sovereign Luxury FB/IG Business",
-      iconBg: "bg-indigo-600"
-    },
-    {
-      id: "linkedIn",
-      name: "LinkedIn Campaign Manager",
-      platform: "B2B Sponsored Content & InMail",
-      category: "Ads",
-      status: "Connected",
-      accountId: "LNK-8821903",
-      apiKey: "●●●●●●●●●●●●8821",
-      accessToken: "AQV90283...",
-      lastSynced: "5 mins ago",
-      latency: "22ms",
-      activeAccountName: "Sovereign Executive ABM",
-      iconBg: "bg-sky-700"
-    },
-    {
-      id: "tikTok",
-      name: "TikTok Ads Manager",
-      platform: "Short-form Video & Lead Ads",
-      category: "Ads",
-      status: "Disconnected",
-      accountId: "TT-UNCONFIGURED",
-      apiKey: "",
-      accessToken: "",
-      lastSynced: "Never",
-      latency: "--",
-      activeAccountName: "Not Connected",
-      iconBg: "bg-slate-900"
-    },
-    {
-      id: "salesforce",
-      name: "Salesforce CRM",
-      platform: "Lead Sync & Opportunity Attribution",
-      category: "CRM",
-      status: "Connected",
-      accountId: "SFDC-ORG-0129",
-      apiKey: "●●●●●●●●●●●●0129",
-      accessToken: "00D500000...",
-      lastSynced: "1 min ago",
-      latency: "16ms",
-      activeAccountName: "Sovereign Enterprise Salesforce",
-      iconBg: "bg-blue-500"
-    },
-    {
-      id: "hubspot",
-      name: "HubSpot Marketing Hub",
-      platform: "Form Capture & Lifecycle Scoring",
-      category: "CRM",
-      status: "Connected",
-      accountId: "HS-PORTAL-7731",
-      apiKey: "●●●●●●●●●●●●7731",
-      accessToken: "pat-na1-89102...",
-      lastSynced: "4 mins ago",
-      latency: "19ms",
-      activeAccountName: "Sovereign Inbound Portal",
-      iconBg: "bg-orange-600"
-    }
-  ]);
+  const [adAccounts, setAdAccounts] = useState<AdAccountConfig[]>(loadStoredAdAccounts);
 
   // Modal / Editing Connection State
   const [editingAccount, setEditingAccount] = useState<AdAccountConfig | null>(null);
@@ -151,11 +54,11 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
     { id: "linkedin", name: "LinkedIn Professional ABM", percent: 20, cpm: "$45.00", avgCpc: "$5.80", estConvRate: "2.8%" },
     { id: "youtube", name: "YouTube Video Retargeting", percent: 10, cpm: "$18.00", avgCpc: "$1.95", estConvRate: "1.9%" }
   ]);
-  const [targetAudience, setTargetAudience] = useState("GTA High-Net-Worth Investors & Luxury Home Buyers");
-  const [campaignGoal, setCampaignGoal] = useState("High-Intent VIP Lead Generation");
+  const [targetAudience, setTargetAudience] = useState("Global Decision Makers & High-Value Clients");
+  const [campaignGoal, setCampaignGoal] = useState("High-Intent Lead & Account Acquisition");
   const [isGeneratingStrategy, setIsGeneratingStrategy] = useState(false);
   const [strategyNotes, setStrategyNotes] = useState(
-    "Prioritizing high-intent Google Search terms for Toronto Waterfront Penthouses while re-engaging luxury viewers on YouTube and Instagram Reels."
+    "Prioritizing high-intent Google Search terms while scaling high-ROAS creative across Meta and LinkedIn ABM pipelines."
   );
 
   // Campaign Optimizer state
@@ -163,21 +66,21 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
   const [maxCpcCap, setMaxCpcCap] = useState(4.50);
   const [minRoasTarget, setMinRoasTarget] = useState(3.5);
   const [keywords, setKeywords] = useState([
-    { id: "KW-101", term: "luxury penthouse toronto", channel: "Google Search", cpc: "$3.40", qualityScore: 9, impressions: "14.2k", ctr: "5.8%", status: "Optimizing", recommendedBid: "$3.20" },
-    { id: "KW-102", term: "waterfront property for sale GTA", channel: "Google Search", cpc: "$2.95", qualityScore: 8, impressions: "18.6k", ctr: "4.9%", status: "Scaling", recommendedBid: "$3.10" },
-    { id: "KW-103", term: "toronto real estate investment abm", channel: "LinkedIn ABM", cpc: "$5.80", qualityScore: 7, impressions: "8.1k", ctr: "2.4%", status: "Active", recommendedBid: "$5.20" },
-    { id: "KW-104", term: "yorkville penthouse virtual tour", channel: "Meta Ads", cpc: "$1.45", qualityScore: 9, impressions: "29.4k", ctr: "6.2%", status: "Scaling", recommendedBid: "$1.60" }
+    { id: "KW-101", term: "enterprise software solutions", channel: "Google Search", cpc: "$3.40", qualityScore: 9, impressions: "14.2k", ctr: "5.8%", status: "Optimizing", recommendedBid: "$3.20" },
+    { id: "KW-102", term: "automated business operations", channel: "Google Search", cpc: "$2.95", qualityScore: 8, impressions: "18.6k", ctr: "4.9%", status: "Scaling", recommendedBid: "$3.10" },
+    { id: "KW-103", term: "high roas growth attribution", channel: "LinkedIn ABM", cpc: "$5.80", qualityScore: 7, impressions: "8.1k", ctr: "2.4%", status: "Active", recommendedBid: "$5.20" },
+    { id: "KW-104", term: "omnichannel marketing platform", channel: "Meta Ads", cpc: "$1.45", qualityScore: 9, impressions: "29.4k", ctr: "6.2%", status: "Scaling", recommendedBid: "$1.60" }
   ]);
 
   // AI Whole Campaign Builder Form State (Step 4)
-  const [builderGoal, setBuilderGoal] = useState("High-Intent VIP Lead Generation");
+  const [builderGoal, setBuilderGoal] = useState("High-Intent Customer Acquisition");
   const [builderTargetMetrics, setBuilderTargetMetrics] = useState("500 Qualified Leads @ $25 CPA & 4.0x Target ROAS");
-  const [builderTitle, setBuilderTitle] = useState("Q3 Toronto Waterfront Luxury Condo Campaign");
+  const [builderTitle, setBuilderTitle] = useState("Q3 Omnichannel Growth & Customer Acquisition Campaign");
   const [builderBudget, setBuilderBudget] = useState(15000);
-  const [builderAudience, setBuilderAudience] = useState("GTA High-Net-Worth Investors, Tech Founders & Luxury Buyers (Age 30-65, Net Worth $2M+)");
+  const [builderAudience, setBuilderAudience] = useState("Enterprise Decision Makers, Founders & Growth Leaders (Global Markets)");
   const [builderAgent, setBuilderAgent] = useState("SEO Brain");
   const [builderApprovalRole, setBuilderApprovalRole] = useState("Marketing Manager");
-  const [builderNotes, setBuilderNotes] = useState("Drive VIP tour requests for waterfront penthouses using Google Search intent and Meta Instagram Reels retargeting.");
+  const [builderNotes, setBuilderNotes] = useState("Drive high-intent demo requests and inbound conversions using Google Search intent and Meta video retargeting.");
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["googleAds", "metaAds", "linkedIn"]);
   
   // Interactive Questionnaire & Synthesis States
@@ -189,11 +92,11 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
   const [isGeneratingWholeCampaign, setIsGeneratingWholeCampaign] = useState(false);
   const [activeAdTab, setActiveAdTab] = useState<"google" | "meta" | "linkedin" | "tiktok">("google");
   const [directDeployStatus, setDirectDeployStatus] = useState<string | null>(null);
-  const [generatedWholeCampaign, setGeneratedWholeCampaign] = useState<any>({
-    title: "Q3 Toronto Waterfront Luxury Condo Campaign",
-    goal: "High-Intent VIP Lead Generation",
-    targetMetrics: "500 Qualified Leads @ $25 CPA & 4.0x Target ROAS",
-    summary: "Comprehensive multi-channel acquisition blitz targeting Toronto HNW investors across Google Search, Instagram Reels, and LinkedIn Executive InMail.",
+  const [generatedWholeCampaign, setGeneratedWholeCampaign] = useState<any>(() => ({
+    title: `Q3 ${companyProfile?.companyName || "Enterprise SaaS"} Pipeline & Growth Campaign`,
+    goal: "High-Intent B2B Enterprise Lead & Demo Generation",
+    targetMetrics: "450 Qualified Leads @ $28 CPA & 4.2x Target ROAS",
+    summary: `Comprehensive multi-channel acquisition blitz targeting enterprise decision-makers and high-growth teams for ${companyProfile?.companyName || "Enterprise SaaS Platform"} across Google Search, Meta Retargeting, and LinkedIn ABM.`,
     totalBudget: 15000,
     budgetDistribution: [
       { channel: "Google Search Core", percentage: 45, amount: 6750, cpc: "$2.85", estLeads: "225 Leads" },
@@ -202,38 +105,59 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
     ],
     googleAds: {
       headlines: [
-        "Toronto Waterfront Penthouses",
-        "VIP Luxury Condo Pre-Launch",
-        "Exclusive GTA Real Estate Tour"
+        `${companyProfile?.companyName || "Enterprise SaaS"} Platform`,
+        "Automated Growth Engine",
+        "Scale Performance & Lower CAC"
       ],
       descriptions: [
-        "Book a private VIP preview of waterfront penthouses in Toronto. Unrivaled skyline views & premier luxury amenities.",
-        "Direct developer pricing & priority access for GTA high-net-worth investors. Download exclusive floor plans today."
+        `Discover how ${companyProfile?.companyName || "our platform"} accelerates business operations and drives verified ROI. Book a personalized platform walkthrough today.`,
+        "Seamless multi-channel integrations, real-time attribution, and regulatory compliance built for scaling teams."
       ],
-      keywords: ["waterfront penthouses toronto", "luxury condos GTA for sale", "toronto real estate VIP pre-launch"]
+      keywords: ["enterprise marketing automation", "business growth operating system", "high roas platform"]
     },
     metaAds: {
-      headline: "Own Toronto's Most Iconic Waterfront Penthouse",
-      primaryText: "Experience floor-to-ceiling panoramic harbor views and resort-style concierge living. Priority VIP booking open for registered investors.",
-      hook: "Are you ready to elevate your real estate portfolio in Toronto?",
-      callToAction: "Book VIP Preview"
+      headline: `Transform Your Growth with ${companyProfile?.companyName || "Our Platform"}`,
+      primaryText: "Streamline customer acquisition and eliminate budget waste with real-time attribution and automated optimization. Priority onboarding open for growth teams.",
+      hook: "Are you ready to accelerate your customer acquisition pipeline?",
+      callToAction: "Book Live Demo"
     },
     linkedInAds: {
-      headline: "High-Yield Real Estate Assets for Tech Founders & Executives",
-      bodyText: "Diversify your wealth with high-equity Toronto waterfront residences. Join an elite community of private owners with guaranteed rental yield backing.",
-      callToAction: "Request Investment Deck"
+      headline: `High-ROI Growth Infrastructure for Modern Business Leaders`,
+      bodyText: `Scale client acquisition with ${companyProfile?.companyName || "our platform"}. Join leading enterprises cutting customer acquisition costs with automated workflows.`,
+      callToAction: "Request Platform Walkthrough"
     },
     tikTokAds: {
-      headline: "Inside Toronto's $5M Waterfront Penthouse Tour 🏙️✨",
-      scriptHook: "Wait till you see the private rooftop infinity pool on line 42...",
-      callToAction: "Tap to Book Private Tour"
+      headline: `Inside ${companyProfile?.companyName || "Our"} High-Growth Workflow ⚡🚀`,
+      scriptHook: "Here is why leading teams switched their marketing operating system this quarter...",
+      callToAction: "Learn More"
     },
     audienceTargeting: {
-      demographics: "Ages 32-62, Income top 5%, Real Estate Investors, Executives & Business Owners",
-      interests: ["Luxury Real Estate", "Property Investment", "Architecture", "Wealth Management", "Yacht Club"],
-      geo: "Greater Toronto Area (GTA), Oakville, Yorkville, Montreal, Vancouver"
+      demographics: "Ages 28-60, Business Leaders, Founders, Directors & Growth Teams",
+      interests: ["Business Growth", "Marketing Automation", "Operations", "Digital Strategy"],
+      geo: "Global Markets (North America, Europe, APAC)"
     }
-  });
+  }));
+
+  // Synchronize campaign title/summary if company profile changes
+  useEffect(() => {
+    if (companyProfile?.companyName) {
+      setGeneratedWholeCampaign((prev: any) => {
+        if (!prev) return prev;
+        if (
+          prev.title.includes("Toronto Waterfront") ||
+          prev.title.includes("Enterprise SaaS") ||
+          prev.title.includes("SaaS Enterprise")
+        ) {
+          return {
+            ...prev,
+            title: `Q3 ${companyProfile.companyName} Pipeline & Growth Campaign`,
+            summary: `Comprehensive multi-channel acquisition blitz targeting enterprise decision-makers and high-growth teams for ${companyProfile.companyName} across Google Search, Meta Retargeting, and LinkedIn ABM.`
+          };
+        }
+        return prev;
+      });
+    }
+  }, [companyProfile?.companyName]);
 
   const handleBuildRequest = (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,7 +195,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
         body: JSON.stringify({
           agent: {
             name: "SBB Paid Media Strategist",
-            systemPrompt: "You are a senior Paid Media Strategist for luxury real estate and enterprise marketing. Synthesize a concise 2-sentence media strategy."
+            systemPrompt: "You are a senior Paid Media Strategist for global enterprise and omnichannel growth marketing. Synthesize a concise 2-sentence media strategy."
           },
           prompt: `Optimize allocation for budget $${totalMonthlyBudget} targeting '${targetAudience}' with goal '${campaignGoal}'.`
         })
@@ -314,17 +238,20 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
     e.preventDefault();
     if (!editingAccount) return;
 
-    setAdAccounts(adAccounts.map(acc => {
+    const updated = adAccounts.map(acc => {
       if (acc.id === editingAccount.id) {
         return {
           ...editingAccount,
-          status: editingAccount.apiKey || editingAccount.accessToken ? "Connected" : "Disconnected",
+          status: (editingAccount.apiKey || editingAccount.accessToken ? "Connected" : "Disconnected") as "Connected" | "Configured" | "Disconnected",
           lastSynced: "Just now",
           latency: editingAccount.apiKey || editingAccount.accessToken ? "14ms" : "--"
         };
       }
       return acc;
-    }));
+    });
+
+    setAdAccounts(updated);
+    saveStoredAdAccounts(updated);
 
     onLogAction("Updated Credentials Vault", `Updated connection parameters for ${editingAccount.name}`);
     setEditingAccount(null);
@@ -397,44 +324,44 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
           ];
 
       setGeneratedWholeCampaign({
-        title: builderTitle || "Q3 Toronto Waterfront Luxury Condo Campaign",
-        goal: builderGoal || "High-Intent VIP Lead Generation",
+        title: builderTitle || "Q3 Omnichannel Growth & Customer Acquisition Campaign",
+        goal: builderGoal || "High-Intent Customer Acquisition",
         targetMetrics: builderTargetMetrics || "500 Qualified Leads @ $25 CPA & 4.0x Target ROAS",
         summary: data?.overview || `AI synthesized multi-channel acquisition blitz tailored for ${builderAudience}.`,
         totalBudget: Number(builderBudget) || 15000,
         budgetDistribution: parsedDistribution,
         googleAds: data?.googleAds || {
-          headlines: [`${companyProfile?.companyName || "Sovereign"} VIP Access`, builderTitle || "Toronto Luxury Waterfront Penthouses", "Exclusive Real Estate Pre-Launch"],
-          descriptions: ["Book a private preview of luxury waterfront residences. Priority developer pricing & floor plans.", "High-equity real estate assets in Toronto. Request VIP developer deck today."],
-          keywords: ["waterfront penthouses toronto", "luxury condos GTA for sale", "toronto real estate VIP pre-launch"]
+          headlines: [`${companyProfile?.companyName || "Enterprise"} Platform`, builderTitle || "Accelerate Enterprise Growth", "Verified High-ROAS Engine"],
+          descriptions: [`Discover how ${companyProfile?.companyName || "our platform"} accelerates business operations and drives verified ROI. Book demo.`, "Seamless multi-channel integrations, real-time attribution, and regulatory compliance."],
+          keywords: ["enterprise marketing automation", "business growth operating system", "high roas platform"]
         },
         metaAds: data?.metaAds || {
-          headline: `Exclusive ${builderTitle} VIP Preview`,
-          primaryText: "Experience panoramic harbor views and resort concierge living. Priority booking open for registered investors.",
-          hook: "Ready to elevate your real estate portfolio in Toronto?",
-          callToAction: "Book VIP Preview"
+          headline: `Exclusive ${builderTitle} Live Walkthrough`,
+          primaryText: "Streamline customer acquisition and eliminate budget waste with real-time attribution and automated optimization.",
+          hook: "Ready to accelerate your customer acquisition pipeline?",
+          callToAction: "Book Live Demo"
         },
         linkedInAds: data?.linkedInAds || {
-          headline: "High-Yield Real Estate Assets for Tech Founders & Executives",
-          bodyText: "Diversify your wealth with high-equity Toronto waterfront residences with guaranteed rental backing.",
-          callToAction: "Request Investment Deck"
+          headline: "High-ROI Growth Infrastructure for Modern Business Leaders",
+          bodyText: `Scale client acquisition with ${companyProfile?.companyName || "our platform"}. Join leading enterprises cutting customer acquisition costs.`,
+          callToAction: "Request Platform Walkthrough"
         },
         tikTokAds: data?.tikTokAds || {
-          headline: "Inside Toronto's $5M Waterfront Penthouse Tour 🏙️✨",
-          scriptHook: "Wait till you see the rooftop infinity pool on line 42...",
-          callToAction: "Tap to Book Private Tour"
+          headline: `Inside ${companyProfile?.companyName || "Our"} High-Growth Workflow ⚡🚀`,
+          scriptHook: "Here is why leading teams switched their marketing operating system this quarter...",
+          callToAction: "Learn More"
         },
         audienceTargeting: data?.audienceTargeting || {
-          demographics: "Ages 30-65, HNW Investors, Business Executives",
-          interests: ["Real Estate Investing", "Luxury Properties", "Wealth Management"],
-          geo: "Greater Toronto Area (GTA), Montreal, Vancouver"
+          demographics: "Ages 28-60, Business Leaders, Founders, Directors & Growth Teams",
+          interests: ["Business Growth", "Marketing Automation", "Operations", "Digital Strategy"],
+          geo: "Global Markets (North America, Europe, APAC)"
         }
       });
     } catch (err) {
       console.warn("AI Generation fallback used:", err);
       setGeneratedWholeCampaign({
-        title: builderTitle || "Q3 Toronto Waterfront Luxury Condo Campaign",
-        goal: builderGoal || "High-Intent VIP Lead Generation",
+        title: builderTitle || "Q3 Omnichannel Growth & Customer Acquisition Campaign",
+        goal: builderGoal || "High-Intent Customer Acquisition",
         targetMetrics: builderTargetMetrics || "500 Qualified Leads @ $25 CPA & 4.0x Target ROAS",
         summary: `AI synthesized multi-channel acquisition blitz tailored for ${builderAudience}.`,
         totalBudget: Number(builderBudget) || 15000,
@@ -444,30 +371,30 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
           { channel: "LinkedIn Executive ABM", percentage: 20, amount: Math.round(builderBudget * 0.20), cpc: "$5.80", estLeads: `${Math.round(builderBudget * 0.20 / 45)} Leads` }
         ],
         googleAds: {
-          headlines: [`${companyProfile?.companyName || "Sovereign"} VIP Access`, builderTitle || "Toronto Luxury Waterfront Penthouses", "Exclusive Real Estate Pre-Launch"],
-          descriptions: ["Book a private preview of luxury waterfront residences. Priority developer pricing & floor plans.", "High-equity real estate assets in Toronto. Request VIP developer deck today."],
-          keywords: ["waterfront penthouses toronto", "luxury condos GTA for sale", "toronto real estate VIP pre-launch"]
+          headlines: [`${companyProfile?.companyName || "Enterprise"} Platform`, builderTitle || "Accelerate Enterprise Growth", "Verified High-ROAS Engine"],
+          descriptions: [`Discover how ${companyProfile?.companyName || "our platform"} accelerates business operations and drives verified ROI. Book demo.`, "Seamless multi-channel integrations, real-time attribution, and regulatory compliance."],
+          keywords: ["enterprise marketing automation", "business growth operating system", "high roas platform"]
         },
         metaAds: {
-          headline: `Exclusive ${builderTitle} VIP Preview`,
-          primaryText: "Experience panoramic harbor views and resort concierge living. Priority booking open for registered investors.",
-          hook: "Ready to elevate your real estate portfolio in Toronto?",
-          callToAction: "Book VIP Preview"
+          headline: `Exclusive ${builderTitle} Live Walkthrough`,
+          primaryText: "Streamline customer acquisition and eliminate budget waste with real-time attribution and automated optimization.",
+          hook: "Ready to accelerate your customer acquisition pipeline?",
+          callToAction: "Book Live Demo"
         },
         linkedInAds: {
-          headline: "High-Yield Real Estate Assets for Tech Founders & Executives",
-          bodyText: "Diversify your wealth with high-equity Toronto waterfront residences with guaranteed rental backing.",
-          callToAction: "Request Investment Deck"
+          headline: "High-ROI Growth Infrastructure for Modern Business Leaders",
+          bodyText: `Scale client acquisition with ${companyProfile?.companyName || "our platform"}. Join leading enterprises cutting customer acquisition costs.`,
+          callToAction: "Request Platform Walkthrough"
         },
         tikTokAds: {
-          headline: "Inside Toronto's $5M Waterfront Penthouse Tour 🏙️✨",
-          scriptHook: "Wait till you see the rooftop infinity pool on line 42...",
-          callToAction: "Tap to Book Private Tour"
+          headline: `Inside ${companyProfile?.companyName || "Our"} High-Growth Workflow ⚡🚀`,
+          scriptHook: "Here is why leading teams switched their marketing operating system this quarter...",
+          callToAction: "Learn More"
         },
         audienceTargeting: {
-          demographics: "Ages 30-65, HNW Investors, Business Executives",
-          interests: ["Real Estate Investing", "Luxury Properties", "Wealth Management"],
-          geo: "Greater Toronto Area (GTA), Montreal, Vancouver"
+          demographics: "Ages 28-60, Business Leaders, Founders, Directors & Growth Teams",
+          interests: ["Business Growth", "Marketing Automation", "Operations", "Digital Strategy"],
+          geo: "Global Markets (North America, Europe, APAC)"
         }
       });
     } finally {
@@ -506,6 +433,32 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Top Back Navigation Bar */}
+      <div className="flex items-center justify-between pb-1">
+        <button
+          type="button"
+          onClick={() => {
+            if (onBack) {
+              onBack();
+            } else {
+              window.history.back();
+            }
+          }}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 shadow-sm transition-all cursor-pointer active:scale-95"
+          title="Return to Previous Screen"
+        >
+          <ArrowLeft className="w-4 h-4 text-indigo-400" />
+          <span>Back to Previous Screen</span>
+        </button>
+
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <span>Active Module:</span>
+          <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs">
+            Campaign Commander
+          </span>
+        </div>
+      </div>
+
       {/* Top Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-lg">
         <div className="max-w-4xl">
@@ -683,11 +636,22 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
             {editingAccount && (
               <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-6 space-y-4 shadow-2xl">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4 text-emerald-400" />
-                    <h4 className="text-sm font-bold text-white">Configure Connection: {editingAccount.name}</h4>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button" 
+                      onClick={() => setEditingAccount(null)} 
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-lg border border-slate-700 cursor-pointer transition-colors shadow-xs active:scale-95"
+                      title="Back to Connections Vault"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Back</span>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4 text-emerald-400" />
+                      <h4 className="text-sm font-bold text-white">Configure Connection: {editingAccount.name}</h4>
+                    </div>
                   </div>
-                  <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                  <button onClick={() => setEditingAccount(null)} className="text-slate-400 hover:text-white cursor-pointer" title="Close">
                     <XCircle className="w-5 h-5" />
                   </button>
                 </div>
@@ -700,6 +664,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         type="text"
                         value={editingAccount.accountId}
                         onChange={(e) => setEditingAccount({ ...editingAccount, accountId: e.target.value })}
+                        placeholder="e.g. act_1908234 or 928-182-3921"
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-indigo-500"
                       />
                     </div>
@@ -710,6 +675,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         type="text"
                         value={editingAccount.activeAccountName}
                         onChange={(e) => setEditingAccount({ ...editingAccount, activeAccountName: e.target.value })}
+                        placeholder="e.g. Primary Enterprise Growth Account"
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-indigo-500"
                       />
                     </div>
@@ -889,7 +855,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                               type="text"
                               value={builderTitle}
                               onChange={(e) => setBuilderTitle(e.target.value)}
-                              placeholder="e.g. Q3 Toronto Waterfront Condo Campaign"
+                              placeholder={`e.g. Q3 ${companyProfile?.companyName || "SaaS Enterprise"} Pipeline & Growth Campaign`}
                               className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                             />
                           </div>
@@ -950,7 +916,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                             rows={3}
                             value={builderAudience}
                             onChange={(e) => setBuilderAudience(e.target.value)}
-                            placeholder="e.g. GTA High-Net-Worth Investors, Tech Founders & Luxury Buyers (Age 30-65, Net Worth $2M+)"
+                            placeholder="e.g. Enterprise Leaders, Tech Founders, Retail Consumers, or Specialist Buyers"
                             className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                           />
                         </div>
@@ -959,10 +925,10 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                           <label className="block text-[11px] font-bold text-slate-500 mb-1">Select Audience Preset Profile:</label>
                           <div className="flex flex-wrap gap-2">
                             {[
-                              "Global High-Net-Worth Investors & Luxury Buyers (Age 30-65)",
+                              "Global Enterprise Decision Makers & Operations Leads",
                               "Tech Founders, VPs & CMOs Worldwide (B2B SaaS)",
-                              "Commercial Real Estate Brokers & Institutional Investors",
-                              "Global Enterprise Decision Makers & Operations Leads"
+                              "High-Intent Direct Consumers & Shoppers (E-Commerce)",
+                              "Professional Healthcare & Corporate Practice Buyers"
                             ].map((preset) => (
                               <button
                                 key={preset}
@@ -1004,6 +970,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                                 step="500"
                                 value={builderBudget}
                                 onChange={(e) => setBuilderBudget(Number(e.target.value))}
+                                placeholder="5000"
                                 className="w-full pl-9 p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                               />
                             </div>
@@ -1217,6 +1184,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                         required
                         value={builderTitle}
                         onChange={(e) => setBuilderTitle(e.target.value)}
+                        placeholder="e.g. Q3 Omnichannel Brand Acceleration Blitz"
                         className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-slate-900"
                       />
                     </div>
@@ -1254,6 +1222,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                           step="500"
                           value={builderBudget}
                           onChange={(e) => setBuilderBudget(Number(e.target.value))}
+                          placeholder="5000"
                           className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono font-bold text-slate-900"
                         />
                       </div>
@@ -1266,6 +1235,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                       type="text"
                       value={builderAudience}
                       onChange={(e) => setBuilderAudience(e.target.value)}
+                      placeholder="e.g. Enterprise Decision Makers, Directors & VPs, Tech Founders"
                       className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
                     />
                   </div>
@@ -1667,6 +1637,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                       min="1000"
                       value={totalMonthlyBudget}
                       onChange={(e) => setTotalMonthlyBudget(Number(e.target.value))}
+                      placeholder="5000"
                       className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -1678,6 +1649,7 @@ export const CampaignCommander: React.FC<CampaignCommanderProps> = ({
                     type="text"
                     value={targetAudience}
                     onChange={(e) => setTargetAudience(e.target.value)}
+                    placeholder="e.g. Enterprise Decision Makers, Directors & VPs, Tech Founders"
                     className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>

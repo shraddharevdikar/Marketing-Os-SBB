@@ -18,6 +18,8 @@ export const AiStrategist: React.FC<AiStrategistProps> = ({
   onLogAction,
   currentRole = "CEO",
   userName = "User",
+  businessState,
+  onAuditComplete
 }) => {
   const [formData, setFormData] = useState({
     business: "",
@@ -36,12 +38,15 @@ export const AiStrategist: React.FC<AiStrategistProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [strategyReport, setStrategyReport] = useState<any>(null);
 
+  const companyNameFromMemory = businessState?.companyProfile?.companyName || "Acme Global Enterprise";
+  const sectorFromMemory = businessState?.companyProfile?.sector || "B2B SaaS & Enterprise Services";
+
   const questions = [
-    { key: "business", description: "What is your company or brand name?", placeholder: "e.g. John and Jan Real Estate Company" },
-    { key: "industry", description: "What vertical or industry sector do you operate in?", placeholder: "e.g. Luxury Commercial & Residential Real Estate" },
-    { key: "goals", description: "What are your core growth targets for Q3/Q4?", placeholder: "e.g. Generate 50+ high-intent lead submissions in GTA region" },
-    { key: "targetAudience", description: "Describe your ideal customer persona.", placeholder: "e.g. High net worth investors & luxury home buyers in Ontario" },
-    { key: "budget", description: "Monthly advertising budget allocation (CAD)?", placeholder: "5000" }
+    { key: "business", description: "What is your company or brand name?", placeholder: `e.g. ${companyNameFromMemory} or Apex Innovations` },
+    { key: "industry", description: "What vertical or industry sector do you operate in?", placeholder: `e.g. ${sectorFromMemory}, FinTech, E-Commerce, Healthcare, Consulting` },
+    { key: "goals", description: "What are your core growth targets for Q3/Q4?", placeholder: "e.g. Scale customer acquisition by 45%, increase pipeline velocity, double ARR" },
+    { key: "targetAudience", description: "Describe your ideal customer persona.", placeholder: "e.g. Enterprise leaders, VPs of Operations, procurement directors, or qualified buyers" },
+    { key: "budget", description: "Monthly advertising budget allocation ($)?", placeholder: "5000" }
   ];
 
   const handleNext = () => {
@@ -60,18 +65,19 @@ export const AiStrategist: React.FC<AiStrategistProps> = ({
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
+      const activeName = formData.business || companyNameFromMemory;
       setStrategyReport({
-        title: `${formData.business || "Enterprise"} Growth Strategy`,
+        title: `${activeName} Growth Strategy`,
         roasTarget: "4.2x",
-        summary: `SBB Multi-Agent strategy synthesized for ${formData.business || "John and Jan Real Estate Company"}. Focus on high-intent search ads, GEO-fenced Meta retargeting, and CASL-compliant lead nurture.`,
+        summary: `SBB Multi-Agent strategy synthesized for ${activeName}. Focus on high-intent search ads, cross-channel retargeting, and automated lead nurture sequences.`,
         tactics: [
           "Google High-Intent Search Keyword Bidding",
-          "Meta Carousel Penthouse Showcase",
-          "CASL Automated Lead Nurture Sequence"
+          "Cross-Channel Persona Retargeting & Brand Authority",
+          "Automated Omnichannel Lead Nurture Sequence"
         ]
       });
       if (onLogAction) {
-        onLogAction("Generated Strategy Report", `Synthesized growth strategy for ${formData.business || "Business"}.`);
+        onLogAction("Generated Strategy Report", `Synthesized growth strategy for ${activeName}.`);
       }
     }, 1500);
   };

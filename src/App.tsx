@@ -29,41 +29,55 @@ import { UserManagementPortal } from "./components/UserManagementPortal";
 import { DigitalBusinessCard } from "./components/DigitalBusinessCard";
 import { LoginScreen, UserSession } from "./components/LoginScreen";
 import { BusinessOnboardingModal, CompanyBusinessProfile } from "./components/BusinessOnboardingModal";
+import { GlobalSearchBar } from "./components/GlobalSearchBar";
+import { MultimodalAiStudio } from "./components/MultimodalAiStudio";
+import { VoiceConversationStudio } from "./components/VoiceConversationStudio";
+import { ImageEditAutoIcon } from "./components/ImageEditAutoIcon";
+import { AudioSparkIcon } from "./components/AudioSparkIcon";
+import { logOutFirebase } from "./lib/firebase";
+import { 
+  saveCompanyProfileToFirestore, 
+  saveCampaignsToFirestore, 
+  saveLeadsToFirestore, 
+  saveAuditLogToFirestore,
+  saveUserToFirestore
+} from "./lib/firestoreSync";
 import { RoiAlert } from "./types";
 import { loadStoredRoiAlerts, saveStoredRoiAlerts } from "./lib/roiAlertsData";
+import { INDUSTRY_PRESETS, getTemplateById } from "./data/industryPresets";
 
 const initialCampaigns = [
   {
-    id: "WF-SEO-8A2",
-    title: "Q3 High-Intent Luxury SEO Keywords Blitz",
+    id: "WF-SAAS-8A2",
+    title: "Q3 High-Intent B2B Enterprise Software Keywords Blitz",
     agent: "SEO Brain",
     agentName: "SBB SEO Brain",
-    budgetImpact: 1200,
+    budgetImpact: 1400,
     approvalRequiredFrom: "Marketing Manager",
     status: "Approved",
-    createdAt: "10:15 AM 07/20/2026",
+    createdAt: "10:15 AM 10/01/2026",
     createdBy: "Miriam Manager Mercer",
     approvedBy: "John CEO Smith (CEO)",
-    approvedAt: "10:30 AM 07/20/2026",
-    comments: "Approved for immediate organic deployment across GTA region.",
+    approvedAt: "10:30 AM 10/01/2026",
+    comments: "Approved for immediate organic deployment across North American enterprise search terms.",
     tactics: [
-      { tactic: "Toronto Penthouse Keyword Aggression", status: "Active" },
-      { tactic: "GTA Relocation Organic Landing Pages", status: "Active" }
+      { tactic: "Autonomous Cloud Orchestration Exact Match", status: "Active" },
+      { tactic: "Cross-Border Enterprise SaaS Landing Pages", status: "Active" }
     ]
   },
   {
-    id: "WF-SOC-4F1",
-    title: "Toronto Waterfront Condo Instagram & Meta Campaign",
+    id: "WF-ECOM-4F1",
+    title: "Omnichannel DTC High-ROAS Instagram & Meta Campaign",
     agent: "Social AI",
     agentName: "AI Social Campaign Engine",
-    budgetImpact: 850,
+    budgetImpact: 1250,
     approvalRequiredFrom: "Marketing Manager",
     status: "Pending",
-    createdAt: "02:00 PM 07/23/2026",
+    createdAt: "02:00 PM 10/03/2026",
     createdBy: "Thomas TL Jenkins",
-    comments: "Targeting high net worth professionals in Toronto Financial District.",
+    comments: "Targeting high-LTV decision makers and consumers with video UGC reels.",
     tactics: [
-      { tactic: "Instagram Reels Carousel Showcase", status: "Pending" }
+      { tactic: "Instagram Reels Interactive Showcase", status: "Pending" }
     ]
   }
 ];
@@ -77,11 +91,11 @@ const initialLeads = [
     phone: "+1 (416) 555-0192",
     territory: "Ontario (ON)",
     source: "SEO Organic Search",
-    serviceInterest: "Luxury Commercial Real Estate",
+    serviceInterest: "Enterprise Cloud AI Platform (500+ seats)",
     leadScore: 94,
     status: "Qualified",
     leadOwner: "Victoria VP Hastings",
-    notes: "Expressed strong interest in Yorkville luxury development."
+    notes: "Expressed strong interest in automated multi-touch ROAS attribution."
   },
   {
     id: "LEAD-102",
@@ -91,11 +105,25 @@ const initialLeads = [
     phone: "+1 (604) 555-0188",
     territory: "British Columbia (BC)",
     source: "Ad Campaign",
-    serviceInterest: "Residential Penthouse Acquisition",
-    leadScore: 82,
+    serviceInterest: "Telehealth & Specialized Diagnostic Suite",
+    leadScore: 88,
     status: "Contacted",
     leadOwner: "Miriam Manager Mercer",
     notes: "Scheduled initial discovery consultation for next Tuesday."
+  },
+  {
+    id: "LEAD-103",
+    name: "Chloe Dupont",
+    company: "Lumina Retail Network",
+    email: "c.dupont@luminaretail.com",
+    phone: "+1 (514) 555-0145",
+    territory: "Quebec (QC)",
+    source: "Direct Meta Ad",
+    serviceInterest: "Omnichannel E-Commerce Growth Retargeting",
+    leadScore: 91,
+    status: "Qualified",
+    leadOwner: "Victoria VP Hastings",
+    notes: "Requires automated CASL compliance verification for high-volume email workflows."
   }
 ];
 
@@ -140,7 +168,13 @@ export default function App() {
   const [userName, setUserName] = useState(() => userSession?.name || "John CEO Smith");
   const [activeTab, setActiveTabState] = useState<ActiveTabType>(getTabFromUrl);
 
-  const allowedTabs = getAllowedTabsForUser(currentRole, userSession?.customAllowedTabs);
+  const isAdmin = userSession?.role === "Admin" || 
+    Boolean(userSession?.email && ["shraddha.revdikar@gmail.com", "admin@sovereignbusiness.ca"].includes(userSession.email.toLowerCase().trim()));
+
+  const allowedTabs = getAllowedTabsForUser(
+    isAdmin ? currentRole : (userSession?.role || currentRole),
+    userSession?.customAllowedTabs
+  );
 
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
 
@@ -162,7 +196,12 @@ export default function App() {
     }
   }, [currentRole, userSession, allowedTabs, activeTab]);
 
+  const [tabHistory, setTabHistory] = useState<ActiveTabType[]>([]);
+
   const setActiveTab = (tab: ActiveTabType) => {
+    if (tab !== activeTab) {
+      setTabHistory((prev) => [...prev, activeTab]);
+    }
     setActiveTabState(tab);
     const targetPath = `/${tab}`;
     if (window.location.pathname !== targetPath) {
@@ -175,23 +214,37 @@ export default function App() {
     document.title = `Sovereign Business Brain - ${pageTitle}`;
   };
 
+  const handleGoBack = () => {
+    if (tabHistory.length > 0) {
+      const prevTab = tabHistory[tabHistory.length - 1];
+      setTabHistory((prev) => prev.slice(0, -1));
+      setActiveTabState(prevTab);
+      const targetPath = `/${prevTab}`;
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ tab: prevTab }, "", targetPath);
+      }
+    } else {
+      window.history.back();
+    }
+  };
+
   const [discoverySubTab, setDiscoverySubTab] = useState<"memory" | "discovery">("memory");
 
   const [companyProfile, setCompanyProfile] = useState(() => {
     const saved = localStorage.getItem("sbb_company_profile");
-    return saved ? JSON.parse(saved) : {
-      companyName: "John and Jan Real Estate Company",
-      websiteUrl: "https://johnandjanrealestate.com",
-      sector: "Real Estate & Enterprise Services",
-      description: "Premier luxury residential properties and high-value real estate services worldwide.",
-      countriesServed: "Global / Worldwide (US, EU, UK, APAC, LATAM)",
-      headquarters: "Global Headquarters",
-      teamSize: "1-50 employees",
-      softwareStack: "Salesforce, Meta Ads & HubSpot",
-      goals: ["Increase Revenue", "Generate High-Quality Leads", "Global Market Expansion"],
-      adBudget: 5000,
-      complianceProfile: "Global Standards (GDPR, CCPA, PIPEDA, ISO 27001)"
-    };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // If the saved profile is the legacy hardcoded real estate demo, upgrade it to versatile B2B SaaS
+        if (parsed.companyName === "John and Jan Real Estate Company") {
+          return INDUSTRY_PRESETS[0].companyProfile;
+        }
+        return parsed;
+      } catch {
+        return INDUSTRY_PRESETS[0].companyProfile;
+      }
+    }
+    return INDUSTRY_PRESETS[0].companyProfile;
   });
 
   const [businessReport, setBusinessReport] = useState(() => {
@@ -309,11 +362,13 @@ export default function App() {
   const saveCampaigns = (updated: any[]) => {
     setCampaigns(updated);
     localStorage.setItem("sovereign_campaigns", JSON.stringify(updated));
+    saveCampaignsToFirestore(updated).catch(() => {});
   };
 
   const saveLeads = (updated: any[]) => {
     setLeads(updated);
     localStorage.setItem("sovereign_leads", JSON.stringify(updated));
+    saveLeadsToFirestore(updated).catch(() => {});
   };
 
   const saveAudits = (updated: any[]) => {
@@ -331,6 +386,7 @@ export default function App() {
       details
     };
     saveAudits([...auditLogs, logEntry]);
+    saveAuditLogToFirestore(logEntry).catch(() => {});
   };
 
   const handleCreateCampaignRequest = (req: any) => {
@@ -409,8 +465,9 @@ export default function App() {
   const t = (enText: string, frText: string) => config.language === "EN" ? enText : frText;
 
   const handleLogout = () => {
-    logAction("User Signed Out", `Operator ${userName} (${currentRole}) signed out from sovereignbusinessbrain.com.`);
+    logAction("User Signed Out", `Operator ${userName} (${currentRole}) signed out from the workspace.`);
     localStorage.removeItem("sbb_auth_session");
+    logOutFirebase().catch(() => {});
     setUserSession(null);
   };
 
@@ -434,7 +491,7 @@ export default function App() {
           if (!localStorage.getItem("sbb_onboarding_completed")) {
             setOnboardingModalOpen(true);
           }
-          logAction("User Authenticated", `Operator ${session.name} logged in as ${session.role} on sovereignbusinessbrain.com.`);
+          logAction("User Authenticated", `Operator ${session.name} logged in as ${session.role} to the enterprise workspace.`);
         }}
       />
     );
@@ -453,6 +510,11 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-[10px] bg-emerald-950/80 text-emerald-300 px-2.5 py-1 rounded border border-emerald-700/60 font-mono font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Firebase Auth & Firestore Synced</span>
+            </span>
+
             <button
               onClick={() => setOnboardingModalOpen(true)}
               className="flex items-center gap-1.5 bg-purple-900/80 hover:bg-purple-800 text-purple-200 px-2.5 py-1 rounded border border-purple-700/60 transition-all cursor-pointer font-bold text-[11px]"
@@ -484,7 +546,7 @@ export default function App() {
               id="logout-btn"
               onClick={handleLogout}
               className="flex items-center gap-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 hover:text-white px-2.5 py-1 rounded border border-rose-800/60 transition-all cursor-pointer font-bold"
-              title="Sign Out from sovereignbusinessbrain.com"
+              title="Sign Out from Enterprise Workspace"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign Out</span>
@@ -495,8 +557,8 @@ export default function App() {
 
       <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
         {/* Main Header */}
-        <header id="main-header" className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-          <div>
+        <header id="main-header" className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+          <div className="shrink-0">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-slate-900 text-white font-black text-xs font-mono tracking-widest">
                 SOVEREIGN
@@ -529,36 +591,120 @@ export default function App() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3.5 py-2">
-            <span className={`w-2.5 h-2.5 rounded-full ${coreStatus.online ? "bg-emerald-500" : "bg-rose-500"} animate-pulse`} />
-            <div className="text-[11px] font-mono leading-none">
-              <span className="block font-bold text-slate-700">
-                {coreStatus.online ? "SOVEREIGN CORE ONLINE" : "SOVEREIGN CORE OFFLINE"}
+          {/* Global Search across Campaigns, Leads, and Audit Logs */}
+          <div className="flex-1 max-w-xl mx-0 lg:mx-2 w-full">
+            <GlobalSearchBar
+              campaigns={campaigns}
+              leads={leads}
+              auditLogs={auditLogs}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenOnboarding={() => setOnboardingModalOpen(true)}
+              companyName={companyProfile.companyName}
+              sector={companyProfile.sector}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Industry Switcher Button */}
+            <button
+              onClick={() => setOnboardingModalOpen(true)}
+              className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+              title="Click to Switch Industry Profile (B2B SaaS, E-Commerce, Healthcare, FinTech, Consulting, Real Estate, etc.)"
+            >
+              <Building2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+              <div className="text-left font-sans leading-none">
+                <span className="text-[9px] text-purple-600 font-mono font-bold block uppercase tracking-wider">
+                  Active Industry
+                </span>
+                <span className="text-xs text-purple-950 font-bold block mt-0.5 truncate max-w-[140px] sm:max-w-none">
+                  {companyProfile.sector}
+                </span>
+              </div>
+              <span className="text-[10px] bg-purple-200/80 text-purple-900 px-1.5 py-0.5 rounded font-mono font-bold ml-1 hidden sm:inline">
+                Switch
               </span>
-              <span className="text-[9px] text-slate-400 block mt-1 leading-snug max-w-xs">
-                {coreStatus.message}
-              </span>
+            </button>
+
+            {/* Quick Action: Voice Conversations (Gemini 3.8 Live) */}
+            <button
+              id="top-voice-conversations-btn"
+              type="button"
+              onClick={() => setActiveTab("voice-conversations")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                activeTab === "voice-conversations"
+                  ? "bg-teal-600 text-white border-teal-500 shadow-sm"
+                  : "bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-900 border-slate-200"
+              }`}
+              title="Voice Conversations: Real-time Live API (gemini-3.8-live & gemini-3.8-flash)"
+            >
+              <AudioSparkIcon className={`w-4 h-4 ${activeTab === "voice-conversations" ? "text-white" : "text-teal-600"}`} />
+              <div className="text-left font-sans leading-none hidden sm:block">
+                <span className={`text-[9px] font-mono font-bold block uppercase tracking-wider ${activeTab === "voice-conversations" ? "text-teal-200" : "text-teal-600"}`}>
+                  Gemini 3.8 Live
+                </span>
+                <span className="text-xs font-bold block mt-0.5">
+                  Voice Conversations
+                </span>
+              </div>
+            </button>
+
+            {/* Quick Action: Create & Edit Images */}
+            <button
+              id="top-create-edit-images-btn"
+              type="button"
+              onClick={() => setActiveTab("create-edit-images")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                activeTab === "create-edit-images"
+                  ? "bg-purple-600 text-white border-purple-500 shadow-sm"
+                  : "bg-white hover:bg-purple-50 text-slate-700 hover:text-purple-900 border-slate-200"
+              }`}
+              title="Quick Launcher: Create & edit images using gemini-nano-banana-2.1"
+            >
+              <ImageEditAutoIcon className={`w-4 h-4 ${activeTab === "create-edit-images" ? "text-white" : "text-purple-600"}`} />
+              <div className="text-left font-sans leading-none hidden sm:block">
+                <span className={`text-[9px] font-mono font-bold block uppercase tracking-wider ${activeTab === "create-edit-images" ? "text-purple-200" : "text-purple-600"}`}>
+                  Nano 2.1
+                </span>
+                <span className="text-xs font-bold block mt-0.5">
+                  Create & Edit Images
+                </span>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3.5 py-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${coreStatus.online ? "bg-emerald-500" : "bg-rose-500"} animate-pulse`} />
+              <div className="text-[11px] font-mono leading-none">
+                <span className="block font-bold text-slate-700">
+                  {coreStatus.online ? "SOVEREIGN CORE ONLINE" : "SOVEREIGN CORE OFFLINE"}
+                </span>
+                <span className="text-[9px] text-slate-400 block mt-1 leading-snug max-w-xs">
+                  {coreStatus.message}
+                </span>
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Role Selector */}
-        <RoleSelector
-          currentRole={currentRole}
-          authenticatedRole={userSession?.role || currentRole}
-          userName={userName}
-          onChangeRole={(role) => {
-            setCurrentRole(role);
-            const defaultName = role === "CEO" ? "John CEO Smith" :
-              role === "Vice President" ? "Victoria VP Hastings" :
-              role === "AGM" ? "Albert AGM Vance" :
-              role === "Marketing Manager" ? "Miriam Manager Mercer" :
-              role === "Team Lead" ? "Thomas TL Jenkins" : "Edward Exec Jones";
-            setUserName(defaultName);
-            logAction("Session Role Switched", `User session assigned to security clearance tier: ${role}.`);
-          }}
-          onChangeName={(name) => setUserName(name)}
-        />
+        {/* Role Selector - Strictly visible ONLY to Admin */}
+        {isAdmin && (
+          <RoleSelector
+            currentRole={currentRole}
+            authenticatedRole={userSession?.role || currentRole}
+            userName={userName}
+            onChangeRole={(role) => {
+              setCurrentRole(role);
+              const defaultName = role === "Admin" ? (userSession?.name || "Shraddha Admin") :
+                role === "CEO" ? "John CEO Smith" :
+                role === "Vice President" ? "Victoria VP Hastings" :
+                role === "AGM" ? "Albert AGM Vance" :
+                role === "Marketing Manager" ? "Miriam Manager Mercer" :
+                role === "Team Lead" ? "Thomas TL Jenkins" : "Edward Exec Jones";
+              setUserName(defaultName);
+              logAction("Session Role Switched", `User session assigned to security clearance tier: ${role}.`);
+            }}
+            onChangeName={(name) => setUserName(name)}
+          />
+        )}
 
         {/* Workspace Navigation Tabs - Filtered by RBAC Role Security Clearance */}
         <div className="bg-slate-900 text-white text-[11px] px-4 py-2 rounded-t-xl flex items-center justify-between border-b border-slate-800 font-sans">
@@ -596,7 +742,9 @@ export default function App() {
         <nav id="workspace-tabs" className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar pb-1 gap-1 bg-white px-2">
           {ALL_TABS.filter((tab) => allowedTabs.includes(tab.id)).map((tab) => {
             const IconComponent = {
-              ShieldCheck, CreditCard, Bot, Globe, ShieldAlert, Target, Megaphone, Sparkles, Sliders, LayoutDashboard, BarChart3, Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle
+              ShieldCheck, CreditCard, Bot, Globe, ShieldAlert, Target, Megaphone, Sparkles, Sliders, LayoutDashboard, BarChart3, Activity, FileText, Users2, TrendingUp, ClipboardCheck, HelpCircle,
+              ImageEditAuto: ImageEditAutoIcon,
+              AudioSpark: AudioSparkIcon
             }[tab.iconName] || Activity;
 
             const isSelected = activeTab === tab.id;
@@ -674,6 +822,48 @@ export default function App() {
               </motion.div>
             )}
 
+            {activeTab === "voice-conversations" && (
+              <motion.div key="voice-conversations-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                <VoiceConversationStudio
+                  companyProfile={companyProfile}
+                  userRole={currentRole}
+                  userName={userName}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  onPushToCommander={handleCreateCampaignRequest}
+                />
+              </motion.div>
+            )}
+
+            {activeTab === "create-edit-images" && (
+              <motion.div key="create-edit-images-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                <MultimodalAiStudio
+                  companyProfile={companyProfile}
+                  userRole={currentRole}
+                  userName={userName}
+                  userId={userSession?.id || "usr_guest"}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  onPushToCommander={handleCreateCampaignRequest}
+                  onBack={handleGoBack}
+                  defaultTab="image"
+                  isFocusImageStudio={true}
+                />
+              </motion.div>
+            )}
+
+            {activeTab === "creative-studio" && (
+              <motion.div key="creative-studio-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
+                <MultimodalAiStudio
+                  companyProfile={companyProfile}
+                  userRole={currentRole}
+                  userName={userName}
+                  userId={userSession?.id || "usr_guest"}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  onPushToCommander={handleCreateCampaignRequest}
+                  onBack={handleGoBack}
+                />
+              </motion.div>
+            )}
+
             {activeTab === "digital-card" && (
               <motion.div key="digital-card-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
                 <DigitalBusinessCard
@@ -708,13 +898,19 @@ export default function App() {
                   handleApproveCampaign={handleApproveCampaign}
                   handleRejectCampaign={handleRejectCampaign}
                   handleOverrideCampaign={handleOverrideCampaign}
+                  onBack={handleGoBack}
                 />
               </motion.div>
             )}
 
             {activeTab === "ads-tracker" && (
               <motion.div key="ads-tracker-tab" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}>
-                <AdsTracker companyProfile={companyProfile} userRole={currentRole} />
+                <AdsTracker
+                  companyProfile={companyProfile}
+                  userRole={currentRole}
+                  onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  onBack={handleGoBack}
+                />
               </motion.div>
             )}
 

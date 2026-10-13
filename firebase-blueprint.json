@@ -1,0 +1,135 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated user profile and role-based access information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth user ID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full display name" },
+        "photoURL": { "type": "string", "description": "Avatar photo URL" },
+        "role": { "type": "string", "description": "RBAC position clearance role", "enum": ["Admin", "CEO", "Vice President", "AGM", "Marketing Manager", "Team Lead", "Executive"] },
+        "customAllowedTabs": { "type": "array", "description": "Optional custom tab overrides for this user" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last sign-in timestamp" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "CompanyProfile": {
+      "title": "CompanyProfile",
+      "description": "Brand identity, business requirements, and SBB memory context",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "description": "Company name" },
+        "sector": { "type": "string", "description": "Industry sector" },
+        "websiteUrl": { "type": "string", "description": "Company official website" },
+        "description": { "type": "string", "description": "Business profile description" },
+        "headquarters": { "type": "string", "description": "Headquarters city/country" },
+        "targetAudience": { "type": "string", "description": "Target audience persona" },
+        "productsServices": { "type": "string", "description": "Key products and services" },
+        "usp": { "type": "string", "description": "Unique Selling Proposition" },
+        "phone": { "type": "string", "description": "Company phone number" },
+        "adBudget": { "type": "number", "description": "Monthly ad budget in USD" },
+        "brandVoice": { "type": "string", "description": "Copywriting tone" },
+        "goals": { "type": "array", "description": "Primary business objectives" },
+        "updatedAt": { "type": "string", "description": "Last modified timestamp" }
+      },
+      "required": ["companyName", "sector"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "Marketing workflow campaign plan or multi-channel launch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Campaign unique identifier" },
+        "title": { "type": "string", "description": "Campaign title" },
+        "platform": { "type": "string", "description": "Primary ad platform" },
+        "status": { "type": "string", "description": "Workflow approval state", "enum": ["Pending", "Approved", "Rejected"] },
+        "budgetImpact": { "type": "number", "description": "Budget allocation amount" },
+        "createdBy": { "type": "string", "description": "Operator who created campaign" },
+        "createdAt": { "type": "string", "description": "Timestamp created" },
+        "approvedBy": { "type": "string", "description": "Executive who approved or rejected" },
+        "approvedAt": { "type": "string", "description": "Approval timestamp" },
+        "comments": { "type": "string", "description": "Review notes or executive directives" }
+      },
+      "required": ["id", "title", "status"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Captured CRM customer lead and scoring details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Lead unique ID" },
+        "name": { "type": "string", "description": "Customer contact name" },
+        "company": { "type": "string", "description": "Organization name" },
+        "email": { "type": "string", "description": "Contact email address" },
+        "phone": { "type": "string", "description": "Contact phone" },
+        "territory": { "type": "string", "description": "Territory or region" },
+        "source": { "type": "string", "description": "Acquisition source / UTM channel" },
+        "leadScore": { "type": "number", "description": "Lead qualification score 0-100" },
+        "status": { "type": "string", "description": "CRM status", "enum": ["New", "Contacted", "Qualified", "Converted", "Disqualified"] },
+        "leadOwner": { "type": "string", "description": "Assigned team member" },
+        "notes": { "type": "string", "description": "Interaction history and notes" }
+      },
+      "required": ["id", "name", "email", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Compliance and operational security log record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Log identifier" },
+        "timestamp": { "type": "string", "description": "Event timestamp" },
+        "actor": { "type": "string", "description": "Operator name" },
+        "role": { "type": "string", "description": "Active clearance tier" },
+        "action": { "type": "string", "description": "Action performed" },
+        "details": { "type": "string", "description": "Compliance details" }
+      },
+      "required": ["id", "timestamp", "actor", "action"]
+    },
+    "AiCreativeAsset": {
+      "title": "AiCreativeAsset",
+      "description": "Generated or edited multimodal creative asset (image, video, audio, transcript, chat)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Asset ID" },
+        "userId": { "type": "string", "description": "Creator user UID" },
+        "type": { "type": "string", "description": "Asset category", "enum": ["image", "video", "music", "transcription", "chat", "voice"] },
+        "title": { "type": "string", "description": "Asset title or prompt summary" },
+        "prompt": { "type": "string", "description": "Text prompt used for generation or edit" },
+        "modelUsed": { "type": "string", "description": "Gemini or Veo or Lyria model used" },
+        "mediaUrl": { "type": "string", "description": "Data URL or external media link" },
+        "metadata": { "type": "string", "description": "JSON metadata or parameters" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "userId", "type", "title", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document indexed by Firebase Auth UID"
+    },
+    "/company_profiles/{profileId}": {
+      "schema": "CompanyProfile",
+      "description": "Organization company profile and brand identity knowledge base"
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Marketing campaign workflows and approval queues"
+    },
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Customer leads captured and routed through the CRM system"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Enterprise audit log entries tracking user actions and compliance events"
+    },
+    "/ai_creatives/{assetId}": {
+      "schema": "AiCreativeAsset",
+      "description": "Multimodal AI creative assets generated by users (images, Veo videos, Lyria music, transcripts)"
+    }
+  }
+}

@@ -3,8 +3,9 @@ import {
   Sparkles, Copy, Check, Target, DollarSign, 
   ShieldAlert, Megaphone, FileText, Globe, CheckCircle2,
   Database, FileCode, TrendingUp, Home, Cpu, Info, ExternalLink, Video,
-  Key, ShieldCheck, RefreshCw, Settings, Link2, XCircle, Plus, Shield
+  Key, ShieldCheck, RefreshCw, Settings, Link2, XCircle, Plus, Shield, Layers
 } from "lucide-react";
+import { INDUSTRY_PRESETS, IndustryTemplate } from "../data/industryPresets";
 
 interface AiCampaignGeneratorProps {
   companyProfile: any;
@@ -18,17 +19,23 @@ export const AiCampaignGenerator: React.FC<AiCampaignGeneratorProps> = ({
   onPushToCommander 
 }) => {
   // Input form state
-  const [productName, setProductName] = useState("Enterprise Marketing OS");
-  const [targetAudience, setTargetAudience] = useState("CMOs, Growth VPs & Founders in Canada & US");
+  const [productName, setProductName] = useState(
+    companyProfile?.productsServices?.split(",")[0] || "Enterprise Cloud AI Platform"
+  );
+  const [targetAudience, setTargetAudience] = useState(
+    companyProfile?.targetAudience || "CMOs, Growth VPs & Enterprise Leaders"
+  );
   const [objective, setObjective] = useState("Lead Generation & Demo Bookings");
-  const [tone, setTone] = useState("Authoritative, High-Conversion & CASL Compliant");
-  const [keyPoints, setKeyPoints] = useState("Real-time ROAS attribution, automated lead scoring, CASL double opt-in protection, AI phone pre-sales qualification.");
-  const [budget, setBudget] = useState("5000");
+  const [tone, setTone] = useState(companyProfile?.brandVoice || "Authoritative, High-Conversion & CASL Compliant");
+  const [keyPoints, setKeyPoints] = useState(
+    companyProfile?.usp || "Real-time ROAS attribution, automated lead scoring, CASL double opt-in protection, AI phone pre-sales qualification."
+  );
+  const [budget, setBudget] = useState(String(companyProfile?.adBudget || "5000"));
   const [platform, setPlatform] = useState("Cross-Platform");
 
   // Content Knowledge Source Selection
   const [contentSource, setContentSource] = useState<string>("corporate-vault");
-  const [sourceUrl, setSourceUrl] = useState<string>("https://sovereignbusinessbrain.com");
+  const [sourceUrl, setSourceUrl] = useState<string>(companyProfile?.websiteUrl || "https://yourcompany.com");
   const [sourceDetails, setSourceDetails] = useState<string>("Corporate Knowledge Base & PIPEDA / CASL Compliance Matrix");
 
   // Output state
@@ -51,21 +58,21 @@ export const AiCampaignGenerator: React.FC<AiCampaignGeneratorProps> = ({
       accessToken: "ya29.a0ARdaC7mX8...",
       lastSynced: "Just now",
       latency: "14ms",
-      activeAccountName: "Sovereign Real Estate - Google CAD",
+      activeAccountName: `${companyProfile?.companyName || "Sovereign Enterprise"} - Google CAD`,
       iconBg: "bg-blue-600"
     },
     {
       id: "metaAds",
       name: "Meta Ads Manager (FB & IG)",
       platform: "Instagram, Facebook & Messenger",
-      handle: "@sovereign_luxury_ca",
+      handle: `@${(companyProfile?.companyName || "sovereign").toLowerCase().replace(/[^a-z0-9]/g, "_")}_ads`,
       status: "Connected",
       accountId: "ACT-392019284",
       apiKey: "●●●●●●●●●●●●EAAG",
       accessToken: "EAAx8201938...",
       lastSynced: "2 mins ago",
       latency: "18ms",
-      activeAccountName: "Sovereign Luxury FB/IG Business",
+      activeAccountName: `${companyProfile?.companyName || "Sovereign Enterprise"} FB/IG Business`,
       iconBg: "bg-indigo-600"
     },
     {
@@ -148,7 +155,7 @@ export const AiCampaignGenerator: React.FC<AiCampaignGeneratorProps> = ({
       icon: Globe,
       description: "Scrapes live copy, value propositions, and SEO keywords directly from your company or client URL.",
       badge: "Web Scraper",
-      defaultDetails: "https://sovereignbusinessbrain.com"
+      defaultDetails: companyProfile?.websiteUrl || "https://yourcompany.com"
     },
     {
       id: "pdf-brief",
@@ -167,12 +174,12 @@ export const AiCampaignGenerator: React.FC<AiCampaignGeneratorProps> = ({
       defaultDetails: "Top 1% Converting B2B & Luxury Social Ad Hooks (2026 Index)"
     },
     {
-      id: "real-estate-mls",
-      title: "Real Estate MLS / Property Catalog",
-      icon: Home,
-      description: "Extracts luxury property specs, floor plans, waterfront amenities, and neighborhood demographic data.",
-      badge: "MLS Feed",
-      defaultDetails: "Toronto Luxury Waterfront Penthouses - MLS #C894210"
+      id: "product-catalog",
+      title: "Product Catalog & Inventory Specs",
+      icon: Layers,
+      description: "Extracts product SKUs, feature specifications, service offerings, inventory data, or portfolio assets.",
+      badge: "Catalog Feed",
+      defaultDetails: "Enterprise Solutions & Offerings Catalog #CAT-8942"
     },
     {
       id: "custom-prompt",
@@ -491,6 +498,7 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                       type="text"
                       value={editingAccount.accountId}
                       onChange={(e) => setEditingAccount({ ...editingAccount, accountId: e.target.value })}
+                      placeholder="e.g. act_10928374 or @brandhandle"
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-indigo-500"
                     />
                   </div>
@@ -501,6 +509,7 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                       type="text"
                       value={editingAccount.handle}
                       onChange={(e) => setEditingAccount({ ...editingAccount, handle: e.target.value })}
+                      placeholder="e.g. @yourcompany or facebook.com/yourbrand"
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-indigo-500"
                     />
                   </div>
@@ -722,7 +731,7 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                       setSourceUrl(e.target.value);
                       setSourceDetails(e.target.value);
                     }}
-                    placeholder="https://sovereignbusinessbrain.com"
+                    placeholder="https://yourcompany.com"
                     className="flex-1 p-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
                   />
                   <a
@@ -745,6 +754,7 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                   type="text"
                   value={sourceDetails}
                   onChange={(e) => setSourceDetails(e.target.value)}
+                  placeholder="e.g. Q3 Growth Strategy Document, Product Whitepaper, or Feature Bulletpoints"
                   className="w-full p-2 bg-slate-800 border border-slate-700 rounded-lg text-xs text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"
                 />
               </div>
@@ -763,6 +773,41 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
             <Target className="w-5 h-5 text-indigo-600" />
             <h2 className="text-base font-bold text-slate-900">2. Campaign Objectives & Audience Parameters</h2>
+          </div>
+
+          {/* Universal Multi-Industry Quick-Fill Pills */}
+          <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                Industry Campaign Presets (Universal Multi-Sector):
+              </span>
+              <span className="text-[10px] text-indigo-700 font-mono font-bold bg-white px-2 py-0.5 rounded border border-indigo-200">
+                1-Click Auto-Populate
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600">
+              Select an industry template to auto-populate product names, target personas, and CASL-compliant hooks:
+            </p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {INDUSTRY_PRESETS.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  type="button"
+                  onClick={() => {
+                    setProductName(tmpl.companyProfile.productsServices.split(",")[0]);
+                    setTargetAudience(tmpl.companyProfile.targetAudience);
+                    setObjective(tmpl.companyProfile.goals[0] || "High-Intent Lead Generation");
+                    setTone(tmpl.companyProfile.brandVoice);
+                    setKeyPoints(tmpl.companyProfile.usp);
+                    setBudget(String(tmpl.companyProfile.adBudget || 5000));
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-indigo-600 hover:text-white border border-slate-200 hover:border-indigo-600 text-slate-700 rounded-lg text-[11px] font-medium transition-all cursor-pointer shadow-2xs"
+                >
+                  {tmpl.name}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-4 text-xs">
@@ -1016,7 +1061,7 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
                       <span className="font-bold text-slate-900">Sponsored</span>
                       <span>•</span>
-                      <span className="text-slate-500">https://sovereignbusinessbrain.com</span>
+                      <span className="text-slate-500">{companyProfile?.websiteUrl || "https://yourcompany.com"}</span>
                     </div>
                     <div className="text-base font-semibold text-blue-800 hover:underline cursor-pointer leading-snug">
                       {generatedCampaign.googleAds.headlines?.join(" | ")}
@@ -1105,7 +1150,9 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
 
                     <div className="bg-slate-100 p-3 rounded-lg flex items-center justify-between border border-slate-200">
                       <div>
-                        <div className="text-[10px] text-slate-500 font-mono">SOVEREIGNBUSINESSBRAIN.COM</div>
+                        <div className="text-[10px] text-slate-500 font-mono font-semibold tracking-wider">
+                          {(companyProfile?.websiteUrl || "https://yourcompany.com").replace(/^https?:\/\//, "").replace(/\/.*$/, "").toUpperCase()}
+                        </div>
                         <div className="text-xs font-bold text-slate-900">{generatedCampaign.metaAds.headline}</div>
                       </div>
                       <button className="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded">
@@ -1140,7 +1187,9 @@ CTA: ${generatedCampaign.tikTokAds?.callToAction || "Watch Demo"}
                     <div className="bg-slate-100 p-3 rounded-lg flex items-center justify-between border border-slate-200">
                       <div>
                         <div className="text-xs font-bold text-slate-900">{generatedCampaign.linkedInAds.headline}</div>
-                        <div className="text-[10px] text-slate-500">sovereignbusinessbrain.com</div>
+                        <div className="text-[10px] text-slate-500">
+                          {companyProfile?.websiteUrl?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "yourcompany.com"}
+                        </div>
                       </div>
                       <button className="bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded">
                         {generatedCampaign.linkedInAds.callToAction || "Request Demo"}

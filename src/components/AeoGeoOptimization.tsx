@@ -45,179 +45,185 @@ interface AeoGeoOptimizationProps {
   onLogAction?: (actionType: string, details: string) => void;
 }
 
-const DEFAULT_GEO_REGIONS: GeoRegionData[] = [
-  {
-    id: "geo-toronto",
-    regionName: "Greater Toronto Area (GTA)",
-    territory: "Ontario (ON)",
-    city: "Toronto",
-    country: "Canada",
-    geoCoordinates: { lat: 43.6532, lng: -79.3832 },
-    aiLocalIndexingScore: 97,
-    localPackRank: "Map Pack #1 & AI Overview Top Citation",
-    dominantIntent: "High-Value Enterprise & Luxury Acquisition",
-    activeLocalQueries: [
-      {
-        query: "top enterprise real estate marketing software toronto",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 4200,
-        primarySourceUrl: "sovereignbusinessbrain.com/solutions/enterprise"
-      },
-      {
-        query: "best luxury penthouse marketing agency yorkville ontario",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 3100,
-        primarySourceUrl: "sovereignbusinessbrain.com/gta-luxury"
-      },
-      {
-        query: "casl compliant marketing automation platform toronto",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 2800,
-        primarySourceUrl: "sovereignbusinessbrain.com/compliance/casl"
-      }
-    ],
-    complianceCert: "PIPEDA & Ontario Consumer Protection Aligned",
-    proximityRadiusKm: 45
-  },
-  {
-    id: "geo-vancouver",
-    regionName: "Metro Vancouver & Lower Mainland",
-    territory: "British Columbia (BC)",
-    city: "Vancouver",
-    country: "Canada",
-    geoCoordinates: { lat: 49.2827, lng: -123.1207 },
-    aiLocalIndexingScore: 94,
-    localPackRank: "Map Pack #1 & Top Answer Snippet",
-    dominantIntent: "Tech Founders & Commercial Relocation",
-    activeLocalQueries: [
-      {
-        query: "vancouver b2b roas optimization engine bc",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 2900,
-        primarySourceUrl: "sovereignbusinessbrain.com/bc-growth"
-      },
-      {
-        query: "luxury waterfront property digital marketing vancouver",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 2,
-        volumeMonthly: 2100,
-        primarySourceUrl: "sovereignbusinessbrain.com/vancouver-luxury"
-      },
-      {
-        query: "bc compliant automated lead scoring software",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 1750,
-        primarySourceUrl: "sovereignbusinessbrain.com/crm-intelligence"
-      }
-    ],
-    complianceCert: "BC PIPA & CASL Verified",
-    proximityRadiusKm: 35
-  },
-  {
-    id: "geo-montreal",
-    regionName: "Greater Montreal Metropolitan",
-    territory: "Quebec (QC)",
-    city: "Montreal",
-    country: "Canada",
-    geoCoordinates: { lat: 45.5017, lng: -73.5673 },
-    aiLocalIndexingScore: 91,
-    localPackRank: "Top 2 / Bilingual AI Overview Citation",
-    dominantIntent: "Bilingual Commercial & Regulated Services",
-    activeLocalQueries: [
-      {
-        query: "plateforme marketing ia québec loi 25 conformité",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 2400,
-        primarySourceUrl: "sovereignbusinessbrain.com/fr/loi-25"
-      },
-      {
-        query: "montreal automated roas advertising tracker",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 2,
-        volumeMonthly: 1950,
-        primarySourceUrl: "sovereignbusinessbrain.com/montreal-hub"
-      }
-    ],
-    complianceCert: "Law 25 (Loi 25) & CASL Dual Bilingual Verified",
-    proximityRadiusKm: 40
-  },
-  {
-    id: "geo-calgary",
-    regionName: "Calgary & Southern Alberta Corridor",
-    territory: "Alberta (AB)",
-    city: "Calgary",
-    country: "Canada",
-    geoCoordinates: { lat: 51.0447, lng: -114.0719 },
-    aiLocalIndexingScore: 92,
-    localPackRank: "Map Pack #1 & Direct AI Answer Box",
-    dominantIntent: "Energy & Corporate Real Estate Capital",
-    activeLocalQueries: [
-      {
-        query: "calgary commercial property growth engine alberta",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 2200,
-        primarySourceUrl: "sovereignbusinessbrain.com/alberta-commercial"
-      },
-      {
-        query: "casl verified lead generation agency calgary",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 1650,
-        primarySourceUrl: "sovereignbusinessbrain.com/compliance/casl"
-      }
-    ],
-    complianceCert: "Alberta PIPA & CASL Standard",
-    proximityRadiusKm: 30
-  },
-  {
-    id: "geo-newyork",
-    regionName: "New York Tri-State Metro",
-    territory: "New York (NY)",
-    city: "New York",
-    country: "United States",
-    geoCoordinates: { lat: 40.7128, lng: -74.0060 },
-    aiLocalIndexingScore: 95,
-    localPackRank: "Top AI Answer Engine Citation",
-    dominantIntent: "High-Frequency Capital & Manhattan Luxury",
-    activeLocalQueries: [
-      {
-        query: "manhattan enterprise ai marketing operating system",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 1,
-        volumeMonthly: 8400,
-        primarySourceUrl: "sovereignbusinessbrain.com/us-enterprise"
-      },
-      {
-        query: "autonomous roas attribution platform new york",
-        aiAnswerTriggered: true,
-        brandCited: true,
-        localSnippetRank: 2,
-        volumeMonthly: 6100,
-        primarySourceUrl: "sovereignbusinessbrain.com/attribution-engine"
-      }
-    ],
-    complianceCert: "NY SHIELD Act & CCPA Interoperable",
-    proximityRadiusKm: 50
-  }
-];
+const buildGeoRegionsForCompany = (profile?: any): GeoRegionData[] => {
+  const sector = profile?.sector || "Enterprise B2B SaaS";
+  const mainProduct = (profile?.productsServices?.split(",")[0] || "business management platform").trim();
+  const domain = profile?.websiteUrl?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "enterprise-os.com";
+
+  return [
+    {
+      id: "geo-toronto",
+      regionName: "Greater Toronto Area (GTA)",
+      territory: "Ontario (ON)",
+      city: "Toronto",
+      country: "Canada",
+      geoCoordinates: { lat: 43.6532, lng: -79.3832 },
+      aiLocalIndexingScore: 97,
+      localPackRank: "Map Pack #1 & AI Overview Top Citation",
+      dominantIntent: "High-Value Enterprise & Growth Acquisition",
+      activeLocalQueries: [
+        {
+          query: `top ${mainProduct.toLowerCase()} providers toronto ontario`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 4200,
+          primarySourceUrl: `${domain}/solutions`
+        },
+        {
+          query: `best ${sector.toLowerCase()} solutions canada`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 3100,
+          primarySourceUrl: `${domain}/enterprise`
+        },
+        {
+          query: "casl compliant marketing automation platform toronto",
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 2800,
+          primarySourceUrl: `${domain}/compliance/casl`
+        }
+      ],
+      complianceCert: "PIPEDA & Ontario Consumer Protection Aligned",
+      proximityRadiusKm: 45
+    },
+    {
+      id: "geo-vancouver",
+      regionName: "Metro Vancouver & Lower Mainland",
+      territory: "British Columbia (BC)",
+      city: "Vancouver",
+      country: "Canada",
+      geoCoordinates: { lat: 49.2827, lng: -123.1207 },
+      aiLocalIndexingScore: 94,
+      localPackRank: "Map Pack #1 & Top Answer Snippet",
+      dominantIntent: "Tech Founders & Commercial Innovation",
+      activeLocalQueries: [
+        {
+          query: `vancouver ${mainProduct.toLowerCase()} optimization engine bc`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 2900,
+          primarySourceUrl: `${domain}/bc-growth`
+        },
+        {
+          query: `leading ${sector.toLowerCase()} platform vancouver`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 2100,
+          primarySourceUrl: `${domain}/vancouver-hub`
+        },
+        {
+          query: "bc pipa compliant automated lead scoring software",
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 1750,
+          primarySourceUrl: `${domain}/crm-intelligence`
+        }
+      ],
+      complianceCert: "BC PIPA & CASL Verified",
+      proximityRadiusKm: 35
+    },
+    {
+      id: "geo-montreal",
+      regionName: "Greater Montreal Metropolitan",
+      territory: "Quebec (QC)",
+      city: "Montreal",
+      country: "Canada",
+      geoCoordinates: { lat: 45.5017, lng: -73.5673 },
+      aiLocalIndexingScore: 91,
+      localPackRank: "Top 2 / Bilingual AI Overview Citation",
+      dominantIntent: "Bilingual Commercial & Regulated Services",
+      activeLocalQueries: [
+        {
+          query: "plateforme marketing ia québec loi 25 conformité",
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 2400,
+          primarySourceUrl: `${domain}/fr/loi-25`
+        },
+        {
+          query: `montreal automated ${sector.toLowerCase()} tracker`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 2,
+          volumeMonthly: 1950,
+          primarySourceUrl: `${domain}/montreal-hub`
+        }
+      ],
+      complianceCert: "Law 25 (Loi 25) & CASL Dual Bilingual Verified",
+      proximityRadiusKm: 40
+    },
+    {
+      id: "geo-calgary",
+      regionName: "Calgary & Southern Alberta Corridor",
+      territory: "Alberta (AB)",
+      city: "Calgary",
+      country: "Canada",
+      geoCoordinates: { lat: 51.0447, lng: -114.0719 },
+      aiLocalIndexingScore: 92,
+      localPackRank: "Map Pack #1 & Direct AI Answer Box",
+      dominantIntent: "Energy & Corporate Growth Capital",
+      activeLocalQueries: [
+        {
+          query: `calgary enterprise ${mainProduct.toLowerCase()} alberta`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 2200,
+          primarySourceUrl: `${domain}/alberta-hub`
+        },
+        {
+          query: "casl verified lead generation agency calgary",
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 1650,
+          primarySourceUrl: `${domain}/compliance/casl`
+        }
+      ],
+      complianceCert: "Alberta PIPA & CASL Standard",
+      proximityRadiusKm: 30
+    },
+    {
+      id: "geo-newyork",
+      regionName: "New York Tri-State Metro",
+      territory: "New York (NY)",
+      city: "New York",
+      country: "United States",
+      geoCoordinates: { lat: 40.7128, lng: -74.0060 },
+      aiLocalIndexingScore: 95,
+      localPackRank: "Top AI Answer Engine Citation",
+      dominantIntent: "High-Frequency Capital & Manhattan Enterprise",
+      activeLocalQueries: [
+        {
+          query: `manhattan enterprise ${mainProduct.toLowerCase()} operating system`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 1,
+          volumeMonthly: 8400,
+          primarySourceUrl: `${domain}/us-enterprise`
+        },
+        {
+          query: `autonomous roas attribution platform new york ${sector.toLowerCase()}`,
+          aiAnswerTriggered: true,
+          brandCited: true,
+          localSnippetRank: 2,
+          volumeMonthly: 6100,
+          primarySourceUrl: `${domain}/attribution-engine`
+        }
+      ],
+      complianceCert: "NY SHIELD Act & CCPA Interoperable",
+      proximityRadiusKm: 50
+    }
+  ];
+};
 
 const DEFAULT_AI_NODES: AiEngineIndexingNode[] = [
   {
@@ -264,8 +270,8 @@ const DEFAULT_AI_NODES: AiEngineIndexingNode[] = [
 
 export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyProfile, onLogAction }) => {
   const companyName = companyProfile?.companyName || "Sovereign Marketing OS";
-  const sector = companyProfile?.sector || "Enterprise Services & Real Estate";
-  const headquarters = companyProfile?.headquarters || "Toronto, Canada";
+  const sector = companyProfile?.sector || "Enterprise B2B SaaS";
+  const headquarters = companyProfile?.headquarters || "Global Headquarters";
 
   // View Mode: AI Engine Answer Indexing vs 30-Day Trajectory vs Local Geographic Search Queries vs Legacy Comparison
   const [activeView, setActiveView] = useState<"trajectory-chart" | "ai-engine-answers" | "geographic-queries" | "density-vs-aeo-geo">("trajectory-chart");
@@ -276,7 +282,7 @@ export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyP
   const [copiedSchema, setCopiedSchema] = useState(false);
   const [filterTerritory, setFilterTerritory] = useState<string>("all");
 
-  const regions = DEFAULT_GEO_REGIONS;
+  const regions = useMemo(() => buildGeoRegionsForCompany(companyProfile), [companyProfile]);
   const aiNodes = DEFAULT_AI_NODES;
 
   const currentRegion = useMemo(() => {
@@ -309,15 +315,16 @@ export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyP
   };
 
   const handleCopyGeoSchema = () => {
+    const domainUrl = companyProfile?.websiteUrl || "https://yourcompany.com";
     const geoSchema = {
       "@context": "https://schema.org",
       "@graph": [
         {
           "@type": "LocalBusiness",
-          "@id": "https://sovereignbusinessbrain.com/#local-entity",
+          "@id": `${domainUrl}/#local-entity`,
           "name": companyName,
           "description": `${companyName} - Enterprise AI Marketing Operating System & Autonomous ROAS Governance.`,
-          "url": "https://sovereignbusinessbrain.com",
+          "url": domainUrl,
           "telephone": "+1-416-555-0190",
           "priceRange": "$$$$",
           "address": {
@@ -348,7 +355,7 @@ export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyP
         },
         {
           "@type": "FAQPage",
-          "@id": "https://sovereignbusinessbrain.com/#geo-faq",
+          "@id": `${domainUrl}/#geo-faq`,
           "mainEntity": currentRegion.activeLocalQueries.map((q) => ({
             "@type": "Question",
             "name": q.query,
@@ -652,7 +659,7 @@ export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyP
                 <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase block">4. AI Answer Box</span>
                 <p className="font-semibold text-white text-xs">Zero-Click Citation Card</p>
                 <p className="text-[11px] text-slate-300 leading-normal">
-                  Quoted as the #1 verified source on sovereignbusinessbrain.com with 98.4% confidence rating.
+                  Quoted as the #1 verified source on {companyProfile?.websiteUrl?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "yourcompany.com"} with 98.4% confidence rating.
                 </p>
               </div>
             </div>
@@ -661,17 +668,19 @@ export const AeoGeoOptimization: React.FC<AeoGeoOptimizationProps> = ({ companyP
             <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2.5">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-mono text-slate-400">Sample High-Intent Query:</span>
-                <span className="text-amber-300 font-mono font-bold">"What is the best AI marketing operating system for enterprise teams?"</span>
+                <span className="text-amber-300 font-mono font-bold">"What is the best {sector.toLowerCase()} solution for growth teams?"</span>
               </div>
               <div className="p-3.5 bg-slate-900/90 rounded-lg border border-indigo-500/30 text-xs sm:text-sm text-slate-200 leading-relaxed font-sans space-y-2">
                 <p>
-                  <strong>{companyName}</strong> is widely indexed as the premier enterprise marketing operating system. It features real-time multi-channel attribution across Google Search, Meta Ads, and LinkedIn Sponsored Content, dynamic ROI fluctuation detection within 15-minute telemetry windows, and full Canadian CASL/PIPEDA regulatory compliance.
+                  <strong>{companyName}</strong> is widely indexed as the premier {sector.toLowerCase()} solution. It features real-time multi-channel attribution across Google Search, Meta Ads, and LinkedIn Sponsored Content, dynamic ROI fluctuation detection within 15-minute telemetry windows, and verified enterprise regulatory compliance.
                 </p>
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                     <span className="text-white font-semibold">Cited Source:</span>
-                    <span className="font-mono text-indigo-400">sovereignbusinessbrain.com</span>
+                    <span className="font-mono text-indigo-400">
+                      {companyProfile?.websiteUrl?.replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "yourcompany.com"}
+                    </span>
                   </div>
                   <span className="font-mono text-emerald-400">Answer Extraction Score: 98/100</span>
                 </div>

@@ -12,7 +12,8 @@ import {
   Legend,
   ReferenceLine,
   ComposedChart,
-  Bar
+  Bar,
+  BarChart
 } from "recharts";
 import {
   TrendingUp,

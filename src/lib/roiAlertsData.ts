@@ -50,9 +50,9 @@ export const initialRoiAlerts: RoiAlert[] = [
     thresholdTriggered: 20,
     timestamp: "Yesterday, 04:45 PM",
     status: "acknowledged",
-    recommendedAction: "Scale winning commercial walkthrough reels budget by +25% before viral algorithmic decay.",
+    recommendedAction: "Scale winning product interactive walkthrough video budget by +25% before algorithmic decay.",
     sourceMetric: "Meta Reels Campaign #02",
-    details: "Organic sharing on Toronto luxury penthouse tour creative triggered an unanticipated +30.4% surge in high-value inbound leads, outpacing modeled projections.",
+    details: "Organic engagement on SaaS interactive product tour walkthrough creative triggered an unanticipated +30.4% surge in high-value inbound leads, outpacing modeled projections.",
     attributedImpactCad: 8400
   }
 ];

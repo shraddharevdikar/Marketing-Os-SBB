@@ -45,16 +45,16 @@ const defaultObjectives: StrategicObjective[] = [
   {
     id: "OBJ-101",
     campaignId: "REQ-2026-001",
-    campaignTitle: "Toronto Luxury Condo Meta Video Ads",
+    campaignTitle: "Enterprise SaaS Multi-Channel Video Ads",
     category: "Lead Gen",
-    goalName: "Generate Qualified GTA Luxury Leads",
+    goalName: "Generate Qualified B2B Enterprise Leads",
     currentValue: 185,
     targetValue: 250,
     unit: "Qualified Leads",
     deadline: "Jul 31, 2026",
     status: "On Track",
     copilot: "Victoria VP Hastings",
-    notes: "Meta Reel CTR pacing at 3.4%. Lead form completion up 18% MoM."
+    notes: "Interactive demo walkthrough video CTR pacing at 3.4%. Lead form completion up 18% MoM."
   },
   {
     id: "OBJ-102",
@@ -384,6 +384,7 @@ export const StrategicObjectives: React.FC<StrategicObjectivesProps> = ({
                   <span className="text-xs font-bold text-slate-700">Update Current Progress Value:</span>
                   <input
                     type="number"
+                    placeholder="0"
                     value={editValueInput}
                     onChange={(e) => setEditValueInput(parseFloat(e.target.value) || 0)}
                     className="w-28 bg-slate-50 border border-slate-300 text-xs px-2.5 py-1 rounded text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -438,7 +439,7 @@ export const StrategicObjectives: React.FC<StrategicObjectivesProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">Associated Campaign Title</label>
                 <input
                   type="text"
-                  placeholder="e.g., GTA Penthouse Meta Video Campaign"
+                  placeholder="e.g., Q3 High-Growth Omnichannel Blitz"
                   value={newCampaignTitle}
                   onChange={(e) => setNewCampaignTitle(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -450,7 +451,7 @@ export const StrategicObjectives: React.FC<StrategicObjectivesProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Generate 300 Qualified Inbound Buyers"
+                  placeholder="e.g., Generate 300 Qualified Inbound Clients"
                   value={newGoalName}
                   onChange={(e) => setNewGoalName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
@@ -490,6 +491,7 @@ export const StrategicObjectives: React.FC<StrategicObjectivesProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">Current Progress Value</label>
                   <input
                     type="number"
+                    placeholder="0"
                     value={newCurrentValue}
                     onChange={(e) => setNewCurrentValue(parseFloat(e.target.value) || 0)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -501,6 +503,7 @@ export const StrategicObjectives: React.FC<StrategicObjectivesProps> = ({
                   <input
                     type="number"
                     required
+                    placeholder="100"
                     value={newTargetValue}
                     onChange={(e) => setNewTargetValue(parseFloat(e.target.value) || 1)}
                     className="w-full bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-lg text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"

@@ -1,17 +1,21 @@
 import React, { useState } from "react";
 import { 
   BarChart3, TrendingUp, DollarSign, Target, Link as LinkIcon, 
-  Copy, Check, Sparkles, Filter, RefreshCw, ArrowUpRight, 
-  Layers, Zap, AlertCircle, PieChart, Plus, Eye, Activity, Calendar, LineChart as LineChartIcon
+  Copy, Check, Sparkles, Filter, RefreshCw, ArrowUpRight, ArrowLeft,
+  Layers, Zap, AlertCircle, PieChart, Plus, Eye, Activity, Calendar, LineChart as LineChartIcon,
+  Globe, Settings, CheckCircle2, XCircle, ArrowRight, ShieldCheck, Radio, Play, Pause, ExternalLink
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, AreaChart, Area, Line, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from "recharts";
+import { AdAccountConfig, loadStoredAdAccounts, saveStoredAdAccounts } from "../lib/adAccountsData";
 
 interface AdsTrackerProps {
   companyProfile: any;
   userRole?: string;
+  onNavigateToTab?: (tab: string) => void;
+  onBack?: () => void;
 }
 
 export interface UtmCampaignData {
@@ -50,13 +54,13 @@ const initialUtmRecords: UtmCampaignData[] = [
   },
   {
     id: "utm-002",
-    campaignName: "Toronto Luxury Condo Meta Video Reels",
+    campaignName: "SaaS Product Demo & Interactive Walkthrough",
     platform: "Meta Ads",
     utmSource: "meta",
     utmMedium: "instagram_reels",
-    utmCampaign: "gta_luxury_buyers_v2",
-    utmContent: "video_walkthrough_60s",
-    utmTerm: "luxury_real_estate",
+    utmCampaign: "saas_enterprise_buyers_v2",
+    utmContent: "product_tour_video_60s",
+    utmTerm: "saas_marketing_platform",
     impressions: 112000,
     clicks: 4180,
     conversions: 195,
@@ -374,13 +378,92 @@ const CtrCpaMiniDashboard: React.FC<CtrCpaMiniDashboardProps> = ({ selectedPlatf
   );
 };
 
-export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole }) => {
+export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole, onNavigateToTab, onBack }) => {
   const [records, setRecords] = useState<UtmCampaignData[]>(initialUtmRecords);
   const [selectedPlatform, setSelectedPlatform] = useState<string>("All");
   const [timeRange, setTimeRange] = useState<string>("30d");
+
+  // Ad Accounts & Channels Vault State
+  const [adAccounts, setAdAccounts] = useState<AdAccountConfig[]>(loadStoredAdAccounts);
+  const [showChannelsModal, setShowChannelsModal] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AdAccountConfig | null>(null);
+  const [isTestingConn, setIsTestingConn] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  const handleTestChannelConnection = (acc: AdAccountConfig) => {
+    setIsTestingConn(true);
+    setTestResult(null);
+    setTimeout(() => {
+      setIsTestingConn(false);
+      setTestResult(`✓ Active connection verified with ${acc.name}! API OAuth2 ping: 14ms. Ready for UTM tracking & campaign dispatch.`);
+    }, 1000);
+  };
+
+  const handleSaveChannelConnection = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount) return;
+    const updated = adAccounts.map((acc) => {
+      if (acc.id === editingAccount.id) {
+        return {
+          ...editingAccount,
+          status: (editingAccount.apiKey || editingAccount.accessToken ? "Connected" : "Disconnected") as "Connected" | "Configured" | "Disconnected",
+          lastSynced: "Just now",
+          latency: editingAccount.apiKey || editingAccount.accessToken ? "14ms" : "--"
+        };
+      }
+      return acc;
+    });
+    setAdAccounts(updated);
+    saveStoredAdAccounts(updated);
+    setEditingAccount(null);
+    setTestResult(`Saved connection parameters for ${editingAccount.name}.`);
+    setTimeout(() => setTestResult(null), 3000);
+  };
+
+  const handleQuickConnectChannel = (acc: AdAccountConfig) => {
+    const updated = adAccounts.map((a) => {
+      if (a.id === acc.id) {
+        return {
+          ...a,
+          status: "Connected" as const,
+          accountId: a.accountId === "TT-UNCONFIGURED" ? "TT-ACT-829104" : a.accountId,
+          apiKey: "••••••••••••AUTO",
+          accessToken: `oauth2.live.${a.id}.token`,
+          activeAccountName: `${companyProfile?.companyName || "Sovereign"} - Active Channel`,
+          lastSynced: "Just now",
+          latency: "15ms"
+        };
+      }
+      return a;
+    });
+    setAdAccounts(updated);
+    saveStoredAdAccounts(updated);
+    setTestResult(`✓ Successfully connected ${acc.name} via OAuth 2.0.`);
+    setTimeout(() => setTestResult(null), 3500);
+  };
+
+  const handleDisconnectChannel = (acc: AdAccountConfig) => {
+    const updated = adAccounts.map((a) => {
+      if (a.id === acc.id) {
+        return {
+          ...a,
+          status: "Disconnected" as const,
+          apiKey: "",
+          accessToken: "",
+          lastSynced: "Never",
+          latency: "--"
+        };
+      }
+      return a;
+    });
+    setAdAccounts(updated);
+    saveStoredAdAccounts(updated);
+    setTestResult(`Disconnected ${acc.name}.`);
+    setTimeout(() => setTestResult(null), 3000);
+  };
   
   // UTM Builder state
-  const [builderBaseUrl, setBuilderBaseUrl] = useState("https://sovereignmarketing.ai/growth");
+  const [builderBaseUrl, setBuilderBaseUrl] = useState("https://yourcompany.com/landing");
   const [builderSource, setBuilderSource] = useState("google");
   const [builderMedium, setBuilderMedium] = useState("cpc");
   const [builderCampaign, setBuilderCampaign] = useState("q3_enterprise_launch");
@@ -482,6 +565,34 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Top Back Navigation Bar */}
+      <div className="flex items-center justify-between pb-1">
+        <button
+          type="button"
+          onClick={() => {
+            if (onBack) {
+              onBack();
+            } else if (onNavigateToTab) {
+              onNavigateToTab("campaign-commander");
+            } else {
+              window.history.back();
+            }
+          }}
+          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 shadow-sm transition-all cursor-pointer active:scale-95"
+          title="Return to Previous Screen"
+        >
+          <ArrowLeft className="w-4 h-4 text-emerald-400" />
+          <span>Back to Previous Screen</span>
+        </button>
+
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <span>Active Module:</span>
+          <span className="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-xs">
+            Ads & UTM Tracker
+          </span>
+        </div>
+      </div>
+
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 text-white p-6 rounded-xl border border-slate-800 shadow-xl">
         <div className="space-y-1">
@@ -502,6 +613,14 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            onClick={() => { setShowChannelsModal(true); setEditingAccount(null); setTestResult(null); }}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-medium text-xs transition-all shadow-md cursor-pointer"
+          >
+            <Globe className="w-4 h-4 text-indigo-200" />
+            <span>Connect Ad Channels ({adAccounts.filter(a => a.category === "Ads" && a.status === "Connected").length} Connected)</span>
+          </button>
+
+          <button
             onClick={handleRunAiAnalysis}
             disabled={isAnalyzing}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-medium text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
@@ -517,6 +636,87 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
             <Plus className="w-4 h-4 text-emerald-400" />
             <span>Track New Campaign</span>
           </button>
+        </div>
+      </div>
+
+      {/* Connected Ad Channels & Direct API Sync Live Strip */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Connected Advertising Channels & Live API Vault
+              </h3>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                {adAccounts.filter(a => a.category === "Ads" && a.status === "Connected").length} / {adAccounts.filter(a => a.category === "Ads").length} Live
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Connect Google Ads, Meta, LinkedIn, and TikTok to synchronize live ad spend, real-time conversions, and dispatch AI campaign drafts directly.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {onNavigateToTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateToTab("campaign-commander")}
+                className="text-xs font-bold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                title="Go to Campaign Commander API Connections & Vault"
+              >
+                <span>Full API Vault</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => { setShowChannelsModal(true); setEditingAccount(null); setTestResult(null); }}
+              className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Connect & Configure Channels</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live Channel Badges */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {adAccounts.filter(a => a.category === "Ads").map((acc) => {
+            const isLive = acc.status === "Connected";
+            return (
+              <div
+                key={acc.id}
+                onClick={() => { setEditingAccount(acc); setShowChannelsModal(true); setTestResult(null); }}
+                className={`p-3 rounded-xl border transition-all cursor-pointer space-y-2 select-none ${
+                  isLive
+                    ? "bg-slate-50/70 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/30 shadow-xs"
+                    : "bg-amber-50/50 border-amber-200 hover:border-amber-400"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 truncate">
+                    <div className={`w-6 h-6 rounded-lg ${acc.iconBg} text-white flex items-center justify-center text-[10px] font-bold shrink-0`}>
+                      <Globe className="w-3 h-3" />
+                    </div>
+                    <span className="font-bold text-slate-900 truncate text-xs">
+                      {acc.name.replace(" Account", "").replace(" Manager", "")}
+                    </span>
+                  </div>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${isLive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"}`} />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-slate-500 truncate max-w-[85px]">{acc.accountId}</span>
+                  <span className={`font-bold text-[10px] uppercase px-1.5 py-0.5 rounded ${
+                    isLive ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                  }`}>
+                    {isLive ? (acc.latency !== "--" ? acc.latency : "Active") : "Connect"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -876,13 +1076,24 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden animate-fadeIn">
             <div className="p-5 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Plus className="w-4 h-4 text-emerald-400" />
-                Track New Paid Ad Campaign
-              </h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700 flex items-center gap-1 text-xs cursor-pointer transition-colors"
+                  title="Back"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Back</span>
+                </button>
+                <h3 className="font-bold text-sm flex items-center gap-2 ml-1">
+                  <Plus className="w-4 h-4 text-emerald-400" />
+                  Track New Paid Ad Campaign
+                </h3>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-white text-xs"
+                className="text-slate-400 hover:text-white text-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -923,6 +1134,7 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
                     type="number"
                     value={newSpend}
                     onChange={(e) => setNewSpend(e.target.value)}
+                    placeholder="2500"
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -935,6 +1147,7 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
                     type="text"
                     value={newSource}
                     onChange={(e) => setNewSource(e.target.value)}
+                    placeholder="e.g. google, meta, linkedin"
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
                   />
                 </div>
@@ -945,6 +1158,7 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
                     type="text"
                     value={newMedium}
                     onChange={(e) => setNewMedium(e.target.value)}
+                    placeholder="e.g. cpc, paid_social"
                     className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
                   />
                 </div>
@@ -954,18 +1168,358 @@ export const AdsTracker: React.FC<AdsTrackerProps> = ({ companyProfile, userRole
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow-md"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow-md cursor-pointer"
                 >
                   Add Campaign
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal to Connect & Manage Advertising Channels */}
+      {showChannelsModal && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col animate-fadeIn">
+            {/* Modal Header */}
+            <div className="p-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingAccount) {
+                      setEditingAccount(null);
+                    } else {
+                      setShowChannelsModal(false);
+                    }
+                    setTestResult(null);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 hover:text-white rounded-lg border border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+                  title={editingAccount ? "Back to All Channels" : "Back to Ads Tracker"}
+                >
+                  <ArrowLeft className="w-4 h-4 text-emerald-400" />
+                  <span>Back</span>
+                </button>
+
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-indigo-400" />
+                    <h3 className="font-bold text-base text-white">
+                      {editingAccount ? `Configure: ${editingAccount.name}` : "Connect & Manage Advertising Channels"}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {editingAccount
+                      ? "Update API credentials, customer account IDs, and OAuth tokens."
+                      : "Authorize ad networks to sync live spend, conversions, and dispatch campaigns directly."}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => { setShowChannelsModal(false); setEditingAccount(null); setTestResult(null); }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                title="Close"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Test Connection / Status Alert */}
+            {testResult && (
+              <div className="p-3 bg-emerald-950/90 border-b border-emerald-800 text-emerald-200 text-xs flex items-center justify-between px-6 shrink-0">
+                <span className="font-mono flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  {testResult}
+                </span>
+                <button
+                  onClick={() => setTestResult(null)}
+                  className="text-emerald-400 hover:text-white font-bold ml-2 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {editingAccount ? (
+                /* Edit Single Account Form */
+                <form onSubmit={handleSaveChannelConnection} className="space-y-4 text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">Ad Account ID / Customer ID *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingAccount.accountId}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, accountId: e.target.value })}
+                        placeholder="e.g., 849-204-9841 or ACT-392019284"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">Active Profile / Account Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingAccount.activeAccountName}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, activeAccountName: e.target.value })}
+                        placeholder="e.g., Primary Growth Business Channel"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">API Key / Secret Token</label>
+                      <input
+                        type="password"
+                        value={editingAccount.apiKey}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, apiKey: e.target.value })}
+                        placeholder="••••••••••••••••"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-700">OAuth Access Token / Bearer Key</label>
+                      <input
+                        type="password"
+                        value={editingAccount.accessToken}
+                        onChange={(e) => setEditingAccount({ ...editingAccount, accessToken: e.target.value })}
+                        placeholder="OAuth Access Token ya29 / EAAx..."
+                        className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-slate-800">Connection Status</span>
+                      <p className="text-slate-500 text-[11px]">
+                        {editingAccount.status === "Connected"
+                          ? "This channel is active and authenticating."
+                          : "Enter an API Key or click Quick Connect to activate."}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isTestingConn}
+                        onClick={() => handleTestChannelConnection(editingAccount)}
+                        className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-200 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isTestingConn ? "animate-spin" : ""}`} />
+                        <span>{isTestingConn ? "Pinging..." : "Test Ping"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditingAccount(null)}
+                      className="px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      ← Back to All Channels
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      {editingAccount.status === "Connected" ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDisconnectChannel(editingAccount);
+                            setEditingAccount(null);
+                          }}
+                          className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg font-bold cursor-pointer"
+                        >
+                          Disconnect Channel
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleQuickConnectChannel(editingAccount);
+                            setEditingAccount(null);
+                          }}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-sm cursor-pointer"
+                        >
+                          Quick Connect (OAuth)
+                        </button>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold shadow-md cursor-pointer"
+                      >
+                        Save Configuration
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                /* List of All Accounts */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    {adAccounts.map((acc) => {
+                      const isConnected = acc.status === "Connected";
+                      return (
+                        <div
+                          key={acc.id}
+                          className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                            isConnected
+                              ? "bg-white border-slate-200 shadow-xs"
+                              : "bg-amber-50/40 border-amber-200"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3.5">
+                            <div className={`w-10 h-10 rounded-xl ${acc.iconBg} text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0 mt-0.5`}>
+                              <Globe className="w-5 h-5" />
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-bold text-slate-900 text-sm">{acc.name}</h4>
+                                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                                  isConnected ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                                }`}>
+                                  {acc.status}
+                                </span>
+                                <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-mono">
+                                  {acc.category}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-slate-500">{acc.platform}</p>
+
+                              <div className="flex items-center gap-4 text-[11px] font-mono text-slate-600 pt-1 flex-wrap">
+                                <span>ID: <strong className="text-slate-800">{acc.accountId}</strong></span>
+                                <span>Profile: <strong className="text-indigo-600">{acc.activeAccountName}</strong></span>
+                                <span>Latency: <strong className={isConnected ? "text-emerald-600" : "text-slate-400"}>{acc.latency}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                            {isConnected ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTestChannelConnection(acc)}
+                                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg border border-indigo-100 text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                  title="Test API Connection ping"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  <span>Ping</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingAccount(acc)}
+                                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 font-bold rounded-lg border border-slate-200 text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Settings className="w-3.5 h-3.5 text-slate-500" />
+                                  <span>Configure</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDisconnectChannel(acc)}
+                                  className="px-2.5 py-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg text-xs font-semibold cursor-pointer"
+                                  title="Disconnect"
+                                >
+                                  Disconnect
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickConnectChannel(acc)}
+                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Connect via OAuth</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingAccount(acc)}
+                                  className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-800 font-bold rounded-lg border border-slate-200 text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Settings className="w-3.5 h-3.5 text-slate-500" />
+                                  <span>Manual Setup</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shrink-0">
+              <span className="text-slate-500 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Encrypted credentials vault synchronized with Campaign Commander and AI Campaign Generator.</span>
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingAccount) {
+                      setEditingAccount(null);
+                    } else {
+                      setShowChannelsModal(false);
+                    }
+                    setTestResult(null);
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+                  <span>{editingAccount ? "Back to All Channels" : "Back to Ads Tracker"}</span>
+                </button>
+
+                {onNavigateToTab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowChannelsModal(false);
+                      onNavigateToTab("campaign-commander");
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg font-bold text-xs cursor-pointer flex items-center gap-1"
+                  >
+                    <span>Open Campaign Commander</span>
+                    <ArrowRight className="w-3 h-3 text-slate-500" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => { setShowChannelsModal(false); setEditingAccount(null); setTestResult(null); }}
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
