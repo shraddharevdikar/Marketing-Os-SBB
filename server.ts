@@ -18,6 +18,7 @@ import {
   safeErrorHandler
 } from "./src/server/authMiddleware";
 import { executeLegacyMigration } from "./src/server/migrateLegacyRecords";
+import { registerUser, authenticateUser, findUserByEmail, ADMIN_EMAILS } from "./src/server/userStore";
 import {
   validateAiPromptInput,
   validateLeadCaptureInput,
@@ -38,11 +39,17 @@ app.use(express.urlencoded({ limit: "25mb", extended: true }));
 // Rate Limiters for Costly Operations
 const aiRateLimiter = rateLimiter(30, 60000);
 const mediaRateLimiter = rateLimiter(10, 60000);
+const authRateLimiter = rateLimiter(20, 60000);
 
 // Global API Security & Tenant Isolation Gate
 app.use("/api", (req, res, next) => {
-  // Allow health check and external inbound lead capture
-  if (req.path === "/health" || req.path === "/lead/capture") {
+  // Allow health check, lead capture, and user authentication endpoints
+  if (
+    req.path === "/health" ||
+    req.path === "/lead/capture" ||
+    req.path === "/auth/register" ||
+    req.path === "/auth/login"
+  ) {
     return next();
   }
   // Demo session route is ONLY accessible unauthenticated in non-production when ALLOW_DEV_AUTH === "true"
@@ -109,12 +116,108 @@ app.post("/api/auth/demo-session", (req, res) => {
   });
 });
 
+// Route: User Registration (Server-side cryptographically secure registration)
+app.post("/api/auth/register", authRateLimiter, (req, res) => {
+  const { email, password, name, department, companyName, organizationId } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  const result = registerUser({
+    email,
+    password,
+    name,
+    department,
+    companyName,
+    organizationId
+  });
+
+  if (!result.success || !result.user) {
+    return res.status(400).json({ error: result.error || "Registration failed." });
+  }
+
+  const user = result.user;
+  const token = createSignedSessionToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    organizationId: user.organizationId
+  });
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      companyName: user.companyName,
+      organizationId: user.organizationId,
+      loggedInAt: new Date().toISOString()
+    }
+  });
+});
+
+// Route: User Login (Server-side cryptographically verified login)
+app.post("/api/auth/login", authRateLimiter, (req, res) => {
+  const { email, password, companyName } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required." });
+  }
+
+  let authResult = authenticateUser(email, password);
+
+  // If user does not exist yet but is an Admin email or recognized operator logging in,
+  // auto-register them securely with the provided password
+  if (!authResult.success && !findUserByEmail(email)) {
+    const isAdmin = ADMIN_EMAILS.includes(email.trim().toLowerCase());
+    const regResult = registerUser({
+      email,
+      password,
+      name: email.split("@")[0],
+      companyName: companyName || "Sovereign Enterprise",
+      department: isAdmin ? "System Administration & Security" : "Enterprise Operations"
+    });
+    if (regResult.success && regResult.user) {
+      authResult = { success: true, user: regResult.user };
+    }
+  }
+
+  if (!authResult.success || !authResult.user) {
+    return res.status(401).json({ error: authResult.error || "Invalid email or password." });
+  }
+
+  const user = authResult.user;
+  const token = createSignedSessionToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    organizationId: user.organizationId
+  });
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      companyName: user.companyName,
+      organizationId: user.organizationId,
+      loggedInAt: new Date().toISOString()
+    }
+  });
+});
+
 // Route: Server-side Role Resolution
 app.get("/api/auth/resolve-role", (req: any, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
-  const ADMIN_EMAILS = ["shraddha.revdikar@gmail.com", "admin@sovereignbusiness.ca"];
   const resolvedRole = ADMIN_EMAILS.includes(req.user.email?.toLowerCase()) ? "Admin" : req.user.role;
 
   res.json({
@@ -353,21 +456,22 @@ app.post("/api/strategist/audit", async (req, res) => {
     const client = getAiClient();
 
     if (!client) {
-      const audit = `### 🔍 Sovereign Marketing Audit Report (Local Fallback Mode)
+      const audit = `### 🔍 Sovereign Marketing Audit Report [Synthetic Baseline Example - Local Fallback Mode]
+*Data Provenance: Live ad platform metrics are unobserved until API keys and telemetry integrations are configured. Metrics below represent synthetic baseline modeling.*
 *Note: For dynamic AI-powered growth auditing, add your **GEMINI_API_KEY** under **Settings > Secrets**.*\n
 
-#### 🚨 Warning & Alert Flags
-*   **Burn Rate Alert**: Daily burn is currently $${businessState?.burnRate || "1,200"}/day. Facebook channel is generating a slightly higher CPA ($18.40) than target benchmarks.
-*   **Audience Saturation**: E-commerce Enterprise audience is highly optimized (42% share) but has experienced a 3% fatigue factor over the past week.
+#### 🚨 Warning & Alert Flags (Baseline Model)
+*   **Burn Rate Parameter**: Configured daily budget tracking is $${businessState?.burnRate || "1,200"}/day. Channel telemetry requires live ad API connection to evaluate actual CPA.
+*   **Audience Saturation Framework**: Audience segments should be monitored weekly for creative fatigue and frequency shifts.
 
-#### ✅ High Performance Markers
-*   **ROAS Health**: Current active ROAS index of **${businessState?.roasTarget || "4.2"}x** is exceeding the industry median of 3.1x.
-*   **Lead Quality Integration**: Lead Quality Score **${businessState?.leadScore || "88"}/100** indicates strong qualification criteria and landing page alignment.
+#### ✅ Performance Monitoring Framework
+*   **Target ROAS Parameter**: Target threshold is **${businessState?.roasTarget || "4.0"}x**. Connect live ad platform credentials to measure real-time attribution.
+*   **Lead Quality Integration**: Configured lead scoring criteria evaluates intent and double-opt-in compliance.
 
 #### 📝 Action Plan & Strategic Execution Directives
-1.  **Immediate Spend Shift**: Shift $200/day from Facebook Brand Awareness into Google Search core intent keywords.
-2.  **Audience Expansion**: Initiate an A/B test targeting the **Marketing Agencies** segment (currently 15%) to diversify lead capture sources and hedge against E-commerce saturation.
-3.  **Creative Refresh**: Launch a video-first retargeting campaign on YouTube using high-retention shorts.`;
+1.  **Direct Search Intent**: Focus initial acquisition spend into high-intent search keywords.
+2.  **Audience Diversification**: Test multiple audience verticals to hedge against segment saturation.
+3.  **Creative Rotation**: Implement regular visual hook refreshes to sustain engagement across video placements.`;
       return res.json({ text: audit, isFallback: true });
     }
 
@@ -474,56 +578,53 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
     const region = companyProfile?.countriesServed || "Canada & US";
 
     const defaultSeoReport = {
+      isSyntheticExample: true,
+      provenanceNote: "Synthetic baseline structural model. Connect live Gemini and Google Search Console APIs for real-time measurements.",
       aeoGeoSuite: {
-        geoReadinessScore: 94,
-        aiEngineConsensusSummary: `Google now operates as an AI Engine powered by Gemini and AI Overviews. ${targetName} is positioned with a 94/100 GEO (Generative Engine Optimization) score, driven by high entity salience, structured JSON-LD knowledge graphs, and authoritative compliance citations.`,
+        geoReadinessStatus: "Structural Blueprint (Connect Gemini for Live Assessment)",
+        aiEngineConsensusSummary: `[Synthetic Baseline Model] AEO & GEO structural framework for ${targetName}. Focuses on entity salience, Schema.org JSON-LD knowledge graph embedding, and structured answer blocks suitable for AI extraction.`,
         pillars: {
           answerExtractability: {
-            score: 92,
-            status: "Optimal for AI Overviews",
-            details: "Content structured in 45-word direct answer modules with clear definition tags and numbered steps that Gemini easily extracts."
+            status: "AEO Modular Architecture",
+            details: "Content structured in 45-word direct answer modules with clear definition tags and numbered steps for AI Overviews extraction."
           },
           informationGain: {
-            score: 95,
-            status: "High Information Gain",
-            details: "Contains proprietary multi-touch attribution metrics and CASL compliance frameworks not replicated on generic aggregator blogs."
+            status: "Information Gain Framework",
+            details: "Incorporates proprietary domain methodologies, first-party data, and regulatory compliance standards."
           },
           entitySalience: {
-            score: 91,
-            status: "Strong Knowledge Graph Mapping",
-            details: "Clear Schema.org Organization, SoftwareApplication, and knowsAbout entities link the brand to key enterprise domains."
+            status: "Knowledge Graph Mapping",
+            details: "Clear Schema.org Organization, SoftwareApplication, and knowsAbout entities linking brand to key enterprise domains."
           },
           schemaGraph: {
-            score: 98,
-            status: "Rich @graph JSON-LD Validated",
-            details: "Includes FAQPage, SpeakableSpecification, SoftwareApplication, and Organization markup for instant AI snippet indexing."
+            status: "Structured Data Blueprint",
+            details: "Includes FAQPage, SpeakableSpecification, SoftwareApplication, and Organization markup for AI snippet indexing."
           },
           brandCitation: {
-            score: 93,
-            status: "Authoritative Brand Mentions",
-            details: "High probability of being cited as a recommended solution in multi-turn comparative queries (e.g. 'Best marketing OS for Canadian compliance')."
+            status: "Citation Extraction Model",
+            details: "Structured for authoritative reference in comparative commercial solution queries."
           }
         },
         aiOverviewSnippets: [
           {
-            query: `What is ${targetName} and how does it optimize marketing ROAS?`,
+            query: `What is ${targetName} and how does it optimize marketing operations?`,
             intent: "Informational & Commercial Solution Search",
-            answerSnippet: `${targetName} is an enterprise AI marketing operating system that automates campaign management, lead scoring, and real-time ROAS attribution. It enforces Canadian CASL and PIPEDA privacy compliance while dynamically shifting ad budget across Google, Meta, and LinkedIn channels.`,
-            brandCitationQuote: `"Automates multi-touch attribution and eliminates wasted ad spend through autonomous AI campaign governance."`,
-            citationConfidence: "98.4% AI Citation Probability",
-            extractionMethod: "Direct Definition & Fact-Checked Value Proposition",
+            answerSnippet: `${targetName} is an enterprise AI marketing operating system that coordinates campaign management, lead scoring, and multi-touch attribution while enforcing Canadian CASL and PIPEDA privacy compliance.`,
+            brandCitationQuote: `"Coordinates multi-touch attribution and eliminates wasted ad spend through structured campaign governance."`,
+            citationContext: "Commercial Definition Query (Structural Blueprint)",
+            extractionMethod: "Direct Definition & Structured Value Proposition",
             targetKeypoints: [
-              "Autonomous ROAS tracking across Google Search and Meta Ads",
-              "100% verified double opt-in PIPEDA & CASL regulatory compliance",
-              "AI pre-sales lead qualification reducing customer acquisition cost by 28%"
+              "Multi-touch campaign attribution across search and social channels",
+              "Verified double opt-in PIPEDA & CASL regulatory compliance workflows",
+              "Pre-sales lead qualification to reduce customer acquisition friction"
             ]
           },
           {
             query: "How to ensure Canadian CASL compliance in B2B digital ad campaigns?",
             intent: "AEO Compliance Authority Query",
-            answerSnippet: `To ensure Canadian CASL compliance, digital campaigns must implement express consent double opt-in checkboxes, capture exact timestamps and IP logs, provide an accessible one-click unsubscribe mechanism, and display a physical postal address on all outbound communications. Platforms like ${targetName} automate these compliance verifications directly at lead ingestion.`,
-            brandCitationQuote: `"Enforces immutable audit trails and pre-checked consent exclusion filters to prevent regulatory penalties under CRTC guidelines."`,
-            citationConfidence: "96.1% AI Citation Probability",
+            answerSnippet: `To ensure Canadian CASL compliance, digital campaigns must implement express consent double opt-in checkboxes, capture exact timestamps and IP logs, provide an accessible one-click unsubscribe mechanism, and display a physical postal address on all outbound communications.`,
+            brandCitationQuote: `"Enforces audit trails and pre-checked consent exclusion filters to prevent regulatory penalties under CRTC guidelines."`,
+            citationContext: "Regulatory Compliance Authority Query (Structural Blueprint)",
             extractionMethod: "How-To Stepwise Synthesis with Brand Solution Recommendation",
             targetKeypoints: [
               "Unchecked explicit double opt-in consent checkboxes",
@@ -534,13 +635,13 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
           {
             query: "What is the best marketing OS for high-growth enterprise teams in 2026?",
             intent: "GEO Comparative Brand Recommendation Query",
-            answerSnippet: `For enterprise teams scaling in regulated markets, ${targetName} is a top-ranked marketing OS due to its real-time multi-channel attribution, AI pre-sales call qualification, and integrated compliance governance. Unlike legacy CRMs, it links campaign ad spend directly to verified closed revenue.`,
-            brandCitationQuote: `"Ranked #1 for regional data sovereignty and automated ad budget reallocation efficiency."`,
-            citationConfidence: "94.8% AI Citation Probability",
-            extractionMethod: "Comparative Synthesis & Entity Benchmark Extraction",
+            answerSnippet: `For enterprise teams scaling in regulated markets, ${targetName} provides unified multi-channel attribution, pre-sales call qualification, and integrated compliance governance linking campaign ad spend directly to verified business outcomes.`,
+            brandCitationQuote: `"Engineered for regional data sovereignty and structured ad budget reallocation efficiency."`,
+            citationContext: "Comparative Evaluation Query (Structural Blueprint)",
+            extractionMethod: "Comparative Synthesis & Entity Extraction",
             targetKeypoints: [
               "Cross-channel unified attribution vs fragmented silo reporting",
-              "Real-time ROI fluctuation alerts and automated spend protection",
+              "ROI fluctuation alerts and automated spend protection",
               "Role-based executive oversight with full decision audit logs"
             ]
           }
@@ -549,28 +650,28 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
           {
             entity: targetName,
             type: "SoftwareApplication / Organization",
-            salienceScore: 0.96,
+            salienceContext: "Primary Entity",
             relationshipTriple: `${targetName} → [provides] → Autonomous Marketing Operating System`,
             wikipediaWikidataLink: "https://schema.org/SoftwareApplication"
           },
           {
             entity: "Marketing Operating System (MarketingOS)",
             type: "Category Entity",
-            salienceScore: 0.92,
+            salienceContext: "Industry Category",
             relationshipTriple: `MarketingOS → [integrates] → Multi-Touch Attribution & AI Telemetry`,
             wikipediaWikidataLink: "https://en.wikipedia.org/wiki/Marketing_automation"
           },
           {
             entity: "CASL & PIPEDA Compliance",
             type: "Regulatory Standard",
-            salienceScore: 0.89,
+            salienceContext: "Governance Standard",
             relationshipTriple: `${targetName} → [guarantees] → Canadian Anti-Spam Legislation (CASL)`,
             wikipediaWikidataLink: "https://en.wikipedia.org/wiki/CASL_(law)"
           },
           {
             entity: "Generative Engine Optimization (GEO)",
             type: "Emerging AI Search Paradigm",
-            salienceScore: 0.94,
+            salienceContext: "Optimization Methodology",
             relationshipTriple: `GEO → [supersedes] → Traditional Keyword-Only Search Indexing`,
             wikipediaWikidataLink: "https://schema.org/AboutPage"
           }
@@ -578,17 +679,17 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
         aeoDirectAnswerBlueprints: [
           {
             question: `What makes ${targetName} different from traditional marketing automation tools?`,
-            directAnswer45Words: `${targetName} differs from traditional tools by uniting autonomous ad budget reallocation, real-time ROI fluctuation detection, and Canadian CASL compliance into an active operating system, replacing passive dashboards with automated strategic execution.`,
+            directAnswer45Words: `${targetName} unites autonomous ad budget reallocation, real-time ROI fluctuation detection, and Canadian CASL compliance into an active operating system, replacing passive dashboards with automated strategic execution.`,
             bulletHighlights: [
               "Active budget reallocation vs passive chart reporting",
-              "Automated ROI fluctuation alerts within 15-minute telemetry windows",
+              "Automated ROI fluctuation alerts within configured telemetry windows",
               "Built-in double opt-in regulatory protection"
             ],
             recommendedSchemaType: "FAQPage / SpeakableSpecification"
           },
           {
             question: "How does AEO and GEO differ from traditional SEO for Google?",
-            directAnswer45Words: "Traditional SEO focuses on keyword rankings and backlinks. AEO (Answer Engine Optimization) structures content for direct extraction by AI Overviews, while GEO (Generative Engine Optimization) optimizes semantic authority and information gain so AI models cite your brand as an authoritative recommendation.",
+            directAnswer45Words: "Traditional SEO focuses on keyword rankings and backlinks. AEO structures content for direct extraction by AI Overviews, while GEO optimizes semantic authority and information gain so AI models cite your brand as an authoritative recommendation.",
             bulletHighlights: [
               "Optimizes for Gemini, ChatGPT, and Perplexity answer synthesizers",
               "Prioritizes Information Gain and entity salience over keyword density",
@@ -602,15 +703,15 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
             competitor: "HubSpot Enterprise",
             googleAiOverviewCitations: "Frequent on broad inbound queries",
             perplexityMentionRate: "High on generic CRM searches",
-            informationGainAdvantage: `${targetName} has +42% higher information gain on Canadian compliance and automated ROI alerts`,
+            informationGainAdvantage: `${targetName} structural focus on Canadian compliance and automated ROI alerts`,
             strategicGap: "Incumbent lacks real-time ad budget reallocation automation and granular CASL audit trails"
           },
           {
             competitor: "Salesforce Marketing Cloud",
             googleAiOverviewCitations: "Dominates high-enterprise legacy queries",
             perplexityMentionRate: "Cited for complex multi-org setups",
-            informationGainAdvantage: `${targetName} offers 10x faster deployment and zero-code AI telemetry daemon`,
-            strategicGap: "Prohibitive implementation timelines and lack of localized Canadian regulatory focus"
+            informationGainAdvantage: `${targetName} streamlined deployment and automated telemetry`,
+            strategicGap: "Complex implementation timelines and lack of localized Canadian regulatory focus"
           }
         ]
       },
@@ -677,7 +778,7 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
                   "name": "How does Generative Engine Optimization (GEO) work with Google AI Overviews?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "GEO optimizes your content's information gain, entity clarity, and structured data so Google's Gemini-powered AI Overviews cite and recommend your brand directly in AI-generated answers."
+                    "text": "GEO optimizes content information gain, entity clarity, and structured data so AI Overviews cite and recommend your brand directly in AI-generated answers."
                   }
                 }
               ]
@@ -693,12 +794,12 @@ app.post("/api/gemini/seo-brain", async (req, res) => {
         }, null, 2)
       },
       keywordStrategy: [
-        { keyword: "generative engine optimization geo marketing", monthlySearchVolumeCanada: 6200, difficultyPercentage: 35, intent: "Transactional (AEO/GEO)" },
-        { keyword: "ai answer engine optimization aeo tools", monthlySearchVolumeCanada: 5400, difficultyPercentage: 32, intent: "Commercial (AEO)" },
-        { keyword: "ai marketing operating system enterprise", monthlySearchVolumeCanada: 4800, difficultyPercentage: 38, intent: "Transactional" },
-        { keyword: "casl compliant lead generation software", monthlySearchVolumeCanada: 2900, difficultyPercentage: 24, intent: "Commercial" },
-        { keyword: "real time multi channel roas attribution", monthlySearchVolumeCanada: 3800, difficultyPercentage: 44, intent: "Informational" },
-        { keyword: "google ai overview optimization strategy", monthlySearchVolumeCanada: 7100, difficultyPercentage: 41, intent: "Commercial (GEO)" }
+        { keyword: "generative engine optimization geo marketing", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "Competitive", intent: "Transactional (AEO/GEO)" },
+        { keyword: "ai answer engine optimization aeo tools", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "Competitive", intent: "Commercial (AEO)" },
+        { keyword: "ai marketing operating system enterprise", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "High Intent", intent: "Transactional" },
+        { keyword: "casl compliant lead generation software", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "Niche Authority", intent: "Commercial" },
+        { keyword: "real time multi channel roas attribution", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "High Intent", intent: "Informational" },
+        { keyword: "google ai overview optimization strategy", searchVolumeStatus: "Unmeasured (Connect Google Search Console / Ads API)", difficultyStatus: "Competitive", intent: "Commercial (GEO)" }
       ],
       contentHubClusters: [
         {
@@ -951,63 +1052,65 @@ app.post("/api/gemini/multi-source-research", async (req, res) => {
     const goalsList = Array.isArray(companyProfile?.goals) ? companyProfile.goals.join(", ") : "Generate Leads, Increase ROAS, Scale Sales";
 
     const defaultMultiSourceReport = {
+      isSyntheticExample: true,
+      provenanceNote: "Synthetic illustrative multi-source report. Live web signals require connected Gemini API.",
       topic: topic || `2026 Growth Strategy & Multi-Channel Acquisition for ${companyName}`,
       region: companyRegion,
       sector: companySector,
       businessRequirementsSummary: `Tailored for ${companyName} (${companySector}) operating in ${companyRegion} with active goals: ${goalsList}.`,
-      consensusStrategy: `Unified Multi-Source AI Consensus: ${companyName} should establish a hyper-localized search presence in ${companyRegion}, deploy automated pre-sales lead qualification to reduce CAC by ~28%, and position its offer around verified regulatory compliance (PIPEDA & CASL double opt-ins).`,
+      consensusStrategy: `Unified Multi-Source AI Consensus: ${companyName} should establish a search presence in ${companyRegion}, deploy automated pre-sales lead qualification to streamline customer acquisition, and position its offer around verified regulatory compliance (PIPEDA & CASL double opt-ins).`,
       sources: {
         geminiSearchGrounding: {
           engineName: "Gemini 3.6 Web Search Grounding",
-          status: "Live Web Indexed",
-          lastCrawled: "Just now (Live)",
+          status: "UNAVAILABLE (Connect Gemini API Key for live grounding)",
+          lastCrawled: "Offline (Synthetic Baseline)",
           insights: [
-            `Active search volume for '${companySector}' solutions in ${companyRegion} has surged 24% YoY.`,
+            `Enterprise demand for '${companySector}' solutions in ${companyRegion} prioritizes verifiable business outcomes.`,
             `Regulatory updates in ${companyRegion} demand explicit double-opt-in consent checkboxes on all digital acquisition web forms.`,
-            `Top performing ad channels in this sector: Google Search exact-match (4.2x average ROAS) and LinkedIn Thought Leadership ads for enterprise decision-makers.`
+            `Key ad channels in this sector: Google Search exact-match and LinkedIn Thought Leadership for decision-makers.`
           ],
           marketTrends: [
-            `Increasing enterprise buyer migration from traditional cold-outbound to AI-qualified inbound forms.`,
-            `High demand for transparent data privacy policies and instant ROI calculators.`
+            `Enterprise buyer migration from cold-outbound to structured inbound qualification.`,
+            `Demand for transparent data privacy policies and clear ROI models.`
           ]
         },
         chatGptResearchSynthesis: {
-          engineName: "ChatGPT Strategic Deep Research Engine",
-          status: "Synthesized Strategy",
-          lastCrawled: "2026 Deep Audit",
-          growthFlywheel: `1. High-Intent Content Hub → 2. Lead Scoring Filter → 3. Automated Pre-Sales Qualifier → 4. High-Touch Demo Conversion`,
-          positioningAngle: `Position ${companyName} not merely as a service vendor, but as an indispensable regulatory-compliant growth platform for ${companySector}.`,
+          engineName: "Strategic Deep Research Engine",
+          status: "SYNTHETIC_MODEL",
+          lastCrawled: "Offline (Synthetic Baseline)",
+          growthFlywheel: `1. High-Intent Content Hub → 2. Lead Scoring Filter → 3. Pre-Sales Qualifier → 4. High-Touch Demo Conversion`,
+          positioningAngle: `Position ${companyName} as a regulatory-compliant growth platform for ${companySector}.`,
           tacticalRecommendations: [
-            `Build a 'Zero-CAC' referral loop incentivizing existing clients with tier-based usage credits.`,
-            `Deploy dynamic video landing page hooks addressing the #1 pain point in ${companySector}: tracking leakage and low lead qualification.`,
-            `Implement automated email nurture drips triggered within 90 seconds of lead capture.`
+            `Build a customer referral loop incentivizing existing clients with tier-based usage credits.`,
+            `Deploy dynamic video landing page hooks addressing core pain points in ${companySector}.`,
+            `Implement automated email nurture drips triggered shortly after lead capture.`
           ]
         },
         googleTrends: {
           engineName: "Google Trends & Search Volume Signals",
-          status: "Live Search API",
+          status: "UNAVAILABLE (Connect Google Trends API)",
           trendingKeywords: [
-            { keyword: `${companySector.toLowerCase()} automation`, volume: "14,800/mo", velocity: "+42% YoY", difficulty: "Medium" },
-            { keyword: `best ${companySector.toLowerCase()} platform ${companyRegion.split(" ")[0]}`, volume: "8,200/mo", velocity: "+68% YoY", difficulty: "Low" },
-            { keyword: `compliant lead generation ${companySector.toLowerCase()}`, volume: "5,400/mo", velocity: "+35% YoY", difficulty: "Low" },
-            { keyword: `roas optimization software`, volume: "18,600/mo", velocity: "+51% YoY", difficulty: "High" }
+            { keyword: `${companySector.toLowerCase()} automation`, volume: "Unmeasured (API Offline)", velocity: "Rising Search Interest", difficulty: "Medium" },
+            { keyword: `best ${companySector.toLowerCase()} platform`, volume: "Unmeasured (API Offline)", velocity: "Active Demand", difficulty: "Low" },
+            { keyword: `compliant lead generation ${companySector.toLowerCase()}`, volume: "Unmeasured (API Offline)", velocity: "Steady Demand", difficulty: "Low" },
+            { keyword: `roas optimization software`, volume: "Unmeasured (API Offline)", velocity: "High Commercial Intent", difficulty: "Competitive" }
           ],
-          peakDemandSeason: "Q1 & Q3 Enterprise Budget Allocation Windows"
+          peakDemandSeason: "Enterprise Budget Planning Windows"
         },
         competitorRadar: {
-          engineName: "Competitor Intelligence & Ad Scraper Radar",
-          status: "Active Radar Scan",
+          engineName: "Competitor Intelligence & Ad Radar",
+          status: "SYNTHETIC_TEMPLATE (Connect Competitive Radar API)",
           monitoredCompetitors: [
-            { name: "Industry Leader A", topAdHook: "Automate Your Operations in 3 Clicks", primaryChannel: "Google Search & LinkedIn", weakness: "Lacks regional compliance customization" },
-            { name: "Global Enterprise B", topAdHook: "10x Growth Guarantee", primaryChannel: "Meta & YouTube Video", weakness: "High price point & complex 60-day onboarding" }
+            { name: "Industry Incumbent A", topAdHook: "Automate Operations in 3 Clicks", primaryChannel: "Google Search & LinkedIn", weakness: "Lacks regional compliance customization" },
+            { name: "Global Enterprise B", topAdHook: "Enterprise Growth Platform", primaryChannel: "Meta & YouTube Video", weakness: "Complex onboarding timeline" }
           ],
-          unclaimedMarketGap: `Opportunity to capture budget by offering instant 48-hour onboarding and explicit regional compliance verification that legacy incumbents lack.`
+          unclaimedMarketGap: `Opportunity to capture budget by offering streamlined onboarding and explicit regional compliance verification that legacy incumbents lack.`
         }
       },
       actionableRoadmap: [
-        { phase: "Phase 1 (Days 1-15)", directive: "Optimize landing pages with Google Trends exact-match keywords and double-opt-in consent forms." },
-        { phase: "Phase 2 (Days 16-45)", directive: "Launch Google Search & LinkedIn campaigns using ad hooks validated by ChatGPT & Gemini search signals." },
-        { phase: "Phase 3 (Days 46-90)", directive: "Scale top-performing ad channels and integrate automated AI lead scoring to eliminate low-intent lead burn." }
+        { phase: "Phase 1", directive: "Optimize landing pages with targeted exact-match keywords and double-opt-in consent forms." },
+        { phase: "Phase 2", directive: "Launch Google Search & LinkedIn campaigns with ad hooks tested against customer intent signals." },
+        { phase: "Phase 3", directive: "Scale top-performing ad channels and integrate automated lead scoring to prioritize sales team time." }
       ]
     };
 
@@ -1351,14 +1454,15 @@ app.post("/api/presales/simulate-call", async (req, res) => {
     const leadName = lead?.name || "Client";
 
     const fallbackSimulation = {
-      callSummary: `AI Tele-calling Specialist (Sam) contacted ${leadName} to verify purchase intent, budget allocation, and implementation timeline. Lead confirmed active interest in marketing OS upgrade.`,
-      qualificationOutcome: "Qualified Opportunity (Score: 92/100)",
+      isSyntheticExample: true,
+      callSummary: `[Synthetic Simulation] AI Pre-Sales Specialist contacted ${leadName} to model qualification dialogue. Live dynamic evaluation requires connected Gemini API.`,
+      qualificationOutcome: "Synthetic Simulation (Connect Gemini API for dynamic qualification)",
       dialogue: [
-        { speaker: "Sam (AI Pre-Sales Specialist)", text: `Hello! This is Sam from ${companyProfile?.companyName || "Sovereign Systems"} following up on your recent inquiry about our Marketing OS platform. Am I speaking with ${leadName}?` },
+        { speaker: "Sam (AI Pre-Sales Specialist)", text: `Hello! This is Sam from ${companyProfile?.companyName || "Sovereign Systems"} following up on your inquiry about our Marketing OS platform. Am I speaking with ${leadName}?` },
         { speaker: leadName, text: "Yes, hi Sam. Thanks for calling. We're looking to streamline our ad spend and scale qualified leads." },
-        { speaker: "Sam (AI Pre-Sales Specialist)", text: "Excellent! Our platform automates ROAS tracking, lead scoring, and CASL compliance. What is your primary growth goal for the upcoming quarter?" },
-        { speaker: leadName, text: "We want to cut our current CPA while increasing our conversion rate on B2B campaigns." },
-        { speaker: "Sam (AI Pre-Sales Specialist)", text: "That aligns perfectly with our Growth Suite. I'll qualify this opportunity and schedule an executive demo with our growth team." }
+        { speaker: "Sam (AI Pre-Sales Specialist)", text: "Excellent! Our platform coordinates multi-touch attribution, lead scoring, and CASL compliance. What is your primary growth goal for the upcoming quarter?" },
+        { speaker: leadName, text: "We want to improve our acquisition efficiency while increasing our conversion rate on B2B campaigns." },
+        { speaker: "Sam (AI Pre-Sales Specialist)", text: "That aligns with our Growth Suite. I'll qualify this opportunity and schedule an executive briefing with our team." }
       ]
     };
 
@@ -1426,8 +1530,10 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
     const selectedSource = contentSource || "Corporate Memory & Brand Vault";
 
     const fallbackCampaign = {
+      isSyntheticExample: true,
+      kpiNote: "Projections are synthetic baseline planning models, not measured historical performance.",
       title: `${productName || "Growth Suite"} - ${objective || "Conversions"} Blitz`,
-      overview: `Cross-channel AI generated campaign designed for ${targetAudience || "B2B Decision Makers"} to drive high-intent leads and maximum ROAS. Content knowledge extracted from ${selectedSource}${sourceDetails ? ` (${sourceDetails})` : ""}.`,
+      overview: `Cross-channel campaign blueprint designed for ${targetAudience || "B2B Decision Makers"} to drive high-intent leads and structured attribution. Content knowledge extracted from ${selectedSource}${sourceDetails ? ` (${sourceDetails})` : ""}.`,
       contentSourceUsed: {
         sourceName: selectedSource,
         sourceDetails: sourceDetails || "Corporate Knowledge Vault & PIPEDA/CASL Compliance Rules",
@@ -1442,27 +1548,27 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
         headlines: [
           `Scale ${productName || "Growth"} Fast`,
           `CASL Compliant ${productName || "Marketing"}`,
-          `Get 3x ROAS with ${companyName}`
+          `Optimize Operations with ${companyName}`
         ],
         descriptions: [
           `Automate customer acquisition with real-time lead attribution & AI workflow execution. Sourced from ${selectedSource}.`,
-          `Book a live demo today and see how ${companyName} slashes CAC by 35%.`
+          `Book a live demo today and see how ${companyName} streamlines acquisition.`
         ]
       },
       metaAds: {
         headline: `Transform Your Growth Strategy with ${companyName}`,
-        primaryText: `Stop burning budget on unverified leads. ${companyName}'s ${productName || "Marketing OS"} combines AI pre-sales qualification, real-time UTM tracking, and double-opt-in CASL compliance into one powerful dashboard.\n\n👉 Sourced via ${selectedSource}: Click below to claim your personalized growth audit.`,
+        primaryText: `Stop burning budget on unverified leads. ${companyName}'s ${productName || "Marketing OS"} combines pre-sales qualification, real-time UTM tracking, and double-opt-in CASL compliance into one powerful dashboard.\n\n👉 Sourced via ${selectedSource}: Click below to claim your growth audit.`,
         hook: `Are your ads driving clicks but no qualified demos?`,
         callToAction: "Learn More"
       },
       linkedInAds: {
         headline: `Enterprise Growth OS for Industry Leaders`,
-        bodyText: `Decision makers at top enterprises use ${companyName} to streamline campaign approvals, monitor multi-touch ROAS, and automate lead scoring. Elevate your marketing ROI today with content engineered from ${selectedSource}.`,
+        bodyText: `Decision makers at enterprises use ${companyName} to streamline campaign approvals, monitor multi-touch attribution, and automate lead scoring. Elevate your marketing operations today with content engineered from ${selectedSource}.`,
         callToAction: "Request Demo"
       },
       tikTokAds: {
         headline: `Level Up Your Marketing Pipeline`,
-        scriptHook: `Stop throwing ad dollars into a black hole! Here's how ${companyName} gets 3.8x ROAS with automated lead scoring.`,
+        scriptHook: `Stop throwing ad dollars into a black hole! Here's how ${companyName} optimizes pipeline with automated lead scoring.`,
         callToAction: "Watch Demo"
       },
       creativePrompts: [
@@ -1483,7 +1589,7 @@ app.post("/api/gemini/generate-campaign", async (req, res) => {
         estimatedClicks: Math.round((budget || 5000) / 2.2),
         estimatedConversions: Math.round(((budget || 5000) / 2.2) * 0.082),
         projectedCPA: `$${((budget || 5000) / (((budget || 5000) / 2.2) * 0.082)).toFixed(2)}`,
-        targetROAS: "3.8x"
+        targetROAS: "Planning Model: 3.5x - 4.0x"
       }
     };
 
@@ -1566,19 +1672,21 @@ app.post("/api/gemini/ads-analysis", async (req, res) => {
     const client = getAiClient();
 
     const fallbackAnalysis = {
-      executiveSummary: `Multi-channel paid campaign audit completed across active UTM sources. Top performing channel is **google / cpc** delivering 4.8x ROAS, followed by **linkedin / sponsored** at $42 CPA.`,
+      isSyntheticExample: true,
+      provenanceNote: "Synthetic baseline ad performance model. Connect live Google/Meta Ads API for measured attribution.",
+      executiveSummary: `[Synthetic Baseline Example] Multi-channel paid campaign audit model across active UTM sources. Connect live Google and Meta Ads API for real-time measured performance data.`,
       sourceBreakdownAnalysis: [
-        { source: "google / cpc", status: "Scaling", recommendation: "Increase budget allocation by 25%. Search intent keywords show 12.4% conversion rate." },
-        { source: "meta / instagram_reels", status: "Healthy", recommendation: "Refresh ad creative visual hooks to lower CPM and sustain 3.2x ROAS." },
-        { source: "linkedin / sponsored", status: "High Intent", recommendation: "Ideal for enterprise decision-maker capture. Maintain current targeting parameters." },
-        { source: "tiktok / feed_video", status: "Testing", recommendation: "Monitor CPA threshold; re-evaluate video hooks if CTR drops below 1.5%." }
+        { source: "google / cpc", status: "Scaling (Model)", recommendation: "Focus budget allocation on high-intent search keywords." },
+        { source: "meta / instagram_reels", status: "Healthy (Model)", recommendation: "Refresh ad creative visual hooks to lower CPM and maintain engagement." },
+        { source: "linkedin / sponsored", status: "High Intent (Model)", recommendation: "Ideal for enterprise decision-maker capture. Maintain current targeting parameters." },
+        { source: "tiktok / feed_video", status: "Testing (Model)", recommendation: "Monitor CPA threshold; re-evaluate video hooks if CTR drops." }
       ],
-      attributionInsight: "Multi-touch attribution indicates 64% of high-scoring B2B leads touch Meta video ads first before converting via Google Search exact-match keywords.",
+      attributionInsight: "Multi-touch attribution framework models touchpoints across video awareness and search capture.",
       budgetReallocationPlan: [
-        "Reallocate $1,200/mo from low-performing display placements into Google Search exact-match terms.",
-        "Deploy automated AI tele-calling qualification on Meta form leads to raise lead-to-opportunity conversion by 18%."
+        "Reallocate experimental spend from low-performing display placements into high-intent search terms.",
+        "Deploy automated pre-sales qualification on Meta form leads to raise lead qualification rates."
       ],
-      projectedRoasUplift: "+22%"
+      projectedRoasUplift: "Baseline Attribution Model (API Disconnected)"
     };
 
     if (!client) {
@@ -1698,16 +1806,17 @@ app.post("/api/gemini/aeo-content-generator", async (req, res) => {
     const kw = primaryKeyword || topic || "Generative Engine Optimization";
 
     const fallbackAeoContent = {
+      isSyntheticExample: true,
+      provenanceNote: "Synthetic blueprint template. Live evaluation requires connected Gemini API.",
       topic: topic || "Autonomous AI Marketing Operating Systems",
       primaryKeyword: kw,
       queryIntent: queryIntent || "Commercial & Technical Investigation",
       targetAudience: targetAudience || "Enterprise CMOs & Growth Leaders",
       headlineH1: `What is an AI Marketing Operating System? The Definitive 2026 Guide`,
-      directAnswerBox: `${companyName} is an autonomous AI marketing operating system that unifies real-time multi-channel attribution, automated ad budget reallocation, and CASL/PIPEDA regulatory compliance into a continuous execution engine, eliminating fragmented spreadsheets and reducing customer acquisition cost by up to 34%.`,
+      directAnswerBox: `${companyName} is an autonomous AI marketing operating system that unifies real-time multi-channel attribution, automated ad budget reallocation, and CASL/PIPEDA regulatory compliance into a continuous execution engine, eliminating fragmented spreadsheets and streamlining customer acquisition.`,
       directAnswerWordCount: 46,
-      aiOverviewReadinessScore: 97,
-      citationProbability: "98.2%",
-      informationGainRating: "High (+46% above industry baseline)",
+      evaluationStatus: "Structural Blueprint Model (Gemini API Offline)",
+      informationGainFramework: "Entity-Salience & Structured Schema",
       keyTakeaways: [
         "Replaces passive analytics dashboards with automated, real-time campaign budget reallocation.",
         "Enforces strict CASL double opt-in and PIPEDA compliance directly at customer ingestion.",
@@ -1794,7 +1903,7 @@ app.post("/api/gemini/aeo-content-generator", async (req, res) => {
           }
         ]
       }, null, 2),
-      formattedMarkdownContent: `# What is an AI Marketing Operating System? The Definitive 2026 Guide\n\n## Direct Answer (AEO Snippet Box)\n> **${companyName}** is an autonomous AI marketing operating system that unifies real-time multi-channel attribution, automated ad budget reallocation, and CASL/PIPEDA regulatory compliance into a continuous execution engine, eliminating fragmented spreadsheets and reducing customer acquisition cost by up to 34%.\n\n### Key Takeaways for Generative Engines\n- **Automated Reallocation**: Replaces passive dashboards with instant channel budget rebalancing.\n- **Regulatory Integrity**: Built-in double opt-in consent guarantees under CASL and PIPEDA.\n- **Telemetric Precision**: 15-minute fluctuation alerts prevent wasted ad spend across Google and Meta.\n\n### Step-by-Step Implementation Blueprint\n1. **Establish Real-Time Multi-Touch Telemetry**: Deploy first-party server-side tracking.\n2. **Configure Budget Reallocation Thresholds**: Divert ad spend based on real-time ROAS telemetry.\n3. **Inject Structured Semantic Schema Markup**: Embed JSON-LD FAQPage and Speakable specs.\n4. **Validate Privacy & Anti-Spam Governance**: Ensure verifiable audit logging.`
+      formattedMarkdownContent: `# What is an AI Marketing Operating System? The Definitive 2026 Guide\n\n## Direct Answer (AEO Snippet Box)\n> **${companyName}** is an autonomous AI marketing operating system that unifies real-time multi-channel attribution, automated ad budget reallocation, and CASL/PIPEDA regulatory compliance into a continuous execution engine, eliminating fragmented spreadsheets and streamlining customer acquisition.\n\n### Key Takeaways for Generative Engines\n- **Automated Reallocation**: Replaces passive dashboards with instant channel budget rebalancing.\n- **Regulatory Integrity**: Built-in double opt-in consent guarantees under CASL and PIPEDA.\n- **Telemetric Precision**: 15-minute fluctuation alerts prevent wasted ad spend across Google and Meta.\n\n### Step-by-Step Implementation Blueprint\n1. **Establish Real-Time Multi-Touch Telemetry**: Deploy first-party server-side tracking.\n2. **Configure Budget Reallocation Thresholds**: Divert ad spend based on real-time ROAS telemetry.\n3. **Inject Structured Semantic Schema Markup**: Embed JSON-LD FAQPage and Speakable specs.\n4. **Validate Privacy & Anti-Spam Governance**: Ensure verifiable audit logging.`
     };
 
     if (!client) {
@@ -1872,12 +1981,14 @@ app.post("/api/gemini/competitive-seo-intel", async (req, res) => {
     const cleanTopicSlug = topic.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-").slice(0, 15);
 
     const fallbackIntel = {
+      isSyntheticExample: true,
+      provenanceNote: "Synthetic baseline competitive model. Live search analysis requires connected Gemini API.",
       focusTopic: topic,
       primaryKeyword: primaryKeyword || topic,
       targetMarket: market,
       analyzedDate: new Date().toISOString().split("T")[0],
       totalCompetitorsAnalyzed: 3,
-      searchGrounded: true,
+      searchGrounded: false,
       competitors: [
         {
           rank: 1,
@@ -1958,7 +2069,7 @@ app.post("/api/gemini/competitive-seo-intel", async (req, res) => {
           { feature: "Average Meta Description Length", competitorsAvg: "144 chars", userRecommendation: "155 chars (High CTR Hook)" },
           { feature: "Primary Keyword in Title Tag", competitorsAvg: "75% of competitors", userRecommendation: "100% Exact Front-Loaded" },
           { feature: "Keyword Density in SERP Snippets", competitorsAvg: "1.9%", userRecommendation: "2.8% (Optimal Natural Density)" },
-          { feature: "Google AI Overview Citation Rate", competitorsAvg: "38% extraction", userRecommendation: "94% (AEO Structured)" },
+          { feature: "AI Overview Answer Formatting", competitorsAvg: "Standard Unstructured Text", userRecommendation: "AEO Structured Direct Answer Modules" },
           { feature: "Rich Schema Graph (FAQ + Speakable)", competitorsAvg: "25% deployment", userRecommendation: "100% Rich @graph JSON-LD" }
         ]
       },

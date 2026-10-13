@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { findUserByEmail, findUserById, isTokenRevoked, isUserRevoked } from "./userStore";
 
 export interface AuthenticatedUser {
   userId: string;
@@ -284,13 +285,40 @@ export async function verifyAuthAndTenant(req: AuthenticatedRequest, res: Respon
 
     let verifiedUser: AuthenticatedUser | null = null;
 
-    // 1. Try SBB Cryptographic HMAC Session Token
-    if (token.startsWith("sbb_v1.")) {
-      verifiedUser = verifySignedSessionToken(token);
-    } 
-    // 2. Try Firebase ID Token (RS256 JWT)
-    else if (token.includes(".")) {
+    // 1. Prefer Firebase ID Token (RS256 JWT)
+    if (token.includes(".") && !token.startsWith("sbb_v1.")) {
       verifiedUser = await verifyFirebaseIdToken(token);
+    } 
+    // 2. Verified SBB Session Token (Cross-referenced against authoritative server-side user store)
+    else if (token.startsWith("sbb_v1.")) {
+      if (isTokenRevoked(token)) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "Session token has been revoked."
+        });
+      }
+      verifiedUser = verifySignedSessionToken(token);
+      if (verifiedUser) {
+        if (isUserRevoked(verifiedUser.userId)) {
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "User account access has been revoked."
+          });
+        }
+        const storedUser = findUserByEmail(verifiedUser.email) || findUserById(verifiedUser.userId);
+        if (storedUser) {
+          // Reject if organization does not match server-side authoritative record
+          if (storedUser.organizationId !== verifiedUser.organizationId) {
+            console.warn(`[SECURITY] Token orgId (${verifiedUser.organizationId}) does not match server-side user org (${storedUser.organizationId})`);
+            return res.status(401).json({
+              error: "Unauthorized",
+              message: "Session token organization scope mismatch. Access revoked."
+            });
+          }
+          // Server-side authoritative role precedence
+          verifiedUser.role = storedUser.role;
+        }
+      }
     }
 
     // Fail closed: reject any unverified, fabricated, or tampered token

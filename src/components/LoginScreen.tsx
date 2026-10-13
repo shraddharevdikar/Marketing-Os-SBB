@@ -124,15 +124,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     }
 
     try {
-      // 1. Authenticate with verified Firebase Authentication
-      const user = await signInWithEmail(loginEmail.trim(), loginPassword.trim());
-      const token = await user.getIdToken();
+      // 1. Authenticate with verified credentials
+      const user = await signInWithEmail(loginEmail.trim(), loginPassword.trim(), companyName);
+      const token = user.token;
       const uid = user.uid;
       const displayName = user.displayName || loginEmail.split("@")[0];
 
       // 2. Resolve trusted role & tenant from server records
-      let verifiedRole: UserSession["role"] = "Executive";
-      let orgId = (companyName || "sovereign_enterprise").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+      let verifiedRole: UserSession["role"] = (user.role as UserSession["role"]) || "Executive";
+      let orgId = user.organizationId || (companyName || "sovereign_enterprise").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
       
       try {
         const roleRes = await fetch("/api/auth/resolve-role", {
@@ -140,7 +140,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         });
         if (roleRes.ok) {
           const roleData = await roleRes.json();
-          verifiedRole = roleData.role;
+          verifiedRole = roleData.role || verifiedRole;
           orgId = roleData.organizationId || orgId;
         }
       } catch {
@@ -161,7 +161,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
 
-      await saveUserToFirestore(userSession);
+      if (user.isFirebaseUser) {
+        await saveUserToFirestore(userSession).catch(() => {});
+      }
 
       if (rememberMe) {
         localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
@@ -171,7 +173,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
       onLoginSuccess(userSession);
     } catch (fbErr: any) {
-      console.error("Firebase authentication error:", fbErr);
+      console.warn("Authentication error:", fbErr?.message || fbErr);
       setLoginError(fbErr?.message || "Invalid credentials. Please verify your Email and Password.");
     }
   };
@@ -206,22 +208,29 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     }
 
     try {
-      const user = await signUpWithEmail(regEmail.trim(), regPassword);
-      const token = await user.getIdToken();
+      const user = await signUpWithEmail(regEmail.trim(), regPassword, {
+        name: regName.trim(),
+        department: regDepartment.trim(),
+        companyName: regCompany.trim() || companyName
+      });
+      const token = user.token;
       const uid = user.uid;
 
       setRegSuccess(true);
 
-      const orgId = (regCompany.trim() || companyName || "sovereign_enterprise")
+      const orgId = user.organizationId || (regCompany.trim() || companyName || "sovereign_enterprise")
         .toLowerCase()
         .replace(/[^a-z0-9_-]/g, "_");
+
+      const isAdmin = ADMIN_EMAILS.includes(regEmail.toLowerCase().trim());
+      const assignedRole: UserSession["role"] = isAdmin ? "Admin" : ((user.role as UserSession["role"]) || "Executive");
 
       const userSession: UserSession = {
         id: uid,
         name: regName.trim(),
         email: regEmail.trim(),
-        role: "Executive", // Safe baseline unprivileged role upon self-registration
-        department: regDepartment.trim() || "General Operations",
+        role: assignedRole,
+        department: regDepartment.trim() || (isAdmin ? "System Administration & Security" : "General Operations"),
         companyName: regCompany.trim() || companyName,
         organizationId: orgId,
         token: token,
@@ -229,11 +238,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
 
-      await saveUserToFirestore(userSession);
+      if (user.isFirebaseUser) {
+        await saveUserToFirestore(userSession).catch(() => {});
+      }
+
       localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
       onLoginSuccess(userSession);
     } catch (fbErr: any) {
-      console.error("Firebase registration error:", fbErr);
+      console.warn("Registration error:", fbErr?.message || fbErr);
       setRegError(fbErr?.message || "Registration failed. Please check your email and password.");
     }
   };

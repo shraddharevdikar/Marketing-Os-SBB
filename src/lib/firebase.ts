@@ -120,24 +120,100 @@ export async function signInWithGoogle() {
   }
 }
 
-export async function signInWithEmail(email: string, pass: string) {
+export async function signInWithEmail(email: string, pass: string, companyName?: string) {
   try {
     const { signInWithEmailAndPassword } = await import("firebase/auth");
     const cred = await signInWithEmailAndPassword(auth, email, pass);
-    return cred.user;
-  } catch (error) {
-    console.error("Email sign-in error:", error);
+    const token = await cred.user.getIdToken();
+    return {
+      uid: cred.user.uid,
+      email: cred.user.email || email,
+      displayName: cred.user.displayName || email.split("@")[0],
+      token,
+      isFirebaseUser: true
+    };
+  } catch (error: any) {
+    if (
+      error?.code === "auth/operation-not-allowed" ||
+      error?.code === "auth/configuration-not-found" ||
+      error?.code === "auth/admin-restricted-operation" ||
+      error?.message?.includes("operation-not-allowed")
+    ) {
+      const resp = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: pass,
+          companyName
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.error || "Invalid credentials.");
+      }
+      return {
+        uid: data.user.id,
+        email: data.user.email,
+        displayName: data.user.name,
+        token: data.token,
+        role: data.user.role,
+        organizationId: data.user.organizationId,
+        isFirebaseUser: false
+      };
+    }
     throw error;
   }
 }
 
-export async function signUpWithEmail(email: string, pass: string) {
+export async function signUpWithEmail(
+  email: string,
+  pass: string,
+  extra?: { name?: string; department?: string; companyName?: string }
+) {
   try {
     const { createUserWithEmailAndPassword } = await import("firebase/auth");
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    return cred.user;
-  } catch (error) {
-    console.error("Email sign-up error:", error);
+    const token = await cred.user.getIdToken();
+    return {
+      uid: cred.user.uid,
+      email: cred.user.email || email,
+      displayName: cred.user.displayName || extra?.name || email.split("@")[0],
+      token,
+      isFirebaseUser: true
+    };
+  } catch (error: any) {
+    if (
+      error?.code === "auth/operation-not-allowed" ||
+      error?.code === "auth/configuration-not-found" ||
+      error?.code === "auth/admin-restricted-operation" ||
+      error?.message?.includes("operation-not-allowed")
+    ) {
+      const resp = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: pass,
+          name: extra?.name || email.split("@")[0],
+          department: extra?.department,
+          companyName: extra?.companyName
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.error || "Registration failed.");
+      }
+      return {
+        uid: data.user.id,
+        email: data.user.email,
+        displayName: data.user.name,
+        token: data.token,
+        role: data.user.role,
+        organizationId: data.user.organizationId,
+        isFirebaseUser: false
+      };
+    }
     throw error;
   }
 }

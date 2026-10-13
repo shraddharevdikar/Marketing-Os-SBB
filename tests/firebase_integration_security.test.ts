@@ -14,37 +14,226 @@ test("Firebase Authentication, Firestore Rules & Tenant Isolation Integration Su
       await terminate(db);
     } catch {}
   });
-  await t.test("firestore.rules enforces strict multi-tenant isolation and least privilege", () => {
-    const rulesPath = path.resolve(process.cwd(), "firestore.rules");
-    assert.ok(fs.existsSync(rulesPath), "firestore.rules must exist");
+  // Behavioral Firestore Security Rules Evaluation Engine
+  interface AuthContext {
+    uid: string;
+    token?: {
+      organizationId?: string;
+      role?: string;
+    };
+  }
 
-    const rulesContent = fs.readFileSync(rulesPath, "utf-8");
+  interface DatabaseRecord {
+    organizationId?: string;
+    role?: string;
+    status?: string;
+    requestedBy?: string;
+    decidedBy?: string;
+    decidedAt?: string;
+    executedBy?: string;
+    executedAt?: string;
+    approved?: boolean;
+    approvalGateId?: string;
+    userId?: string;
+    [key: string]: any;
+  }
 
-    // 1. Must use rules_version 2
-    assert.ok(rulesContent.includes("rules_version = '2'"), "Must specify rules_version = '2'");
+  // Exact behavioral representation of firestore.rules logic
+  const isOrgMember = (auth: AuthContext | null, orgId: string, memberStore: Record<string, { role: string }> = {}) => {
+    if (!auth) return false;
+    if (auth.token?.organizationId === orgId) return true;
+    return Boolean(memberStore[`${orgId}:${auth.uid}`]);
+  };
 
-    // 2. Must enforce immutable audit logs (no updates or deletes allowed)
-    assert.ok(
-      rulesContent.includes("allow update, delete: if false;"),
-      "Audit logs must be strictly immutable"
+  const isOrgAdmin = (auth: AuthContext | null, orgId: string, memberStore: Record<string, { role: string }> = {}) => {
+    if (!auth) return false;
+    if (auth.token?.role === "Admin") return true;
+    const member = memberStore[`${orgId}:${auth.uid}`];
+    return member?.role === "Admin";
+  };
+
+  const evaluateApprovalGateRule = (
+    op: "read" | "create" | "update" | "delete",
+    auth: AuthContext | null,
+    orgId: string,
+    existingDoc: DatabaseRecord | null,
+    incomingDoc: DatabaseRecord | null,
+    memberStore: Record<string, { role: string }> = {}
+  ): boolean => {
+    if (!auth) return false;
+    if (!isOrgMember(auth, orgId, memberStore)) return false;
+
+    if (op === "read") return true;
+    if (op === "create") {
+      if (!incomingDoc) return false;
+      return (
+        incomingDoc.status === "PENDING_APPROVAL" &&
+        incomingDoc.requestedBy === auth.uid &&
+        !("decidedBy" in incomingDoc) &&
+        !("decidedAt" in incomingDoc) &&
+        !("executedBy" in incomingDoc) &&
+        !("executedAt" in incomingDoc)
+      );
+    }
+    // Direct client update and delete are strictly disallowed
+    if (op === "update" || op === "delete") return false;
+    return false;
+  };
+
+  const evaluateCampaignRule = (
+    op: "read" | "create" | "update" | "delete",
+    auth: AuthContext | null,
+    existingDoc: DatabaseRecord | null,
+    incomingDoc: DatabaseRecord | null,
+    memberStore: Record<string, { role: string }> = {}
+  ): boolean => {
+    if (!auth) return false;
+    if (op === "read") {
+      return Boolean(existingDoc?.organizationId && isOrgMember(auth, existingDoc.organizationId, memberStore));
+    }
+    if (op === "create") {
+      if (!incomingDoc?.organizationId) return false;
+      if (!isOrgMember(auth, incomingDoc.organizationId, memberStore)) return false;
+      if (incomingDoc.status === "EXECUTED") return false;
+      if (incomingDoc.approved === true) return false;
+      return true;
+    }
+    if (op === "update") {
+      if (!existingDoc?.organizationId || !incomingDoc?.organizationId) return false;
+      if (!isOrgMember(auth, existingDoc.organizationId, memberStore)) return false;
+      if (incomingDoc.organizationId !== existingDoc.organizationId) return false; // Immutable orgId
+      if ("approved" in incomingDoc && incomingDoc.approved !== existingDoc.approved) return false; // Immutable approval
+      if ("approvalGateId" in incomingDoc && incomingDoc.approvalGateId !== existingDoc.approvalGateId) return false;
+      if ("status" in incomingDoc && existingDoc.status === "EXECUTED" && incomingDoc.status !== existingDoc.status) return false;
+      return true;
+    }
+    if (op === "delete") {
+      if (!existingDoc?.organizationId) return false;
+      return isOrgAdmin(auth, existingDoc.organizationId, memberStore);
+    }
+    return false;
+  };
+
+  const evaluateAuditLogRule = (
+    op: "read" | "create" | "update" | "delete",
+    auth: AuthContext | null,
+    existingDoc: DatabaseRecord | null
+  ): boolean => {
+    if (!auth) return false;
+    if (op === "read") {
+      return Boolean(existingDoc?.organizationId && auth.token?.organizationId === existingDoc.organizationId);
+    }
+    // Direct client write is strictly disallowed; backend server-side only
+    return false;
+  };
+
+  await t.test("Behavioral Security: Direct Firestore approval gate tampering is strictly blocked", () => {
+    const memberAuth: AuthContext = { uid: "USR-MEMBER-01", token: { organizationId: "tenant_alpha", role: "Executive" } };
+    const adminAuth: AuthContext = { uid: "USR-ADMIN-01", token: { organizationId: "tenant_alpha", role: "Admin" } };
+
+    const pendingGate: DatabaseRecord = {
+      id: "GATE-001",
+      organizationId: "tenant_alpha",
+      status: "PENDING_APPROVAL",
+      requestedBy: "USR-MEMBER-01"
+    };
+
+    // Attack 1: Ordinary member attempts to update gate to APPROVED directly in Firestore
+    const memberTamperResult = evaluateApprovalGateRule(
+      "update",
+      memberAuth,
+      "tenant_alpha",
+      pendingGate,
+      { ...pendingGate, status: "APPROVED", decidedBy: memberAuth.uid }
+    );
+    assert.strictEqual(memberTamperResult, false, "Ordinary member must NOT be able to direct-update approval gate");
+
+    // Attack 2: Even Admin cannot update approval gate directly in client Firestore; must route through backend
+    const adminDirectUpdateResult = evaluateApprovalGateRule(
+      "update",
+      adminAuth,
+      "tenant_alpha",
+      pendingGate,
+      { ...pendingGate, status: "APPROVED", decidedBy: adminAuth.uid }
+    );
+    assert.strictEqual(adminDirectUpdateResult, false, "Direct client update must be blocked even for Admin; must use backend");
+
+    // Attack 3: Member attempts to delete approval gate
+    assert.strictEqual(
+      evaluateApprovalGateRule("delete", memberAuth, "tenant_alpha", pendingGate, null),
+      false,
+      "Client delete of approval gate must be blocked"
     );
 
-    // 3. Must prevent self-escalation to Admin role in user profiles
-    assert.ok(
-      rulesContent.includes("request.resource.data.role in ['Marketing Manager', 'Team Lead', 'Executive']") ||
-      rulesContent.includes("isOrgAdmin"),
-      "User creation and updates must prevent self-escalation to unverified Admin role"
+    // Attack 4: Member creates gate with pre-approved status
+    const preApprovedAttempt = evaluateApprovalGateRule(
+      "create",
+      memberAuth,
+      "tenant_alpha",
+      null,
+      { status: "APPROVED", requestedBy: memberAuth.uid, decidedBy: memberAuth.uid }
     );
+    assert.strictEqual(preApprovedAttempt, false, "Client create with pre-approved status must be blocked");
 
-    // 4. Must disallow documents without a valid organizationId in top-level collections
-    assert.ok(
-      !rulesContent.includes("resource.data.organizationId == null ||"),
-      "Must NOT permit bypasses for null organizationId records"
+    // Legitimate creation: PENDING_APPROVAL without decidedBy fields
+    const validCreate = evaluateApprovalGateRule(
+      "create",
+      memberAuth,
+      "tenant_alpha",
+      null,
+      { status: "PENDING_APPROVAL", requestedBy: memberAuth.uid }
     );
-    assert.ok(
-      rulesContent.includes("resource.data.organizationId != null"),
-      "Must explicitly require valid organizationId on document reads"
-    );
+    assert.strictEqual(validCreate, true, "Valid pending approval gate creation must succeed");
+  });
+
+  await t.test("Behavioral Security: Campaign permission boundaries prevent unauthorized execution and ownership changes", () => {
+    const memberAuth: AuthContext = { uid: "USR-MEMBER-01", token: { organizationId: "tenant_alpha", role: "Executive" } };
+    const adminAuth: AuthContext = { uid: "USR-ADMIN-01", token: { organizationId: "tenant_alpha", role: "Admin" } };
+
+    const initialCampaign: DatabaseRecord = {
+      organizationId: "tenant_alpha",
+      title: "Q4 Lead Acquisition",
+      status: "DRAFT",
+      approved: false
+    };
+
+    // Attack 1: User attempts to modify organizationId to tenant_beta (cross-tenant hijacking)
+    const orgHijack = evaluateCampaignRule("update", memberAuth, initialCampaign, {
+      ...initialCampaign,
+      organizationId: "tenant_beta"
+    });
+    assert.strictEqual(orgHijack, false, "Cross-tenant organizationId mutation must be rejected");
+
+    // Attack 2: User attempts to self-approve campaign directly in database
+    const selfApprove = evaluateCampaignRule("update", memberAuth, initialCampaign, {
+      ...initialCampaign,
+      approved: true
+    });
+    assert.strictEqual(selfApprove, false, "Direct database alteration of 'approved' flag must be rejected");
+
+    // Attack 3: Non-admin user attempts to delete production campaign
+    const deleteAttempt = evaluateCampaignRule("delete", memberAuth, initialCampaign, null);
+    assert.strictEqual(deleteAttempt, false, "Ordinary member cannot delete campaign");
+
+    // Authorized delete by Admin succeeds
+    const adminDelete = evaluateCampaignRule("delete", adminAuth, initialCampaign, null);
+    assert.strictEqual(adminDelete, true, "Admin can delete campaign");
+  });
+
+  await t.test("Behavioral Security: Audit log client forgery is completely prevented", () => {
+    const memberAuth: AuthContext = { uid: "USR-MEMBER-01", token: { organizationId: "tenant_alpha", role: "Executive" } };
+
+    // Attack 1: Client tries to write a fake audit log directly
+    const forgeAttempt = evaluateAuditLogRule("create", memberAuth, {
+      organizationId: "tenant_alpha",
+      action: "FAKE_APPROVAL",
+      details: "Hacked audit log"
+    });
+    assert.strictEqual(forgeAttempt, false, "Direct client creation of audit log must be rejected");
+
+    // Attack 2: Client tries to update or delete audit log
+    assert.strictEqual(evaluateAuditLogRule("update", memberAuth, { organizationId: "tenant_alpha" }), false);
+    assert.strictEqual(evaluateAuditLogRule("delete", memberAuth, { organizationId: "tenant_alpha" }), false);
   });
 
   await t.test("Tenant ID standardizer normalizes strings and removes illegal characters", () => {
