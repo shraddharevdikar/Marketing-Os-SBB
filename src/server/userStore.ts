@@ -1,61 +1,18 @@
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
+import {
+  persistUserRecord,
+  findStoredUserByEmail,
+  findStoredUserById,
+  appendAuthoritativeAuditBlock,
+  StoredUser
+} from "./managedStore";
 
-export interface StoredUser {
-  id: string;
-  email: string;
-  name: string;
-  role: "Admin" | "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
-  department: string;
-  companyName: string;
-  organizationId: string;
-  passwordHash: string;
-  salt: string;
-  createdAt: string;
-}
+export { StoredUser };
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-if (!fs.existsSync(DATA_DIR)) {
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch {}
-}
+// In-memory active lookup cache
+const usersCache: Record<string, StoredUser> = {};
 
-const USERS_FILE = path.join(DATA_DIR, "sbb_users.json");
-
-export const ADMIN_EMAILS = [
-  "shraddha.revdikar@gmail.com",
-  "admin@sovereignbusiness.ca"
-];
-
-function hashPassword(password: string, salt: string): string {
-  return crypto.scryptSync(password, salt, 64).toString("hex");
-}
-
-function loadUsers(): Record<string, StoredUser> {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const content = fs.readFileSync(USERS_FILE, "utf-8");
-      return JSON.parse(content);
-    }
-  } catch (err) {
-    console.error("Failed to load users from storage:", err);
-  }
-  return {};
-}
-
-function saveUsers(users: Record<string, StoredUser>) {
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Failed to persist users to storage:", err);
-  }
-}
-
-// In-memory cache synced with disk
-let usersCache: Record<string, StoredUser> = loadUsers();
-
+// Revocation registries
 const revokedTokens = new Set<string>();
 const revokedUsers = new Set<string>();
 
@@ -87,6 +44,15 @@ export function findUserById(id: string): StoredUser | null {
   return null;
 }
 
+function hashPassword(password: string, salt: string): string {
+  return crypto.scryptSync(password, salt, 64).toString("hex");
+}
+
+/**
+ * Public Registration:
+ * Mandatory Security Constraint: Public registration MUST NEVER automatically assign Admin privileges.
+ * Every public account is assigned standard 'Executive' role by default.
+ */
 export function registerUser(params: {
   email: string;
   password: string;
@@ -112,8 +78,8 @@ export function registerUser(params: {
   const passwordHash = hashPassword(params.password, salt);
   const userId = "USR-" + crypto.randomBytes(6).toString("hex").toUpperCase();
 
-  const isAdmin = ADMIN_EMAILS.includes(normalizedEmail);
-  const assignedRole: StoredUser["role"] = isAdmin ? "Admin" : "Executive";
+  // Public registration role is strictly non-privileged Executive (no automatic Admin assignment)
+  const assignedRole: StoredUser["role"] = "Executive";
 
   const orgId = (params.organizationId || params.companyName || "sovereign_enterprise")
     .toLowerCase()
@@ -125,7 +91,7 @@ export function registerUser(params: {
     email: normalizedEmail,
     name: params.name.trim() || normalizedEmail.split("@")[0],
     role: assignedRole,
-    department: params.department?.trim() || (isAdmin ? "System Administration & Security" : "Enterprise Operations"),
+    department: params.department?.trim() || "Enterprise Operations",
     companyName: params.companyName?.trim() || "Sovereign Enterprise",
     organizationId: orgId,
     passwordHash,
@@ -134,9 +100,69 @@ export function registerUser(params: {
   };
 
   usersCache[normalizedEmail] = newUser;
-  saveUsers(usersCache);
+  persistUserRecord(newUser).catch(err => {
+    console.error(`[STORAGE] Asynchronous managed store persistence failed:`, err);
+  });
 
   return { success: true, user: newUser };
+}
+
+/**
+ * Trusted, Auditable Administrator Provisioning Workflow:
+ * Only an existing verified Administrator or cryptographically authorized bootstrap provisioning process
+ * can grant the Admin role. Every grant is recorded in the immutable audit ledger.
+ */
+export function provisionAdministrator(params: {
+  targetEmailOrId: string;
+  authorizedByActor: string;
+  authorizedByRole: string;
+  justification: string;
+  bootstrapSecret?: string;
+}): { success: boolean; user?: StoredUser; error?: string } {
+  const isBootstrap = Boolean(
+    params.bootstrapSecret &&
+    process.env.ADMIN_PROVISION_SECRET &&
+    params.bootstrapSecret === process.env.ADMIN_PROVISION_SECRET
+  );
+
+  if (!isBootstrap && params.authorizedByRole !== "Admin") {
+    return {
+      success: false,
+      error: `Forbidden: Only an authorized Administrator can provision Admin accounts. Caller has role '${params.authorizedByRole}'.`
+    };
+  }
+
+  const normalized = params.targetEmailOrId.trim().toLowerCase();
+  const targetUser = usersCache[normalized] || findUserById(params.targetEmailOrId);
+
+  if (!targetUser) {
+    return {
+      success: false,
+      error: `Target user '${params.targetEmailOrId}' not found in authoritative records.`
+    };
+  }
+
+  targetUser.role = "Admin";
+  targetUser.department = "System Administration & Security";
+  usersCache[targetUser.email.toLowerCase()] = targetUser;
+
+  persistUserRecord(targetUser).catch(err => {
+    console.error(`[STORAGE] Administrator update persistence failed:`, err);
+  });
+
+  appendAuthoritativeAuditBlock({
+    actor: params.authorizedByActor,
+    role: params.authorizedByRole,
+    tenantId: targetUser.organizationId,
+    department: "System Administration & Security",
+    action: "ADMINISTRATOR_ROLE_PROVISIONED",
+    details: `Administrator role granted to ${targetUser.email} (${targetUser.id}). Justification: ${params.justification}`,
+    payload: { targetUserId: targetUser.id, targetEmail: targetUser.email, grantedRole: "Admin" }
+  }).catch(err => {
+    console.error(`[AUDIT] Administrator provisioning audit block failed:`, err);
+  });
+
+  return { success: true, user: targetUser };
 }
 
 export function authenticateUser(email: string, password: string): { success: boolean; user?: StoredUser; error?: string } {
@@ -145,6 +171,10 @@ export function authenticateUser(email: string, password: string): { success: bo
 
   if (!user) {
     return { success: false, error: "Account not found with this email. Please check credentials or register." };
+  }
+
+  if (isUserRevoked(user.id)) {
+    return { success: false, error: "This user account has been revoked. Access denied." };
   }
 
   const incomingHash = hashPassword(password, user.salt);
@@ -156,4 +186,12 @@ export function authenticateUser(email: string, password: string): { success: bo
   }
 
   return { success: true, user };
+}
+
+export function _resetUserStore() {
+  for (const k of Object.keys(usersCache)) {
+    delete usersCache[k];
+  }
+  revokedTokens.clear();
+  revokedUsers.clear();
 }

@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+data/
+*.tmp.*
+*.db
+credentials/
+firestore-debug.log

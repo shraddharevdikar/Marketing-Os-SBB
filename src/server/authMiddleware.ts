@@ -306,18 +306,23 @@ export async function verifyAuthAndTenant(req: AuthenticatedRequest, res: Respon
           });
         }
         const storedUser = findUserByEmail(verifiedUser.email) || findUserById(verifiedUser.userId);
-        if (storedUser) {
-          // Reject if organization does not match server-side authoritative record
-          if (storedUser.organizationId !== verifiedUser.organizationId) {
-            console.warn(`[SECURITY] Token orgId (${verifiedUser.organizationId}) does not match server-side user org (${storedUser.organizationId})`);
-            return res.status(401).json({
-              error: "Unauthorized",
-              message: "Session token organization scope mismatch. Access revoked."
-            });
-          }
-          // Server-side authoritative role precedence
-          verifiedUser.role = storedUser.role;
+        if (!storedUser) {
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "Custom session token rejected: Authoritative user or organization membership record cannot be verified."
+          });
         }
+        // Reject if organization does not match server-side authoritative record
+        if (storedUser.organizationId !== verifiedUser.organizationId) {
+          console.warn(`[SECURITY] Token orgId (${verifiedUser.organizationId}) does not match server-side user org (${storedUser.organizationId})`);
+          return res.status(401).json({
+            error: "Unauthorized",
+            message: "Session token organization scope mismatch. Access revoked."
+          });
+        }
+        // Server-side authoritative role precedence
+        verifiedUser.role = storedUser.role;
+        verifiedUser.organizationId = storedUser.organizationId;
       }
     }
 
