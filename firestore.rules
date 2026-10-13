@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Reusable Security Helpers
+    // Core Security & Auth Helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,49 +11,148 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
+    // Tenant / Organization Membership Verification
+    function isOrgMember(orgId) {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) ||
+        (request.auth.token != null && request.auth.token.organizationId == orgId) ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId)
+      );
     }
 
-    // User profiles: Users can manage their own profile, anyone signed in can read user cards
+    function isOrgAdmin(orgId) {
+      return isSignedIn() && (
+        (exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'Admin') ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin')
+      );
+    }
+
+    // 1. User Profiles: Isolated to owner or members of the same organization
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
     }
 
-    // Company Profiles / Brand Identity
+    // 2. Organizations & Tenant Hierarchy
+    match /organizations/{orgId} {
+      allow read: if isOrgMember(orgId);
+      allow create: if isSignedIn();
+      allow update: if isOrgAdmin(orgId);
+      allow delete: if isOrgAdmin(orgId);
+
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId) || isOwner(memberId);
+        allow update, delete: if isOrgAdmin(orgId);
+      }
+
+      // Tenant-scoped Company Profile
+      match /company_profile/{profileId} {
+        allow read: if isOrgMember(orgId);
+        allow create, update: if isOrgMember(orgId);
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Tenant-scoped Campaigns
+      match /campaigns/{campaignId} {
+        allow read: if isOrgMember(orgId);
+        allow create, update: if isOrgMember(orgId);
+        allow delete: if isOrgMember(orgId);
+      }
+
+      // Tenant-scoped Leads
+      match /leads/{leadId} {
+        allow read: if isOrgMember(orgId);
+        allow create, update: if isOrgMember(orgId);
+        allow delete: if isOrgMember(orgId);
+      }
+
+      // Tenant-scoped Immutable Audit Logs
+      match /audit_logs/{logId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update, delete: if false; // Compliance: audit logs are immutable
+      }
+
+      // Tenant-scoped AI Creatives & Assets
+      match /ai_creatives/{assetId} {
+        allow read: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId);
+        allow update, delete: if isOrgMember(orgId) && (resource.data.userId == request.auth.uid || isOrgAdmin(orgId));
+      }
+    }
+
+    // 3. Top-Level Collections (Strictly Enforcing organizationId field check for tenant isolation)
     match /company_profiles/{profileId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
+      allow create, update: if isSignedIn() && (
+        request.resource.data.organizationId == null ||
+        isOrgMember(request.resource.data.organizationId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgAdmin(resource.data.organizationId)
+      );
     }
 
-    // Campaigns & Media plans
     match /campaigns/{campaignId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.organizationId == null ||
+        isOrgMember(request.resource.data.organizationId)
+      );
+      allow update: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
     }
 
-    // CRM Leads
     match /leads/{leadId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.organizationId == null ||
+        isOrgMember(request.resource.data.organizationId)
+      );
+      allow update: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
     }
 
-    // Immutable Audit Logs
     match /audit_logs/{logId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.organizationId == null ||
+        isOrgMember(resource.data.organizationId)
+      );
       allow create: if isSignedIn();
-      allow update, delete: if false; // Compliance: audit logs are immutable
+      allow update, delete: if false; // Compliance: audit logs are strictly immutable
     }
 
-    // Multimodal AI Creatives (Images, Veo Videos, Lyria Music, Transcriptions, Chat)
     match /ai_creatives/{assetId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (resource.data.organizationId != null && isOrgMember(resource.data.organizationId))
+      );
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }

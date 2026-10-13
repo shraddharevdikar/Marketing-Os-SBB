@@ -360,16 +360,22 @@ export default function App() {
     };
   }, []);
 
+  const currentTenantId = userSession?.organizationId || userSession?.companyName || companyProfile?.companyName;
+
   const saveCampaigns = (updated: any[]) => {
     setCampaigns(updated);
     localStorage.setItem("sovereign_campaigns", JSON.stringify(updated));
-    saveCampaignsToFirestore(updated).catch(() => {});
+    saveCampaignsToFirestore(updated, currentTenantId).catch((err) => {
+      console.error("Campaign Firestore sync error:", err);
+    });
   };
 
   const saveLeads = (updated: any[]) => {
     setLeads(updated);
     localStorage.setItem("sovereign_leads", JSON.stringify(updated));
-    saveLeadsToFirestore(updated).catch(() => {});
+    saveLeadsToFirestore(updated, currentTenantId).catch((err) => {
+      console.error("Leads Firestore sync error:", err);
+    });
   };
 
   const saveAudits = (updated: any[]) => {
@@ -384,10 +390,13 @@ export default function App() {
       actor: userName,
       role: currentRole,
       action,
-      details
+      details,
+      organizationId: currentTenantId
     };
     saveAudits([...auditLogs, logEntry]);
-    saveAuditLogToFirestore(logEntry).catch(() => {});
+    saveAuditLogToFirestore(logEntry, currentTenantId).catch((err) => {
+      console.error("Audit log Firestore sync error:", err);
+    });
   };
 
   const handleCreateCampaignRequest = (req: any) => {
@@ -1024,7 +1033,10 @@ export default function App() {
                 </div>
 
                 {discoverySubTab === "memory" ? (
-                  <BusinessMemory onLogAction={logAction} />
+                  <BusinessMemory
+                    onLogAction={logAction}
+                    onNavigateToTab={(tab) => setActiveTab(tab as any)}
+                  />
                 ) : (
                   <IntelligenceDiscovery
                     companyProfile={companyProfile}

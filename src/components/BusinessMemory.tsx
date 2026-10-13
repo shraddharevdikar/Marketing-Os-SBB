@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Cpu, Search, Sparkles, RefreshCw, Plus, Trash2, ArrowRight, BookOpen, Target, Calendar, User, TrendingUp, DollarSign, HelpCircle, Building2, Check } from "lucide-react";
+import { Cpu, Search, Sparkles, RefreshCw, Plus, Trash2, ArrowRight, BookOpen, Target, Calendar, User, TrendingUp, DollarSign, HelpCircle, Building2, Check, Database, ShieldCheck } from "lucide-react";
 import { INDUSTRY_PRESETS, IndustryTemplate } from "../data/industryPresets";
 
 interface Goal {
@@ -317,6 +317,34 @@ export const BusinessMemory: React.FC<BusinessMemoryProps> = ({ onLogAction, onN
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5 space-y-5">
+      {/* SBB Enterprise Core 5-Pillar Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-indigo-950 text-white rounded-xl p-4 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-emerald-700/40">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="bg-emerald-500/20 text-emerald-300 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border border-emerald-500/40 flex items-center gap-1">
+              <Database className="w-3 h-3 text-emerald-400" /> SBB Enterprise Differentiation: Pillar 3
+            </span>
+            <span className="text-xs text-emerald-200 font-mono">Reliable Business Memory</span>
+          </div>
+          <h3 className="text-sm font-semibold text-white">
+            Source-Attributed Knowledge, Active Conflict Reconciliation & Department ACLs
+          </h3>
+          <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+            Every business memory node is anchored to verified sources with cryptographic hashes, automatic conflict resolution (e.g. Sales vs Marketing lead definitions), and department-level permissions (Finance, Legal, Ops, Executive).
+          </p>
+        </div>
+        {onNavigateToTab && (
+          <button
+            type="button"
+            onClick={() => onNavigateToTab("enterprise-core")}
+            className="shrink-0 flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg shadow-sm transition-all cursor-pointer"
+          >
+            Open 5-Pillar Suite
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* Universal Multi-Industry Memory Template Bar */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
         <div>

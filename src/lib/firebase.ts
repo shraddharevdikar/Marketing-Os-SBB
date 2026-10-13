@@ -89,21 +89,25 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Connectivity check as recommended in Firebase Skill
+// Connectivity check with truthful status reporting
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
     return true;
   } catch (error: any) {
-    if (error?.message?.includes("the client is offline")) {
-      console.warn("Firestore client is offline or network restricted.");
+    // If error is code permission-denied or not-found, server is reachable
+    if (error?.code === "permission-denied" || error?.code === "not-found") {
+      return true;
     }
-    return true;
+    console.error("Firestore connectivity check failed:", error?.message || error);
+    return false;
   }
 }
 
-// Trigger connectivity test on import
-testFirestoreConnection().catch(() => {});
+// Trigger connectivity test in browser environment
+if (typeof window !== "undefined") {
+  testFirestoreConnection().catch(() => {});
+}
 
 // Helper Auth functions
 export async function signInWithGoogle() {
@@ -122,5 +126,16 @@ export async function logOutFirebase() {
   } catch (error) {
     console.error("Firebase sign out error:", error);
     throw error;
+  }
+}
+
+export async function getCurrentUserToken(): Promise<string | null> {
+  try {
+    const user = auth.currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+  } catch (error) {
+    console.error("Failed to retrieve Firebase ID token:", error);
+    return null;
   }
 }

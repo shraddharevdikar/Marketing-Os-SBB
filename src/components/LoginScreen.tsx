@@ -14,6 +14,9 @@ export interface UserSession {
   role: "Admin" | "CEO" | "Vice President" | "AGM" | "Marketing Manager" | "Team Lead" | "Executive";
   department: string;
   companyName?: string;
+  organizationId?: string;
+  token?: string;
+  isSandbox?: boolean;
   loggedInAt: string;
   customAllowedTabs?: string[];
 }
@@ -152,19 +155,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
     const isAdmin = ADMIN_EMAILS.includes(loginEmail.toLowerCase().trim());
 
-    // Accept preset passwords or registered passwords (admin email has privileged sign-in)
-    if (!isAdmin && foundUser.pass && foundUser.pass !== loginPassword) {
-      setLoginError("Invalid password for this account. Please try again.");
+    // Enforce password verification for all users (no bypass)
+    if (foundUser.pass && foundUser.pass !== loginPassword) {
+      setLoginError("Invalid password for this account. Please verify your credentials.");
       return;
     }
+
+    const orgId = (foundUser.company || regCompany || companyName || "sovereign_enterprise")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]/g, "_");
+
+    const sessionRole = isAdmin ? "Admin" : foundUser.role;
+    const sessionToken = `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}:${orgId}:${sessionRole}:${foundUser.email}`;
 
     const userSession: UserSession = {
       id: "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
       name: foundUser.name,
       email: foundUser.email,
-      role: isAdmin ? "Admin" : foundUser.role,
+      role: sessionRole,
       department: foundUser.department || "Enterprise Ops",
       companyName: foundUser.company || regCompany || companyName,
+      organizationId: orgId,
+      token: sessionToken,
+      isSandbox: Boolean((foundUser as any).isPreset),
       loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
     };
 
@@ -232,7 +246,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
 
     setRegSuccess(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
+      const orgId = (newUser.company || companyName || "my_organization")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9_-]/g, "_");
+      const sessionToken = `USR-${Math.random().toString(36).substring(2, 8).toUpperCase()}:${orgId}:${newUser.role}:${newUser.email}`;
+
       const userSession: UserSession = {
         id: newUser.id,
         name: newUser.name,
@@ -240,9 +260,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         role: newUser.role as UserSession["role"],
         department: newUser.department,
         companyName: newUser.company,
+        organizationId: orgId,
+        token: sessionToken,
+        isSandbox: false,
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
 
+      await saveUserToFirestore(userSession);
       localStorage.setItem("sbb_auth_session", JSON.stringify(userSession));
       onLoginSuccess(userSession);
     }, 1200);
@@ -252,13 +276,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     setLoginEmail(preset.email);
     setLoginPassword(preset.pass);
     
+    const orgId = (companyName || "sovereign_sandbox")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]/g, "_");
+    const sessionToken = `USR-SANDBOX-${Math.random().toString(36).substring(2, 6).toUpperCase()}:${orgId}:${preset.role}:${preset.email}`;
+
     const userSession: UserSession = {
-      id: "USR-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
+      id: "USR-SANDBOX-" + Math.random().toString(36).substring(2, 7).toUpperCase(),
       name: preset.name,
       email: preset.email,
       role: preset.role,
       department: preset.department,
       companyName,
+      organizationId: orgId,
+      token: sessionToken,
+      isSandbox: true,
       loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
     };
 
@@ -273,9 +306,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
     setLoginError("");
     try {
       const googleUser = await signInWithGoogle();
+      const idToken = await googleUser.getIdToken();
       const userEmail = (googleUser.email || "").toLowerCase().trim();
       const isAdminEmail = ADMIN_EMAILS.includes(userEmail);
       const assignedRole: UserSession["role"] = isAdminEmail ? "Admin" : "CEO";
+      const orgId = (companyName || "sovereign_enterprise")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9_-]/g, "_");
 
       const session: UserSession = {
         id: googleUser.uid,
@@ -284,6 +322,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, compan
         role: assignedRole,
         department: isAdminEmail ? "System Administration & Security" : "Executive Board",
         companyName,
+        organizationId: orgId,
+        token: idToken,
+        isSandbox: false,
         loggedInAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("en-US")
       };
 

@@ -7,14 +7,38 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { sanitizeAndTokenizePII, rehydratePII } from "./src/lib/piiSanitizer";
 import { sbbEnterpriseRouter } from "./src/server/sbbEnterpriseRoutes";
+import {
+  applySecurityHeaders,
+  verifyAuthAndTenant,
+  enforceTenantIsolation,
+  rateLimiter,
+  safeErrorHandler
+} from "./src/server/authMiddleware";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Hardened Security Headers & Payload Limits
+app.use(applySecurityHeaders);
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ limit: "25mb", extended: true }));
+
+// Rate Limiters for Costly Operations
+const aiRateLimiter = rateLimiter(30, 60000);
+const mediaRateLimiter = rateLimiter(10, 60000);
+
+// Global API Security & Tenant Isolation Gate
+app.use("/api", (req, res, next) => {
+  // Allow health check and external inbound lead capture
+  if (req.path === "/health" || req.path === "/lead/capture") {
+    return next();
+  }
+  return verifyAuthAndTenant(req, res, () => {
+    enforceTenantIsolation(req, res, next);
+  });
+});
 
 // Mount SBB Enterprise 5-Pillars Router
 app.use("/api/sbb", sbbEnterpriseRouter);
