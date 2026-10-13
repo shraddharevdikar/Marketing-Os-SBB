@@ -375,7 +375,7 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
     const { registerUser, authenticateUser } = await import("../src/server/userStore");
 
     // Case 1: Short password rejected
-    const shortPass = registerUser({
+    const shortPass = await registerUser({
       email: "short@example.com",
       password: "123",
       name: "Short Pass"
@@ -385,7 +385,7 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
 
     // Case 2: Register valid operator
     const testEmail = `operator.${Date.now()}@example.com`;
-    const reg = registerUser({
+    const reg = await registerUser({
       email: testEmail,
       password: "StrongPassword123!",
       name: "Test Operator",
@@ -397,7 +397,7 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
     assert.strictEqual(reg.user?.role, "Executive", "Normal user gets baseline Executive role");
 
     // Case 3: Duplicate registration rejected
-    const dup = registerUser({
+    const dup = await registerUser({
       email: testEmail,
       password: "AnotherPassword123!",
       name: "Duplicate Operator"
@@ -417,7 +417,7 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
 
     // Case 6: Public registration does NOT automatically assign Admin role
     const adminCandidateEmail = "shraddha.revdikar@gmail.com";
-    const regResult = registerUser({
+    const regResult = await registerUser({
       email: adminCandidateEmail,
       password: "AdminSuperSecretPassword!",
       name: "Shraddha Revdikar"
@@ -520,9 +520,9 @@ test("P0 & P1 Production Security Remediation Suite", async (t) => {
   // -----------------------------------------------------------------
   // 12. Token revocation and server user store scope binding
   // -----------------------------------------------------------------
-  await t.test("Token scope binding: Rejects token if organization does not match server user store", () => {
+  await t.test("Token scope binding: Rejects token if organization does not match server user store", async () => {
     const email = `scoped.user.${Date.now()}@sovereignbusiness.ca`;
-    const registered = registerUser({
+    const registered = await registerUser({
       email,
       password: "ValidPassword123!",
       name: "Scoped User",

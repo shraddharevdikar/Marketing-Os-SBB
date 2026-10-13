@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { findUserByEmail, findUserById, isTokenRevoked, isUserRevoked } from "./userStore";
+import { findStoredUserByEmail, findStoredUserById } from "./managedStore";
 
 export interface AuthenticatedUser {
   userId: string;
@@ -149,79 +150,88 @@ export async function verifyFirebaseIdToken(token: string, expectedProjectId = F
   const parts = token.split(".");
   if (parts.length !== 3) return null;
 
+  let uid: string | null = null;
+  let email: string | null = null;
+
   // 1. Prefer Firebase Admin SDK verification
   if (getApps().length > 0) {
     try {
       const decodedToken = await getAuth().verifyIdToken(token);
       if (decodedToken && decodedToken.uid) {
-        const orgId = (decodedToken.organizationId || decodedToken.org || "default_org")
-          .toLowerCase()
-          .replace(/[^a-z0-9_-]/g, "_");
-        return {
-          userId: decodedToken.uid,
-          email: decodedToken.email || "user@sovereignbusiness.ca",
-          role: decodedToken.role || "Executive",
-          organizationId: orgId
-        };
+        uid = decodedToken.uid;
+        email = decodedToken.email || null;
       }
     } catch (adminErr: any) {
-      // If token is invalid, expired, revoked, or signature failed according to Firebase Admin, reject immediately
       if (adminErr?.code?.startsWith("auth/argument-") || 
           adminErr?.code?.startsWith("auth/id-token-") || 
           adminErr?.code === "auth/invalid-id-token") {
         return null;
       }
-      // If Admin SDK failed due to missing network/credentials in isolated test environments, fall through to in-process RS256 cert check
     }
   }
 
   // 2. Cryptographic RS256 verification using Google public certificates
-  try {
-    const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf-8"));
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
+  if (!uid) {
+    try {
+      const header = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf-8"));
+      const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf-8"));
 
-    const now = Math.floor(Date.now() / 1000);
+      const now = Math.floor(Date.now() / 1000);
 
-    // Verify audience and issuer match Firebase project
-    if (payload.aud !== expectedProjectId) return null;
-    if (payload.iss !== `https://securetoken.google.com/${expectedProjectId}`) return null;
-    if (!payload.sub || typeof payload.sub !== "string") return null;
-    if (payload.exp && payload.exp < now) return null;
-    if (payload.iat && payload.iat > now + 300) return null;
+      // Verify audience and issuer match Firebase project
+      if (payload.aud !== expectedProjectId) return null;
+      if (payload.iss !== `https://securetoken.google.com/${expectedProjectId}`) return null;
+      if (!payload.sub || typeof payload.sub !== "string") return null;
+      if (payload.exp && payload.exp < now) return null;
+      if (payload.iat && payload.iat > now + 300) return null;
 
-    // Cryptographic signature verification
-    if (header.alg === "RS256" && header.kid) {
-      const certs = await getGooglePublicCerts();
-      const cert = certs[header.kid];
-      if (cert) {
-        const verifier = crypto.createVerify("RSA-SHA256");
-        verifier.update(`${parts[0]}.${parts[1]}`);
-        const isValid = verifier.verify(cert, Buffer.from(parts[2], "base64url"));
-        if (!isValid) return null;
-      } else {
-        // If Google certs cannot be resolved, fail closed in production
-        if (process.env.NODE_ENV === "production") {
+      // Cryptographic signature verification
+      if (header.alg === "RS256" && header.kid) {
+        const certs = await getGooglePublicCerts();
+        const cert = certs[header.kid];
+        if (cert) {
+          const verifier = crypto.createVerify("RSA-SHA256");
+          verifier.update(`${parts[0]}.${parts[1]}`);
+          const isValid = verifier.verify(cert, Buffer.from(parts[2], "base64url"));
+          if (!isValid) return null;
+        } else if (process.env.NODE_ENV === "production") {
           return null;
         }
+      } else {
+        return null;
       }
-    } else {
-      // Any unsupported algorithm is strictly rejected
+
+      uid = payload.sub;
+      email = payload.email || null;
+    } catch {
       return null;
     }
+  }
 
-    const orgId = (payload.organizationId || payload.org || "default_org")
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, "_");
+  if (!uid) return null;
 
-    return {
-      userId: payload.sub,
-      email: payload.email || "user@sovereignbusiness.ca",
-      role: payload.role || "Executive",
-      organizationId: orgId
-    };
-  } catch {
+  // 3. Resolve organization membership and effective role strictly from authoritative server-side records.
+  // DO NOT use a default organisation ("default_org") or client-controlled claims as proof of membership.
+  const storedUser = (email ? findUserByEmail(email) : null) ||
+                     findUserById(uid) ||
+                     (email ? await findStoredUserByEmail(email) : null) ||
+                     (await findStoredUserById(uid));
+
+  if (!storedUser || !storedUser.organizationId) {
+    console.warn(`[SECURITY] Firebase ID token verified for uid=${uid}, but authoritative organization membership record not found.`);
     return null;
   }
+
+  if (isUserRevoked(storedUser.id)) {
+    return null;
+  }
+
+  return {
+    userId: storedUser.id,
+    email: storedUser.email,
+    role: storedUser.role,
+    organizationId: storedUser.organizationId
+  };
 }
 
 // In-memory sliding-window rate limiter
@@ -372,8 +382,9 @@ export function enforceTenantIsolation(req: AuthenticatedRequest, res: Response,
     return res.status(401).json({ error: "Unauthorized", message: "Authentication required." });
   }
 
-  // Admins can manage across tenants if explicitly requested
-  if (req.user.role === "Admin") {
+  // Only global platform superadmin (e.g. system_admin_org or system_master) can cross tenants.
+  // Standard organization Admins are strictly bound to their own organization scope.
+  if (req.user.role === "Admin" && (req.user.organizationId === "system_admin_org" || req.user.organizationId === "system_master")) {
     return next();
   }
 

@@ -143,7 +143,7 @@ test("Backend Authentication & Cryptographic Verification Middleware", async (t)
   });
 
   await t.test("authenticates valid cryptographically signed session token and extracts user and tenant", async () => {
-    const regResult = registerUser({
+    const regResult = await registerUser({
       email: "m.mercer@acme.ca",
       password: "SecurePassword123!",
       name: "M Mercer",

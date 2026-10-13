@@ -78,6 +78,39 @@ test("Live Firebase Emulator Suite: Direct evaluation of deployed firestore.rule
   });
 
   // -------------------------------------------------------------
+  // Test 2b: Cross-tenant Admin isolation (No global Admin shortcut)
+  // -------------------------------------------------------------
+  await t.test("Cross-tenant Admin isolation: Admin of Tenant Alpha cannot administer or delete Tenant Beta resources", async () => {
+    await testEnv!.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, "organizations/tenant_beta/campaigns/proprietary_camp"), {
+        title: "Beta Proprietary Campaign",
+        organizationId: "tenant_beta",
+        status: "DRAFT"
+      });
+      await setDoc(doc(adminDb, "organizations/tenant_beta/company_profile/profile"), {
+        companyName: "Beta Corp",
+        organizationId: "tenant_beta"
+      });
+    });
+
+    const alphaAdminDb = testEnv!.authenticatedContext("admin_alpha", {
+      organizationId: "tenant_alpha",
+      role: "Admin"
+    }).firestore();
+
+    const betaCampDoc = doc(alphaAdminDb, "organizations/tenant_beta/campaigns/proprietary_camp");
+    await assertFails(getDoc(betaCampDoc));
+    await assertFails(updateDoc(betaCampDoc, { title: "Tampered by Alpha Admin" }));
+    await assertFails(deleteDoc(betaCampDoc));
+
+    const betaProfileDoc = doc(alphaAdminDb, "organizations/tenant_beta/company_profile/profile");
+    await assertFails(getDoc(betaProfileDoc));
+    await assertFails(updateDoc(betaProfileDoc, { companyName: "Tampered Company Name" }));
+    await assertFails(deleteDoc(betaProfileDoc));
+  });
+
+  // -------------------------------------------------------------
   // Test 3: Approval Gates direct tampering strictly blocked
   // -------------------------------------------------------------
   await t.test("Approval Gates: Direct client updates and deletions are strictly blocked", async () => {

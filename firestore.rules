@@ -25,7 +25,7 @@ service cloud.firestore {
 
     function isOrgAdmin(orgId) {
       return isSignedIn() && (
-        (request.auth.token != null && request.auth.token.role == 'Admin') ||
+        (request.auth.token != null && request.auth.token.role == 'Admin' && request.auth.token.organizationId == orgId) ||
         (exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'Admin')
       );

@@ -751,8 +751,9 @@ sbbEnterpriseRouter.post("/memory/reconcile", (req: AuthenticatedRequest, res) =
 sbbEnterpriseRouter.get("/security/approval-gates", (req: AuthenticatedRequest, res) => {
   try {
     const { role, tenantId } = getActorContext(req);
-    // Tenant-isolated view
-    const visible = approvalGates.filter(g => role === "Admin" || g.tenantId === tenantId);
+    const isSuperAdmin = role === "Admin" && (tenantId === "system_admin_org" || tenantId === "system_master");
+    // Tenant-isolated view: organization Admin cannot view gates of other tenants
+    const visible = approvalGates.filter(g => isSuperAdmin || g.tenantId === tenantId);
     res.json({ approvalGates: visible });
   } catch (error: any) {
     res.status(401).json({ error: "Unauthorized", message: "Authentication required" });
@@ -770,7 +771,8 @@ sbbEnterpriseRouter.post("/security/approval-gates/decide", async (req: Authenti
     } = req.body;
 
     return await withTenantLock(tenantId, async () => {
-      const gate = approvalGates.find(g => g.id === gateId && (role === "Admin" || g.tenantId === tenantId));
+      const isSuperAdmin = role === "Admin" && (tenantId === "system_admin_org" || tenantId === "system_master");
+      const gate = approvalGates.find(g => g.id === gateId && (isSuperAdmin || g.tenantId === tenantId));
       if (!gate) {
         return res.status(404).json({ error: "Approval gate not found or inaccessible for your organization" });
       }
@@ -933,7 +935,8 @@ sbbEnterpriseRouter.post("/security/approval-gates/execute", async (req: Authent
     const { gateId, actionParameters = {} } = req.body;
 
     return await withTenantLock(tenantId, async () => {
-      const gate = approvalGates.find(g => g.id === gateId && (role === "Admin" || g.tenantId === tenantId));
+      const isSuperAdmin = role === "Admin" && (tenantId === "system_admin_org" || tenantId === "system_master");
+      const gate = approvalGates.find(g => g.id === gateId && (isSuperAdmin || g.tenantId === tenantId));
       if (!gate) {
         return res.status(404).json({ error: "Approval gate not found or inaccessible for your organization" });
       }
@@ -1064,7 +1067,8 @@ sbbEnterpriseRouter.get("/security/audit-chain", (req: AuthenticatedRequest, res
       }
     }
 
-    const visibleBlocks = auditChain.filter(b => role === "Admin" || b.tenantId === tenantId);
+    const isSuperAdmin = role === "Admin" && (tenantId === "system_admin_org" || tenantId === "system_master");
+    const visibleBlocks = auditChain.filter(b => isSuperAdmin || b.tenantId === tenantId);
 
     res.json({
       totalBlocks: visibleBlocks.length,

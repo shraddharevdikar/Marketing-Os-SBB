@@ -4,6 +4,8 @@ import {
   findStoredUserByEmail,
   findStoredUserById,
   appendAuthoritativeAuditBlock,
+  organizationExists,
+  rollbackUserRecord,
   type StoredUser
 } from "./managedStore";
 
@@ -15,6 +17,52 @@ const usersCache: Record<string, StoredUser> = {};
 // Revocation registries
 const revokedTokens = new Set<string>();
 const revokedUsers = new Set<string>();
+
+export interface OrgInvitation {
+  code: string;
+  organizationId: string;
+  email?: string;
+  role: StoredUser["role"];
+  createdBy: string;
+  createdAt: string;
+  expiresAt: number;
+}
+
+const invitationsCache = new Map<string, OrgInvitation>();
+
+export function createOrgInvitation(params: {
+  organizationId: string;
+  role?: StoredUser["role"];
+  email?: string;
+  createdBy: string;
+  validHours?: number;
+}): OrgInvitation {
+  const code = "INV-" + crypto.randomBytes(8).toString("hex").toUpperCase();
+  const invitation: OrgInvitation = {
+    code,
+    organizationId: params.organizationId.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "_"),
+    email: params.email ? params.email.trim().toLowerCase() : undefined,
+    role: params.role || "Executive",
+    createdBy: params.createdBy,
+    createdAt: new Date().toISOString(),
+    expiresAt: Date.now() + (params.validHours || 72) * 3600 * 1000
+  };
+  invitationsCache.set(code, invitation);
+  return invitation;
+}
+
+export function verifyOrgInvitation(code: string, email?: string): OrgInvitation | null {
+  const inv = invitationsCache.get(code.trim().toUpperCase());
+  if (!inv) return null;
+  if (Date.now() > inv.expiresAt) {
+    invitationsCache.delete(code);
+    return null;
+  }
+  if (inv.email && email && inv.email !== email.trim().toLowerCase()) {
+    return null;
+  }
+  return inv;
+}
 
 export function revokeToken(token: string) {
   revokedTokens.add(token);
@@ -50,17 +98,22 @@ function hashPassword(password: string, salt: string): string {
 
 /**
  * Public Registration:
- * Mandatory Security Constraint: Public registration MUST NEVER automatically assign Admin privileges.
- * Every public account is assigned standard 'Executive' role by default.
+ * 1. Must never allow a caller to choose an arbitrary existing organizationId.
+ *    New users must be assigned to a newly provisioned organization, or join an existing organization
+ *    strictly via a verified invitation code or verified administrator workflow.
+ * 2. Asynchronous and fails safely if the authoritative database write fails.
  */
-export function registerUser(params: {
+export async function registerUser(params: {
   email: string;
   password: string;
   name: string;
   department?: string;
   companyName?: string;
   organizationId?: string;
-}): { success: boolean; user?: StoredUser; error?: string } {
+  invitationCode?: string;
+  invitedByAdmin?: { actor: string; role: string; organizationId: string };
+  bootstrapSecret?: string;
+}): Promise<{ success: boolean; user?: StoredUser; error?: string }> {
   const normalizedEmail = params.email.trim().toLowerCase();
 
   if (!normalizedEmail || !normalizedEmail.includes("@")) {
@@ -74,17 +127,65 @@ export function registerUser(params: {
     return { success: false, error: "An account with this email already exists." };
   }
 
+  // Determine target organization safely
+  let targetOrgId: string;
+  let assignedRole: StoredUser["role"] = "Executive";
+
+  // Case A: Verified invitation code
+  if (params.invitationCode) {
+    const verifiedInvite = verifyOrgInvitation(params.invitationCode, normalizedEmail);
+    if (!verifiedInvite) {
+      return { success: false, error: "Invalid or expired organization invitation code." };
+    }
+    targetOrgId = verifiedInvite.organizationId;
+    assignedRole = verifiedInvite.role || "Executive";
+  }
+  // Case B: Verified administrator provisioning / invitation
+  else if (params.invitedByAdmin) {
+    if (params.invitedByAdmin.role !== "Admin") {
+      return { success: false, error: "Forbidden: Only an authorized Administrator can invite members to an existing organization." };
+    }
+    targetOrgId = params.invitedByAdmin.organizationId.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "_");
+  }
+  // Case C: Cryptographically authorized bootstrap provisioning
+  else if (
+    params.bootstrapSecret &&
+    process.env.ADMIN_PROVISION_SECRET &&
+    params.bootstrapSecret === process.env.ADMIN_PROVISION_SECRET
+  ) {
+    targetOrgId = (params.organizationId || params.companyName || "sovereign_enterprise")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]/g, "_");
+  }
+  // Case D: Public registration
+  else {
+    // If a caller specified an organizationId, verify whether that organization already exists
+    if (params.organizationId) {
+      const requestedOrg = params.organizationId.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "_");
+      const exists = await organizationExists(requestedOrg);
+      if (exists) {
+        return {
+          success: false,
+          error: "Forbidden: Public registration cannot choose an arbitrary existing organizationId. Joining an existing organization requires a verified invitation or administrator provisioning."
+        };
+      }
+      targetOrgId = requestedOrg;
+    } else {
+      // Provision a fresh, isolated new organization for this new customer
+      const baseSlug = (params.companyName || params.name || "org")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9_-]/g, "_")
+        .slice(0, 16);
+      const uniqueSuffix = crypto.randomBytes(4).toString("hex");
+      targetOrgId = `org_${baseSlug}_${uniqueSuffix}`;
+    }
+  }
+
   const salt = crypto.randomBytes(16).toString("hex");
   const passwordHash = hashPassword(params.password, salt);
   const userId = "USR-" + crypto.randomBytes(6).toString("hex").toUpperCase();
-
-  // Public registration role is strictly non-privileged Executive (no automatic Admin assignment)
-  const assignedRole: StoredUser["role"] = "Executive";
-
-  const orgId = (params.organizationId || params.companyName || "sovereign_enterprise")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9_-]/g, "_");
 
   const newUser: StoredUser = {
     id: userId,
@@ -93,17 +194,27 @@ export function registerUser(params: {
     role: assignedRole,
     department: params.department?.trim() || "Enterprise Operations",
     companyName: params.companyName?.trim() || "Sovereign Enterprise",
-    organizationId: orgId,
+    organizationId: targetOrgId,
     passwordHash,
     salt,
     createdAt: new Date().toISOString()
   };
 
-  usersCache[normalizedEmail] = newUser;
-  persistUserRecord(newUser).catch(err => {
-    console.error(`[STORAGE] Asynchronous managed store persistence failed:`, err);
-  });
+  // Asynchronous transactional persistence: fail safely if the authoritative write fails
+  try {
+    await persistUserRecord(newUser);
+  } catch (err: any) {
+    // Ensure failed database write does NOT result in successful registration or cached user
+    delete usersCache[normalizedEmail];
+    rollbackUserRecord(newUser);
+    return {
+      success: false,
+      error: `Authoritative database write failed: ${err.message}`
+    };
+  }
 
+  // Only update active cache once persistence and membership are confirmed
+  usersCache[normalizedEmail] = newUser;
   return { success: true, user: newUser };
 }
 

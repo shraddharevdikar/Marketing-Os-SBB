@@ -138,13 +138,49 @@ function getFirestoreAdmin() {
   return null;
 }
 
+export async function organizationExists(orgId: string): Promise<boolean> {
+  const sanitized = (orgId || "").toLowerCase().trim().replace(/[^a-z0-9_-]/g, "_");
+  if (!sanitized) return false;
+
+  for (const u of userStoreByEmail.values()) {
+    if (u.organizationId === sanitized) return true;
+  }
+
+  const tenantDir = path.join(MANAGED_DATA_DIR, sanitized);
+  if (fs.existsSync(tenantDir)) {
+    const usersFile = path.join(tenantDir, "users.json");
+    if (fs.existsSync(usersFile)) {
+      try {
+        const users = JSON.parse(fs.readFileSync(usersFile, "utf-8"));
+        if (Array.isArray(users) && users.length > 0) return true;
+      } catch {}
+    }
+  }
+
+  const fsAdmin = getFirestoreAdmin();
+  if (fsAdmin) {
+    try {
+      const orgDoc = await fsAdmin.collection("organizations").doc(sanitized).get();
+      if (orgDoc.exists) return true;
+    } catch {}
+  }
+
+  return false;
+}
+
+export function rollbackUserRecord(user: StoredUser): void {
+  userStoreByEmail.delete(user.email.toLowerCase());
+  userStoreById.delete(user.id);
+}
+
 // -------------------------------------------------------------------
 // 1. Authoritative User Account Store
 // -------------------------------------------------------------------
 export async function persistUserRecord(user: StoredUser): Promise<void> {
   return await withTenantLock(user.organizationId, async () => {
-    userStoreByEmail.set(user.email.toLowerCase(), { ...user });
-    userStoreById.set(user.id, { ...user });
+    if (process.env.SIMULATE_DB_WRITE_FAILURE === "true") {
+      throw new Error("Simulated database write failure: connection timeout");
+    }
 
     // 1. Save to managed database if Firestore Admin is configured
     const fsAdmin = getFirestoreAdmin();
@@ -159,6 +195,19 @@ export async function persistUserRecord(user: StoredUser): Promise<void> {
             ...user,
             updatedAt: new Date().toISOString()
           });
+
+        await fsAdmin
+          .collection("organizations")
+          .doc(user.organizationId)
+          .collection("members")
+          .doc(user.id)
+          .set({
+            uid: user.id,
+            email: user.email,
+            role: user.role,
+            organizationId: user.organizationId,
+            joinedAt: new Date().toISOString()
+          });
       } catch (err: any) {
         console.warn(`[MANAGED STORE] Cloud Firestore write skipped (${err.message}). Using local partition.`);
       }
@@ -169,11 +218,16 @@ export async function persistUserRecord(user: StoredUser): Promise<void> {
     const usersFile = path.join(tenantDir, "users.json");
     const tenantUsers: StoredUser[] = [];
     for (const u of userStoreByEmail.values()) {
-      if (u.organizationId === user.organizationId) {
+      if (u.organizationId === user.organizationId && u.id !== user.id) {
         tenantUsers.push(u);
       }
     }
+    tenantUsers.push({ ...user });
     atomicWriteSnapshot(usersFile, tenantUsers);
+
+    // Only update cache after durable write succeeds
+    userStoreByEmail.set(user.email.toLowerCase(), { ...user });
+    userStoreById.set(user.id, { ...user });
   });
 }
 

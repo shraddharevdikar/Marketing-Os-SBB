@@ -18,7 +18,7 @@ import {
   safeErrorHandler
 } from "./src/server/authMiddleware";
 import { executeLegacyMigration } from "./src/server/migrateLegacyRecords";
-import { registerUser, authenticateUser, findUserByEmail, provisionAdministrator } from "./src/server/userStore";
+import { registerUser, authenticateUser, findUserByEmail, provisionAdministrator, createOrgInvitation } from "./src/server/userStore";
 import {
   validateAiPromptInput,
   validateLeadCaptureInput,
@@ -117,26 +117,29 @@ app.post("/api/auth/demo-session", (req, res) => {
 });
 
 // Route: User Registration (Server-side cryptographically secure registration)
-app.post("/api/auth/register", authRateLimiter, (req, res) => {
-  const { email, password, name, department, companyName, organizationId } = req.body;
+app.post("/api/auth/register", authRateLimiter, async (req, res) => {
+  const { email, password, name, department, companyName, organizationId, invitationCode } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
-  const result = registerUser({
+  const result = await registerUser({
     email,
     password,
     name,
     department,
     companyName,
-    organizationId
+    organizationId,
+    invitationCode
   });
 
   if (!result.success || !result.user) {
-    return res.status(400).json({ error: result.error || "Registration failed." });
+    const isDbError = result.error?.includes("Authoritative database write failed");
+    return res.status(isDbError ? 500 : 400).json({ error: result.error || "Registration failed." });
   }
 
+  // Session token is strictly issued ONLY AFTER persistence and organization membership are confirmed
   const user = result.user;
   const token = createSignedSessionToken({
     userId: user.id,
@@ -160,8 +163,21 @@ app.post("/api/auth/register", authRateLimiter, (req, res) => {
   });
 });
 
+// Route: Create Organization Invitation (Admin only, tenant scoped)
+app.post("/api/org/invite", requireRole(["Admin"]), (req: any, res) => {
+  const { email, role = "Executive", validHours = 72 } = req.body;
+  const invitation = createOrgInvitation({
+    organizationId: req.user.organizationId,
+    role,
+    email,
+    createdBy: req.user.userId || req.user.email,
+    validHours
+  });
+  res.json({ success: true, invitation });
+});
+
 // Route: User Login (Server-side cryptographically verified login)
-app.post("/api/auth/login", authRateLimiter, (req, res) => {
+app.post("/api/auth/login", authRateLimiter, async (req, res) => {
   const { email, password, companyName } = req.body;
 
   if (!email || !password) {
@@ -173,7 +189,7 @@ app.post("/api/auth/login", authRateLimiter, (req, res) => {
   // If user does not exist yet logging in, auto-register them securely with the provided password
   // (strictly assigns non-privileged Executive role; Admin role requires trusted provisioning)
   if (!authResult.success && !findUserByEmail(email)) {
-    const regResult = registerUser({
+    const regResult = await registerUser({
       email,
       password,
       name: email.split("@")[0],
